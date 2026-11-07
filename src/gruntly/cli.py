@@ -193,19 +193,23 @@ def cmd_stats(a) -> int:
     rows = store.read_index()
     by: dict = {}
     for r in rows:
-        k = f"{r.get('harness')}/{r.get('model')}/ctx={r.get('ctx') or '?'}"
+        k = f"{r.get('harness')}/{r.get('model')}/ctx={r.get('ctx') or '?'}/{r.get('profile') or 'default'}"
         b = by.setdefault(k, {"runs": 0, "passed": 0, "escalated": 0, "attempts": 0, "wall_s": 0, "result_bytes": 0,
-                              "child_tokens": 0})
+                              "child_tokens": 0, "requests": 0, "input_tokens": 0})
         b["runs"] += 1
         b["passed"] += r.get("status") == "passed"
         b["escalated"] += r.get("status") in ("escalate", "timeout")
         b["attempts"] += r.get("attempts") or 0
         b["wall_s"] += r.get("wall_s") or 0
         b["result_bytes"] += r.get("result_bytes") or 0
-        b["child_tokens"] += (r.get("child_usage") or {}).get("total_tokens") or 0
+        u = r.get("child_usage") or {}
+        b["child_tokens"] += u.get("total_tokens") or 0
+        b["requests"] += u.get("requests") or 0
+        b["input_tokens"] += u.get("input_tokens") or 0 if u.get("requests") else 0
     for b in by.values():
         n = b["runs"]
-        b.update(pass_rate=round(b["passed"] / n, 2), mean_attempts=round(b["attempts"] / n, 2),
+        b.update(input_per_request=round(b["input_tokens"] / b["requests"]) if b["requests"] else None,
+                 pass_rate=round(b["passed"] / n, 2), mean_attempts=round(b["attempts"] / n, 2),
                  recommend=("unknown (need 10+ runs)" if n < 10 else "delegate" if b["passed"] / n >= 0.7 else "avoid"),
                  mean_wall_s=round(b["wall_s"] / n, 1), mean_result_bytes=round(b["result_bytes"] / n))
     out({"total_runs": len(rows), "by_harness_model": by}, a.human)

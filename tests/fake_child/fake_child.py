@@ -23,7 +23,7 @@ if scenario == "pass":
     fix()
     print("fixed add(); tests pass")
 elif scenario == "fix_on_retry":
-    if "previous attempt" in prompt:
+    if "previous attempt" in prompt or "The system ran the checks" in prompt:
         fix()
         print("fixed on retry")
     else:

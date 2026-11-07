@@ -14,7 +14,7 @@ class HermesAdapter:
             return Detection(False, None, "hermes not on PATH")
         return Detection(True, None, "installed; live output unverified (see docs/adapters.md)")
 
-    def command(self, task, workdir: Path, prompt: str, resume: str | None) -> Command:
+    def command(self, task, workdir: Path, prompt: str, resume: str | None, profile=None) -> Command:
         argv = [which("hermes") or "hermes", "chat", "-Q", "--yolo", "--ignore-rules", "-q", prompt]
         if task.model:
             argv += ["-m", task.model]

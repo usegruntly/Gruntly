@@ -84,6 +84,7 @@ class Store:
                 "harness": (self.read_json("spec.json") or {}).get("harness"),
                 "model": (self.read_json("spec.json") or {}).get("model"),
                 "wall_s": meta.get("wall_s", result.get("wall_s")), "ctx": self.read_json("status.json", {}).get("ctx"),
+                "profile": self.read_json("status.json", {}).get("profile"),
                 "result_bytes": len(json.dumps(result)), "child_usage": meta.get("child_usage")}
         with (idx / "runs.jsonl").open("a", encoding="utf8") as f:
             f.write(json.dumps(line) + "\n")
