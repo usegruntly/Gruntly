@@ -180,6 +180,9 @@ def test_qwen_slim_runs_bare_with_a_short_prompt_and_without_the_shell(tmp_path)
     assert "--bare" in cmd.argv and "--system-prompt" in cmd.argv
     excluded = [cmd.argv[i + 1] for i, a in enumerate(cmd.argv) if a == "--exclude-tools"]
     assert "run_shell_command" in excluded and "notebook_edit" in excluded and "edit" not in excluded
+    # regression: Qwen's edit tool needs read_file first; excluding it made the model loop for 27 requests
+    assert "read_file" not in excluded
+    assert "get_goal" in excluded and "update_goal" in excluded
     s2 = spec_for(harness="qwen", self_check=True)
     cmd2 = QwenAdapter().command(s2, tmp_path, "hi", None, profile=profiles.resolve(s2, t))
     assert "run_shell_command" not in [cmd2.argv[i + 1] for i, a in enumerate(cmd2.argv) if a == "--exclude-tools"]

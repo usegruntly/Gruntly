@@ -72,6 +72,8 @@ Both children ship a large system prompt and many tool schemas (OpenCode ~10.8k 
 - `OPENCODE_DISABLE_PROJECT_CONFIG`, `OPENCODE_DISABLE_CLAUDE_CODE` and `OPENCODE_DISABLE_EXTERNAL_SKILLS` stop it reading AGENTS.md and `~/.claude` skills into the prompt.
 - Result: slugify task with the typist profile: 2 requests of 1,235 and 1,488 input tokens, 3,136 child tokens in total, passed on attempt 1. Default profile: ~4 requests of ~11k, ~47-60k tokens.
 
-**Qwen Code 0.26.9** (from the bundle and `--help`; the measured spike is still to do)
+**Qwen Code 0.26.9** (measured 2026-11-08)
 - `--bare` skips auto-discovery and turns off the managed-memory extractor (the ~7k-token extra request). It forces the core tools to read_file, edit, notebook_edit and run_shell_command and ignores `--core-tools`, so unwanted tools are removed with `--exclude-tools`. There is no whole-file write tool in bare mode (`edit` with an empty `old_string` creates files).
 - `--system-prompt` replaces the default system prompt. Whether `--exclude-tools` drops a tool's schema from the request is not verified.
+- Measured on the slugify task, typist profile: **passed on attempt 1 with 3 requests of ~2.2k input tokens (7,329 child tokens, 40 s)**, against ~14k per request and ~77k tokens for the stock setup.
+- Qwen's `edit` tool refuses to edit a file that was not first read with `read_file`. The first slim config excluded `read_file` (the file was inlined), so the model could never edit: 27 requests, 131k input tokens, no result. `read_file` now stays whenever editing is allowed; `get_goal` and `update_goal`, which bare mode offers and the model wandered into, are excluded.

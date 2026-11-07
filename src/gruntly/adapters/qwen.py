@@ -5,6 +5,10 @@ managed-memory extractor, a separate ~7k-token request on every run. Bare mode f
 read_file, edit, notebook_edit and run_shell_command (`--core-tools` is ignored), so the profile removes the ones
 it does not want with `--exclude-tools`. There is no whole-file write tool in bare mode; `edit` creates files
 when `old_string` is empty. `--system-prompt` replaces the default system prompt.
+
+Qwen's `edit` refuses to change a file that has not been read with `read_file` first. Excluding `read_file` because the
+file was already inlined in the prompt made the model loop for 27 requests (131k tokens) and give up, so `read_file`
+stays whenever editing is allowed. Bare mode also offers `get_goal` / `update_goal`, which a small model wanders into.
 """
 from __future__ import annotations
 
@@ -15,8 +19,9 @@ from pathlib import Path
 from .base import Caps, ChildOutcome, Command, Detection, count_malformed, kill_tree, which
 
 SYSTEM = "You change code files in the current directory using the tools provided. Be concise."
-BARE_TOOLS = {"read": ["read_file"], "write": ["edit"], "edit": ["edit"], "test": ["run_shell_command"]}
-BARE_ALL = ["read_file", "edit", "notebook_edit", "run_shell_command"]
+BARE_TOOLS = {"read": ["read_file"], "write": ["edit", "read_file"], "edit": ["edit", "read_file"],
+              "test": ["run_shell_command"]}
+BARE_ALL = ["read_file", "edit", "notebook_edit", "run_shell_command", "get_goal", "update_goal"]
 
 
 class QwenAdapter:
