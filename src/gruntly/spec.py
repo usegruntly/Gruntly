@@ -41,8 +41,11 @@ DEFAULTS: dict[str, Any] = {
     "env_allow": [],
     "apply_on_pass": False,
     "holdout": None,
-    "min_context": 32768,
+    "min_context": None,           # None = the profile's floor (typist 8k, worker 16k, default 32k)
     "allow_small_ctx": False,
+    "profile": "auto",             # auto | typist | worker | default (see profiles.py)
+    "inline_files": "auto",        # embed the target files in the prompt: auto | true | false
+    "self_check": False,           # True lets the child run the acceptance command itself; False = evaluate & fix
 }
 HARNESSES = ("qwen", "opencode", "hermes", "generic")
 
@@ -76,8 +79,11 @@ class Spec:
     env_allow: list[str] = field(default_factory=list)
     apply_on_pass: bool = False
     holdout: Any = None            # {files: [...], cmd: "..."}: parent-written tests the child never sees
-    min_context: int = 32768
+    min_context: int | None = None
     allow_small_ctx: bool = False
+    profile: str = "auto"
+    inline_files: Any = "auto"
+    self_check: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -179,6 +185,10 @@ def _validate(s: Spec) -> None:
     s.acceptance = norm
     if s.kind == "code" and not norm:
         raise SpecError("code tasks need at least one acceptance command")
+    if s.profile not in ("auto", "typist", "worker", "default"):
+        raise SpecError("profile must be auto, typist, worker or default")
+    if s.inline_files not in ("auto", True, False):
+        raise SpecError("inline_files must be auto, true or false")
     if s.holdout is not None:
         h = s.holdout
         if not isinstance(h, dict) or not h.get("cmd") or not _as_list(h.get("files")):

@@ -73,7 +73,7 @@ def judge(task_dir: Path, work: Path) -> bool:
 
 def analyse(raw: str) -> dict:
     """Turns, cost, context and tool-output size from a stream-json transcript."""
-    tool_bytes = peak = 0
+    tool_bytes = peak = sessions = background = 0
     tools: dict[str, int] = {}
     result: dict = {}
     for line in raw.splitlines():
@@ -82,6 +82,8 @@ def analyse(raw: str) -> dict:
         except json.JSONDecodeError:
             continue
         t = e.get("type")
+        if t == "system" and e.get("subtype") == "init":
+            sessions += 1  # a backgrounded run ends the turn; the conversation is replayed in a second session
         if t == "assistant":
             msg = e.get("message", {})
             u = msg.get("usage") or {}
@@ -90,6 +92,7 @@ def analyse(raw: str) -> dict:
             for b in msg.get("content", []):
                 if b.get("type") == "tool_use":
                     tools[b.get("name", "?")] = tools.get(b.get("name", "?"), 0) + 1
+                    background += bool((b.get("input") or {}).get("run_in_background"))
         elif t == "user":
             for b in (e.get("message", {}).get("content") or []):
                 if isinstance(b, dict) and b.get("type") == "tool_result":
@@ -99,7 +102,7 @@ def analyse(raw: str) -> dict:
             result = e
     u = result.get("usage") or {}
     return {"cost_usd": round(result.get("total_cost_usd") or 0, 4), "turns": result.get("num_turns"),
-            "reply": (result.get("result") or "")[:500], "tools": tools, "tool_output_bytes": tool_bytes, "peak_ctx": peak,
+            "reply": (result.get("result") or "")[:500], "tools": tools, "sessions": sessions, "background_calls": background, "tool_output_bytes": tool_bytes, "peak_ctx": peak,
             "tokens": {"input": u.get("input_tokens", 0), "cache_write": u.get("cache_creation_input_tokens", 0),
                        "cache_read": u.get("cache_read_input_tokens", 0), "output": u.get("output_tokens", 0)}}
 
@@ -153,8 +156,8 @@ def report(rows: list[dict], meta: dict) -> str:
          "S = ten small tasks the parent solves in ~4 turns; L = three larger tasks (six bugs, a 15-file rename, a CLI feature). "
          "Arms: `alone`; `forced` (told to delegate through the one-call flow); `policy` (may delegate if the skill's triage rule says so).", "",
          "## Totals by bucket (means over tasks and repetitions)", "",
-         "| bucket | arm | runs | pass rate | cost $/run | vs alone | turns | wall s | parent output tok | tool-output KB in context | delegated | child tok |",
-         "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+         "| bucket | arm | runs | pass rate | cost $/run | vs alone | turns | session splits | wall s | parent output tok | tool-output KB in context | delegated | child tok |",
+         "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for b in ("S", "L"):
         base = [r["cost_usd"] for r in rows if r["bucket"] == b and r["arm"] == "alone"]
         for arm in arms:
@@ -164,8 +167,8 @@ def report(rows: list[dict], meta: dict) -> str:
             rel = f"{mean([r['cost_usd'] for r in rs]) / mean(base) - 1:+.0%}" if base and arm != "alone" else "-"
             deleg = sum(1 for r in rs if r["gruntly_status"])
             L.append(f"| {b} | {arm} | {len(rs)} | {mean([r['passed'] for r in rs]):.0%} | {mean([r['cost_usd'] for r in rs]):.3f} | {rel} | "
-                     f"{mean([r['turns'] or 0 for r in rs]):.1f} | {mean([r['wall_s'] for r in rs]):.0f} | "
-                     f"{mean([r['tokens']['output'] for r in rs]):.0f} | {mean([r['tool_output_bytes'] for r in rs]) / 1024:.1f} | "
+                     f"{mean([r['turns'] or 0 for r in rs]):.1f} | {mean([max(0, r.get('sessions', 1) - 1) for r in rs]):.1f} | "
+                     f"{mean([r['wall_s'] for r in rs]):.0f} | {mean([r['tokens']['output'] for r in rs]):.0f} | {mean([r['tool_output_bytes'] for r in rs]) / 1024:.1f} | "
                      f"{deleg}/{len(rs)} | {sum(r['child_tokens'] for r in rs) or '-'} |")
     L += ["", "## Per task (mean over repetitions)", "",
           "| task | arm | pass | cost $ | turns | wall s | gruntly (status, attempts) | false pass |", "|---|---|---|---|---|---|---|---|"]

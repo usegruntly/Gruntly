@@ -23,11 +23,15 @@ if scenario == "pass":
     fix()
     print("fixed add(); tests pass")
 elif scenario == "fix_on_retry":
-    if "previous attempt" in prompt:
+    if "previous attempt" in prompt or "The system ran the checks" in prompt:
         fix()
         print("fixed on retry")
     else:
         print("looked around, changed nothing")
+elif scenario == "slow_pass":
+    time.sleep(4)
+    fix()
+    print("fixed after a pause")
 elif scenario == "no_fix":
     print("I did my best.")
 elif scenario == "out_of_scope":

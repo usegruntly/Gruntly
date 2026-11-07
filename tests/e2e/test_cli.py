@@ -129,7 +129,7 @@ def test_stats_aggregates_runs(repo, run_task, make_spec, capsys):
     run_task(make_spec("no_fix", max_attempts=1))
     _, out = call(capsys, "stats")
     s = json.loads(out)
-    b = s["by_harness_model"]["generic/None/ctx=?"]
+    b = s["by_harness_model"]["generic/None/ctx=?/default"]
     assert s["total_runs"] == 2 and b["passed"] == 1 and b["escalated"] == 1 and b["pass_rate"] == 0.5
 
 

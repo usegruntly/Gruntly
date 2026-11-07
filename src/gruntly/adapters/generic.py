@@ -14,7 +14,7 @@ class GenericAdapter:
     def detect(self) -> Detection:
         return Detection(True, None, "any command template")
 
-    def command(self, task, workdir: Path, prompt: str, resume: str | None) -> Command:
+    def command(self, task, workdir: Path, prompt: str, resume: str | None, profile=None) -> Command:
         tpl = task.child_cmd
         parts = list(tpl) if isinstance(tpl, (list, tuple)) else shlex.split(str(tpl), posix=(os.name != "nt"))
         subs = {"prompt": prompt, "workdir": str(workdir), "model": task.model or ""}

@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import doctor, prompt, result as resmod, sandbox, worktree as wtmod
+from . import doctor, profiles, prompt, result as resmod, sandbox, worktree as wtmod
 from .apply import apply_run
 from .adapters.base import get_adapter, scrub_env
 from .gates import acceptance, deps, diff_size, scope, test_weakening
@@ -212,6 +212,13 @@ def _holdout_gate(h: dict, wt: Path, root: Path, secrets: list[str]) -> dict:
             f.unlink(missing_ok=True)
 
 
+def pick_profile(spec, tree: Path, adapter, forced: str | None = None) -> "profiles.ResolvedProfile":
+    """`auto` only applies to harnesses that understand profiles; others keep their defaults unless asked."""
+    if forced is None and spec.profile == "auto" and not adapter.capabilities().profiles:
+        return profiles.resolve(spec, tree, "default")
+    return profiles.resolve(spec, tree, forced)
+
+
 def first_failure(gates: dict) -> str | None:
     for n in GATE_PRIORITY:
         if n in gates and not gates[n]["ok"]:
@@ -235,6 +242,7 @@ def prepare(spec: Spec, root: Path, run_id: str | None = None) -> str:
 
 def execute(root: Path, run_id: str, guidance: str | None = None, extra_attempts: int | None = None) -> dict:
     st = Store.existing(root, run_id)
+    st.set_state("queued", pid=os.getpid())  # lets `gruntly wait` notice a worker that died without a result
     spec = Spec(**st.read_json("spec.json"))
     if extra_attempts:
         spec.max_attempts = extra_attempts
@@ -276,11 +284,12 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         ctx = p["ctx"].get(spec.model) if spec.model else (next(iter(p["ctx"].values()), None))
         if ctx:
             st.set_state("running", ctx=ctx)
-            if ctx < spec.min_context and not spec.allow_small_ctx:
+            floor = profiles.context_floor(spec, pick_profile(spec, root, adapter, prior.get("profile") if cont else None).name)
+            if ctx < floor and not spec.allow_small_ctx:
                 return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
-                               error=f"model context is {ctx} tokens (< {spec.min_context}): the agent's own prompt "
+                               error=f"model context is {ctx} tokens (< {floor}): the agent's own prompt "
                                      f"nearly fills it and runs fail. Reload the model with a larger context, or set "
-                                     f"allow_small_ctx: true to run anyway.")
+                                     f"allow_small_ctx: true (or profile: typist, which needs less) to run anyway.")
 
     if cont:
         base, main_fp = prior["base"], prior["main_fp"]
@@ -292,6 +301,8 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
     attempt_no = prior.get("attempts", 0)
     session = prior.get("session")
     handoff_path = wt / prompt.HANDOFF_FILE
+    rp = pick_profile(spec, wt, adapter, prior.get("profile") if cont else None)
+    st.set_state("running", profile=rp.name)
 
     child_s = gates_s = 0.0
     attempts_log: list[dict] = prior.get("attempts_log", [])
@@ -315,13 +326,14 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
             status, reason = "timeout", "wall-clock budget used up"
             break
         notes = redact(handoff_path.read_text(encoding="utf8", errors="replace"), [])[:1500] if handoff_path.exists() else ""
+        pctx = prompt.Ctx(rp, profiles.inline_block(spec, rp, wt))  # files re-read each attempt: they may have changed
         if local == 1:
-            text = prompt.continuation(spec, notes, guidance) if cont else prompt.first(spec)
+            text = prompt.continuation(spec, notes, guidance, pctx) if cont else prompt.first(spec, pctx)
         elif caps.resume and session:
-            text = prompt.retry(spec, last_gate, last_text, notes, "", context_hit)
+            text = prompt.retry(spec, last_gate, last_text, notes, "", context_hit, pctx)
         else:
-            text = prompt.resume_fresh(spec, last_gate, last_text, notes, "", context_hit)
-        cmd = adapter.command(spec, wt, text, session if (local > 1 and caps.resume) else None)
+            text = prompt.resume_fresh(spec, last_gate, last_text, notes, "", context_hit, pctx)
+        cmd = adapter.command(spec, wt, text, session if (local > 1 and caps.resume) else None, profile=rp)
         try:
             cmd = sandbox.wrap(cmd, spec.sandbox_level, wt, root, spec.endpoint)
         except RuntimeError as e:
@@ -390,7 +402,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
     notes = redact(handoff_path.read_text(encoding="utf8", errors="replace")[:1500], []) \
         if status in ("escalate", "timeout") and handoff_path.exists() else ""
     st.write_json("state.json", {"base": base, "main_fp": main_fp, "attempts": attempt_no, "session": session,
-                                 "attempts_log": attempts_log, "warnings": warnings})
+                                 "attempts_log": attempts_log, "warnings": warnings, "profile": rp.name})
     applied = hint = None
     if status == "passed":
         hint = _review_hint(gates, stats, warnings)

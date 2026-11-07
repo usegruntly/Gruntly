@@ -1,6 +1,6 @@
 # Decisions
 
-## 2026-11-07 â€” blocking questions
+## 2026-11-07 — blocking questions
 
 - **OS/shell:** both. WSL2 Ubuntu is the primary dev and test target. Core code stays portable; native Windows gets a process-tree kill fallback, and sandbox level 1 (bubblewrap) is Linux-only.
 - **Local model:** LM Studio or llama.cpp via an OpenAI-compatible endpoint. Model, context length and URL to be confirmed in M0. Dev machine has 15.7 GB RAM and no NVIDIA GPU detected, so expect a small model and long timeouts.
@@ -11,7 +11,7 @@
 
 Python 3.11+, MIT, claude code as the only parent, worktree plus scrubbed env, sync CLI with `--async`, max_concurrency 1, base working-tree, fresh child per task, file and shell tools only, runs under `.gruntly/`, no usage data leaves the machine, 3 attempts, 120 s no-progress, 900 s budget, 400 changed lines.
 
-## 2026-11-07 â€” context relay (added at the user's request)
+## 2026-11-07 — context relay (added at the user's request)
 
 Small local models may not fit a whole task in one context window. A child that runs out writes `.gruntly-handoff.md` (files read, what it understood, done, remaining). gruntly keeps that file out of the diff, feeds it into in-run retries, and returns it in `failure_bundle.handoff` (capped at 1500 chars, with `context_exhausted: true` when the context-overflow error was seen). The parent adds guidance and runs `gruntly continue <run> --guidance "..."`: a fresh child starts in the same worktree with the brief, the notes and the guidance. The attempt counter carries across relays. The parent stays in the loop on purpose, so it can steer each hop; automatic multi-hop without the parent is not built.
 
@@ -37,3 +37,16 @@ Delegation does not save money on tasks the parent finishes in 3 to 5 turns: the
 - The MCP `.mcp.json` launches the server with `uvx --from "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly"` until the package is on PyPI.
 - Benchmark tasks are synthetic and small (the brief wants tasks from the user's own repos); `bench/validate_tasks.py` proves each starter fails and a reference solution passes the hidden tests.
 - Not done in v1: PyPI publish (name re-check needed first), a live sandbox level 1 run, a live Hermes run, ACP adapter (not clearly simpler), research tasks (kind exists, no research path).
+
+## Slim child profiles and evaluate & fix (2026-11-07)
+
+- The child's cost is dominated by its harness, not the task: ~11k input tokens per request for a one-line fix. Profiles (`typist`, `worker`, `default`, `auto`) replace the harness prompt and tool set per task; which profile wins is decided by `bench/run_child_bench.py` (free: no Claude involved), not by argument.
+- User decision: the local model gets **no shell**. It is told not to run tests; gruntly runs the acceptance command and all other gates and feeds any failure back as the next attempt, so the parent never sees intermediate failures. `self_check: true` (acceptance command only) stays available as a benchmark arm.
+- A native minimal agent loop in gruntly was considered and not built: the slimmed harnesses reach ~1.2k tokens per request, which is the target the native loop was meant to hit.
+- `auto` only applies to harnesses that declare `Caps.profiles`; generic and Hermes keep `default` unless a profile is named.
+
+## claude.ai connectors disabled for coding sessions (2026-11-07)
+
+`"disableClaudeAiConnectors": true` was set in the user-level `~/.claude/settings.json` (backup: `settings.json.bak-before-connectors`; remove the key to re-enable). The Gmail, Drive, Docs and Calendar connectors added ~50 tool schemas to every Claude Code session. Verified with a trivial `claude -p --model sonnet` prompt: 53 connector tools before, 0 after; cost $0.0554 -> $0.0347.
+
+Consequence for the benchmarks: **runs made before this change are not comparable with runs made after it.** The per-session cost floor (~$0.15 on Opus, ~$0.07 on Sonnet in benchmark v2) included these schemas, so both the `alone` and `gruntly` arms get cheaper. Any claim about delegation overhead has to be re-measured on the same footing.

@@ -21,7 +21,14 @@ gates: {diff_max_lines: 400, regression: "pytest -q"}   # regression = run the w
 max_attempts: 3
 budget_s: 900
 ```
+`profile: auto|typist|worker|default` (default `auto`) sets how much of the child harness the local model gets. `typist` (a few small, literally named files): short prompt, the files inlined in it, whole-file writes, no search tools. `worker`: also list/search/read tools and a longer prompt, for tasks where the child must find its own way. `default`: the harness as shipped. A slim profile cuts the child's input from ~11k to ~1.2k tokens per request, and needs only an 8k (typist) or 16k (worker) context window. `inline_files: false` stops files being embedded.
+
+`self_check: false` (default) is **evaluate & fix**: the child has no shell and is told not to run tests. gruntly runs the acceptance command and the other gates itself and sends any failure straight back to the child as the next attempt; the parent sees only the final result. `self_check: true` lets the child run the acceptance command (and nothing else) itself.
+
 Bare strings are fine for `acceptance` and path lists. gruntly warns (`warnings`, `review_hint`) when acceptance already passes before any change: such a test proves nothing.
+
+## Waiting
+Run `gruntly run` in the foreground (Bash timeout 300000) and let it block. It returns the result, or after 240 s (`--max-block`) a tiny `{"status": "running"}`; the run keeps going in a detached worker, so call `gruntly wait <run>` (same foreground call). Do not use `run_in_background` or poll with short calls: backgrounding ends the parent's turn, the conversation is replayed in a new session to read the result, and every poll is a turn that re-reads the context.
 
 ## Commands
 - `gruntly run --spec F|-  [--apply-on-pass] [--async]`

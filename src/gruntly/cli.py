@@ -5,6 +5,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from . import doctor as doctormod, runner, store, worktree as wtmod
@@ -27,7 +28,7 @@ diff_max_lines = 400
 
 SNIPPET = """## Delegating to gruntly
 Delegate only if a command proves the task done, it is mechanical, and doing it yourself would take ~8+ turns. Otherwise do it yourself.
-One call (spec on stdin); run it in the background and do not poll:
+One call (spec on stdin), in the foreground with a 300000 ms Bash timeout; never run_in_background. If it returns `running`, call `gruntly wait <run>`:
     gruntly run --apply-on-pass --spec - <<'EOF'
     brief: <goal; list every behaviour that must hold>
     allowed_paths: ["calc.py"]
@@ -61,6 +62,39 @@ def _root() -> Path:
     return wtmod.repo_root(Path.cwd())
 
 
+def _spawn_worker(root: Path, rid: str) -> None:
+    subprocess.Popen([sys.executable, "-m", "gruntly", "_worker", rid], cwd=str(root),
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     **({"creationflags": 0x00000008 | 0x00000200} if sys.platform == "win32" else {"start_new_session": True}))
+
+
+def _wait(root: Path, rid: str, timeout_s: float) -> dict:
+    """Block until the run has a result, or return a tiny `running` status after timeout_s.
+
+    This is what keeps the parent in ONE turn: a parent that backgrounds the run ends its turn, and the whole
+    conversation is then re-read (and re-billed) in a second session just to read a 300-byte result."""
+    st = store.Store.existing(root, rid)
+    t0 = time.time()
+    while True:
+        s = st.read_json("status.json", {})
+        if s.get("state") == "done" and (st.dir / "result.json").exists():
+            return st.read_json("result.json")
+        pid, age = s.get("pid"), time.time() - s.get("updated", t0)
+        if (pid and age > 3 and not runner._pid_alive(pid)) or (not pid and s.get("state") == "queued" and age > 60):
+            return {"run_id": rid, "status": "error",
+                    "error": "the worker process ended without a result; see `gruntly log " + rid + "`", "next": ["gruntly doctor"]}
+        if time.time() - t0 >= timeout_s:
+            cur = st.status()
+            return {"run_id": rid, "status": "running", "state": cur.get("state"), "attempt": cur.get("attempt"),
+                    "elapsed_s": cur.get("elapsed_s"), "next": [f"gruntly wait {rid}"]}
+        time.sleep(1)
+
+
+def cmd_wait(a) -> int:
+    out(_wait(_root(), a.run, a.timeout), a.human)
+    return 0
+
+
 def cmd_run(a) -> int:
     root = wtmod.preflight(Path.cwd())
     text = sys.stdin.read() if a.spec == "-" else Path(a.spec).read_text(encoding="utf8")
@@ -69,11 +103,12 @@ def cmd_run(a) -> int:
         raw["apply_on_pass"] = True
     spec = build_spec(raw, root)
     rid = runner.prepare(spec, root)
-    if a.async_:
-        subprocess.Popen([sys.executable, "-m", "gruntly", "_worker", rid], cwd=str(root),
-                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         **({"creationflags": 0x00000008 | 0x00000200} if sys.platform == "win32" else {"start_new_session": True}))
-        out({"run_id": rid, "status": "queued", "next": [f"gruntly status {rid}", f"gruntly result {rid}"]}, a.human)
+    if a.async_ or a.max_block > 0:
+        _spawn_worker(root, rid)
+        if a.async_:
+            out({"run_id": rid, "status": "queued", "next": [f"gruntly wait {rid}"]}, a.human)
+        else:
+            out(_wait(root, rid, a.max_block), a.human)
         return 0
     out(runner.execute(root, rid), a.human)
     return 0
@@ -82,21 +117,23 @@ def cmd_run(a) -> int:
 def cmd_worker(a) -> int:
     root = _root()
     st = store.Store.existing(root, a.run)
-    guidance = st.read_json("continue.json", {}).get("guidance") if (st.dir / "continue.json").exists() else None
-    runner.execute(root, a.run, guidance=guidance)
+    cont = st.read_json("continue.json", {}) if (st.dir / "continue.json").exists() else {}
+    runner.execute(root, a.run, guidance=cont.get("guidance"), extra_attempts=cont.get("attempts"))
     return 0
 
 
 def cmd_continue(a) -> int:
     root = _root()
     st = store.Store.existing(root, a.run)
-    if a.async_:
-        st.write_json("continue.json", {"guidance": a.guidance})
+    if a.async_ or a.max_block > 0:
+        st.write_json("continue.json", {"guidance": a.guidance, "attempts": a.attempts})
+        (st.dir / "result.json").unlink(missing_ok=True)  # `wait` must not return the previous result
         st.set_state("queued")
-        subprocess.Popen([sys.executable, "-m", "gruntly", "_worker", a.run], cwd=str(root),
-                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         **({"creationflags": 0x00000008 | 0x00000200} if sys.platform == "win32" else {"start_new_session": True}))
-        out({"run_id": a.run, "status": "queued"}, a.human)
+        _spawn_worker(root, a.run)
+        if a.async_:
+            out({"run_id": a.run, "status": "queued", "next": [f"gruntly wait {a.run}"]}, a.human)
+        else:
+            out(_wait(root, a.run, a.max_block), a.human)
         return 0
     out(runner.execute(root, a.run, guidance=a.guidance, extra_attempts=a.attempts), a.human)
     return 0
@@ -193,19 +230,23 @@ def cmd_stats(a) -> int:
     rows = store.read_index()
     by: dict = {}
     for r in rows:
-        k = f"{r.get('harness')}/{r.get('model')}/ctx={r.get('ctx') or '?'}"
+        k = f"{r.get('harness')}/{r.get('model')}/ctx={r.get('ctx') or '?'}/{r.get('profile') or 'default'}"
         b = by.setdefault(k, {"runs": 0, "passed": 0, "escalated": 0, "attempts": 0, "wall_s": 0, "result_bytes": 0,
-                              "child_tokens": 0})
+                              "child_tokens": 0, "requests": 0, "input_tokens": 0})
         b["runs"] += 1
         b["passed"] += r.get("status") == "passed"
         b["escalated"] += r.get("status") in ("escalate", "timeout")
         b["attempts"] += r.get("attempts") or 0
         b["wall_s"] += r.get("wall_s") or 0
         b["result_bytes"] += r.get("result_bytes") or 0
-        b["child_tokens"] += (r.get("child_usage") or {}).get("total_tokens") or 0
+        u = r.get("child_usage") or {}
+        b["child_tokens"] += u.get("total_tokens") or 0
+        b["requests"] += u.get("requests") or 0
+        b["input_tokens"] += u.get("input_tokens") or 0 if u.get("requests") else 0
     for b in by.values():
         n = b["runs"]
-        b.update(pass_rate=round(b["passed"] / n, 2), mean_attempts=round(b["attempts"] / n, 2),
+        b.update(input_per_request=round(b["input_tokens"] / b["requests"]) if b["requests"] else None,
+                 pass_rate=round(b["passed"] / n, 2), mean_attempts=round(b["attempts"] / n, 2),
                  recommend=("unknown (need 10+ runs)" if n < 10 else "delegate" if b["passed"] / n >= 0.7 else "avoid"),
                  mean_wall_s=round(b["wall_s"] / n, 1), mean_result_bytes=round(b["result_bytes"] / n))
     out({"total_runs": len(rows), "by_harness_model": by}, a.human)
@@ -246,11 +287,16 @@ def build_parser() -> argparse.ArgumentParser:
         return sp
 
     r = add("run", cmd_run, spec={"required": True, "help": "spec file, or - for stdin"})
-    r.add_argument("--async", dest="async_", action="store_true")
+    r.add_argument("--async", dest="async_", action="store_true", help="return a run id at once")
+    r.add_argument("--max-block", type=int, default=240,
+                   help="wait up to N seconds for the result, then return a `running` status (0 = run in this process until done)")
     r.add_argument("--apply-on-pass", action="store_true",
                    help="apply to the working tree when every gate passes (never commits)")
     c = add("continue", cmd_continue, "run", guidance={"required": True}, attempts={"type": int})
     c.add_argument("--async", dest="async_", action="store_true")
+    c.add_argument("--max-block", type=int, default=240)
+    w = add("wait", cmd_wait, "run")
+    w.add_argument("--timeout", type=int, default=240, help="seconds to wait before returning a `running` status")
     add("status", cmd_status, "run")
     add("result", cmd_result, "run")
     d = add("diff", cmd_diff, "run", file={}, hunks={"type": int})
