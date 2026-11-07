@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gruntly"
-version = "0.0.1"
+version = "0.1.0"
 description = "Hand the grunt work to your local model. Gruntly runs your AI coding agent's tasks on a local harness and checks the result before Claude Code takes it back."
 readme = "README.md"
 requires-python = ">=3.11"

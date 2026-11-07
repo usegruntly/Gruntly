@@ -22,3 +22,14 @@ Small local models may not fit a whole task in one context window. A child that 
 - Stuck detection normalizes numbers in the failing output, otherwise timing lines make identical failures look different.
 - Status `failed` from the brief is unused: gate failures after the last attempt are `escalate`.
 - The Qwen prompt goes on stdin because the npm `.cmd` shim on Windows mangles multi-line arguments.
+
+## M3-M6 notes
+
+- OpenCode state is isolated per run (XDG dirs under `.gruntly/child-state/`); a foreign OpenCode database made headless runs fail on this machine.
+- Hermes could not be verified: it does not build on native Windows (`pywinpty`), and WSL2 cannot reach LM Studio on loopback. Adapter uses the flags from `--help` only.
+- Python bytecode: the child and every gate command run with `PYTHONDONTWRITEBYTECODE=1`, and `__pycache__` is purged before gates, because a same-size same-second edit reused a stale `.pyc` (found when the Linux run reproduced a flaky test).
+- Apply re-checks path scope but not the main-tree fingerprint: the parent legitimately edits files after a run.
+- MCP SDK 2.x renamed `FastMCP` to `MCPServer`; the server imports whichever exists.
+- The MCP `.mcp.json` launches the server with `uvx --from "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly"` until the package is on PyPI.
+- Benchmark tasks are synthetic and small (the brief wants tasks from the user's own repos); `bench/validate_tasks.py` proves each starter fails and a reference solution passes the hidden tests.
+- Not done in v1: PyPI publish (name re-check needed first), a live sandbox level 1 run, a live Hermes run, ACP adapter (not clearly simpler), research tasks (kind exists, no research path).
