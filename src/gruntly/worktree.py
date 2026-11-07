@@ -117,6 +117,10 @@ def remove(root: Path, run_id: str) -> None:
     git(["worktree", "remove", "--force", str(path)], root, check=False)
     git(["branch", "-D", f"gruntly/{run_id}"], root, check=False)
     git(["worktree", "prune"], root, check=False)
+    state = root / ".gruntly" / "child-state" / run_id
+    if state.is_dir():
+        from .store import force_rmtree
+        force_rmtree(state)
 
 
 def stage_all(wt: Path) -> None:

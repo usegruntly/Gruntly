@@ -42,7 +42,7 @@ Decision rule (docs/plan): adopt typist where its hidden-test pass rate is withi
 
 ## Result
 
-Only OpenCode was measured (Qwen Code's slim path is still untested). The precise stage is complete (64 runs, 2 repetitions); the vague stage stopped at 21 of 32 runs when the machine ran low on memory, so its cells hold 5 to 6 runs each: read them as directional.
+Only OpenCode was benchmarked (the Qwen Code slim path was measured on one task only; see docs/adapters.md). The precise stage is complete (64 runs, 2 repetitions); the vague stage stopped at 21 of 32 runs when the machine ran low on memory, so its cells hold 5 to 6 runs each: read them as directional.
 
 Applying the decision rule written before the run:
 

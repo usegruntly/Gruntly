@@ -16,6 +16,17 @@ def state_dir() -> Path:
     return Path(base) if base else Path.home() / ".local" / "state" / "gruntly"
 
 
+def force_rmtree(path: Path) -> None:
+    """rmtree that also removes read-only files (git packs inside a harness's state dir on Windows)."""
+    import stat
+
+    def _writable(func, p, _exc):
+        os.chmod(p, stat.S_IWRITE)
+        func(p)
+
+    shutil.rmtree(path, onerror=_writable)
+
+
 class RunNotFound(KeyError):
     pass
 
@@ -125,4 +136,10 @@ def gc(root: Path, remove_worktree, days: int = RETENTION_DAYS, keep: int = RETE
             if not (Path(root) / ".gruntly" / "runs" / p.name).is_dir():
                 remove_worktree(p.name)
                 removed.append(p.name)
+    states = Path(root) / ".gruntly" / "child-state"
+    if states.is_dir():
+        for p in states.iterdir():
+            if not (Path(root) / ".gruntly" / "runs" / p.name).is_dir():
+                force_rmtree(p)
+                removed.append("child-state/" + p.name)
     return removed

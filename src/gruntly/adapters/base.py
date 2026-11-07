@@ -49,6 +49,7 @@ class Caps:
     resume: bool = False
     structured_output: bool = False
     serve_mode: bool = False
+    whole_file_write: bool = False   # offers a write-whole-file tool (else the prompt must not ask for one)
     profiles: bool = False   # understands tool/prompt profiles (profiles.py); else `auto` means `default`
 
 

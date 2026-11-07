@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from . import sandbox
 from .adapters.base import get_adapter
+from .profiles import FLOORS
 
 MIN_CTX = 32_768
 
@@ -52,8 +53,11 @@ def run(endpoint: str, model: str | None = None) -> dict:
         for mid, n in p["ctx"].items():
             if model and mid != model:
                 continue
-            add("context_size", n >= MIN_CTX, f"{mid}: {n} tokens" + ("" if n >= MIN_CTX else f" (< {MIN_CTX}; agents may truncate)"),
-                warn=n < MIN_CTX)
+            ok = n >= FLOORS["typist"]
+            note = "" if n >= FLOORS["default"] else (
+                f" (enough for the typist and worker profiles; the stock harness wants {FLOORS['default']})" if ok
+                else f" (< {FLOORS['typist']}: too small even for the typist profile)")
+            add("context_size", ok, f"{mid}: {n} tokens{note}", warn=n < FLOORS["default"])
     ok1, why1 = sandbox.level_available(1)
     add("sandbox", True, f"level 0 always; level 1: {why1}", warn=not ok1)
     add("isolation_note", True, "level 0 is not a security boundary; auto-approve flags run shell unattended", warn=True)

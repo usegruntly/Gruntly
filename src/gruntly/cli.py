@@ -63,9 +63,11 @@ def _root() -> Path:
 
 
 def _spawn_worker(root: Path, rid: str) -> None:
+    # Windows: CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP. DETACHED_PROCESS leaves the worker without a console, and every
+    # console program it then starts (the child agent, pytest) would open its own visible window.
     subprocess.Popen([sys.executable, "-m", "gruntly", "_worker", rid], cwd=str(root),
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     **({"creationflags": 0x00000008 | 0x00000200} if sys.platform == "win32" else {"start_new_session": True}))
+                     **({"creationflags": 0x08000000 | 0x00000200} if sys.platform == "win32" else {"start_new_session": True}))
 
 
 def _wait(root: Path, rid: str, timeout_s: float) -> dict:

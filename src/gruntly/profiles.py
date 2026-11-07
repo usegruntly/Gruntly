@@ -27,6 +27,8 @@ MAX_TYPIST_FILES = 3          # target files for auto -> typist
 MAX_TYPIST_LINES = 240        # total lines of target + context files for auto -> typist
 REWRITE_MAX_LINES = 80        # per file; above this the edit tool stays (a whole-file rewrite can drop content)
 INLINE_MAX_CHARS = 12_000     # ~3k tokens of file text in the prompt
+# only real test files are expanded from a directory in the acceptance command (not helpers or fixtures)
+TEST_NAME = re.compile(r"^test_.*\.py$|_test\.(?:py|go)$|\.(?:test|spec)\.\w+$")
 FLOORS = {"typist": 8_192, "worker": 16_384, "default": 32_768}  # minimum model context per profile
 
 
@@ -66,6 +68,32 @@ def targets_of(spec, tree: Path) -> list[str]:
     return found
 
 
+def acceptance_files(spec, tree: Path) -> list[str]:
+    """Files the acceptance command names (a test file, or the tests under a directory), shown to the child read-only.
+    Without them a typist implements from the brief alone, blind to what is actually checked. Holdout files are
+    never shown."""
+    import shlex
+
+    held = set((spec.holdout or {}).get("files", []))
+    out: list[str] = []
+    for a in spec.acceptance:
+        try:
+            toks = shlex.split(a["cmd"])
+        except ValueError:
+            toks = a["cmd"].split()
+        for t in toks:
+            t = t.strip("\"'").replace("\\", "/")
+            if not t or t.startswith("-") or t in held or _denied(spec, t):
+                continue
+            p = tree / t
+            if p.is_file():
+                out.append(t)
+            elif p.is_dir():
+                out += [f for f in _files(tree) if f.startswith(t.rstrip("/") + "/") and TEST_NAME.search(f.split("/")[-1])
+                        and not _denied(spec, f) and f not in held][:3]
+    return list(dict.fromkeys(out))
+
+
 def tools_for(name: str, rewrite_only: bool, inline: bool, self_check: bool) -> list[str]:
     test = ["test"] if self_check else []
     if name == "typist":
@@ -83,6 +111,7 @@ def resolve(spec, tree: Path, name: str | None = None) -> ResolvedProfile:
     targets = targets_of(spec, tree)
     context = [f for f in spec.context_files if (tree / f).is_file() and not _denied(spec, f) and f not in targets]
     sizes = {f: _lines(tree / f) for f in targets + context if (tree / f).is_file()}
+    context += [f for f in acceptance_files(spec, tree) if f not in targets and f not in context]
     if want == "auto":
         literal = all(not GLOB.search(p) for p in spec.allowed_paths)
         small = len(targets) <= MAX_TYPIST_FILES and sum(sizes.values()) <= MAX_TYPIST_LINES
@@ -105,7 +134,7 @@ def inline_block(spec, rp: ResolvedProfile, tree: Path) -> str:
     parts, used = [], 0
     for f in [x for x in rp.targets if (tree / x).is_file()] + rp.context:
         p = tree / f
-        if _denied(spec, f) or not p.is_file():
+        if _denied(spec, f) or not p.is_file() or not p.resolve().is_relative_to(tree.resolve()):
             continue
         try:
             text = p.read_text(encoding="utf8")

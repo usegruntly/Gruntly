@@ -12,7 +12,7 @@ parent -- brief --> gruntly -- worktree --> child (local model)
 
 You need: git, Python 3.11+, [uv](https://docs.astral.sh/uv/), a local model server with an OpenAI-compatible API (LM Studio, llama.cpp, Ollama) and one child CLI.
 
-1. **Local model.** In LM Studio load a coder model, set its context to **32k or more**, start the server (default `http://127.0.0.1:1234`).
+1. **Local model.** In LM Studio load a coder model, set its context to **16k or more** (8k is enough for small tasks with the default `auto` profile; the stock harness wants 32k), start the server (default `http://127.0.0.1:1234`).
 2. **A child.** `npm i -g @qwen-code/qwen-code` or `npm i -g opencode-ai`.
 3. **gruntly.** `uv tool install "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly"`
 4. **Check.** `gruntly doctor` (warns about small context windows and missing children).
@@ -43,6 +43,7 @@ This installs the skill (when to delegate, how to write briefs, what to inspect,
 | Command | What it does |
 |---|---|
 | `gruntly run --spec F` | Run a task (`--spec -` for stdin, `--async` returns a run id). |
+| `gruntly wait <run>` | Block (up to 240 s) until a run that returned `running` has a result. |
 | `gruntly status/result <run>` | Progress of an async run; the compact result again. |
 | `gruntly diff <run>` | Bounded diff: `--stat`, `--file F`, `--hunks N`. |
 | `gruntly log <run> --tail N` | Tail of the child's transcript. |
@@ -60,7 +61,15 @@ Everything the child wrote (its summary, test output, handoff notes) sits under 
 
 ## When delegating is worth it
 
-Delegating has a fixed cost (a spec to write, a result to read), so it only pays when the task would cost the parent about 8 or more turns, or large file reads. The benchmark in `docs/benchmark.md` found it loses on 4-turn tasks. `gruntly stats` tracks pass rate per harness/model/context and says `delegate`, `avoid` or `unknown`. gruntly also refuses to run when the model's context is under 32k tokens (`allow_small_ctx: true` overrides).
+Delegating has a fixed cost (a spec to write, a result to read), so it only pays when the task would cost the parent about 8 or more turns, or large file reads. The benchmark in `docs/benchmark.md` found it loses on 4-turn tasks. `gruntly stats` tracks pass rate per harness/model/context and says `delegate`, `avoid` or `unknown`. gruntly refuses to run when the model's context is below the profile's floor (typist 8k, worker 16k, default 32k; `allow_small_ctx: true` overrides).
+
+## Slim profiles and evaluate & fix
+
+A coding-agent CLI sends ~11k input tokens per request before it reads your task. gruntly replaces that with what the task needs: `profile: typist` for a few small named files (files inlined, only file-writing tools, ~1.2k tokens per request), `worker` when the child must look around, `default` for the stock harness; `auto` (the default) chooses. The child gets **no shell**: it is told not to run tests, and gruntly runs the acceptance command and the other gates itself and sends any failure straight back as the next attempt, so the parent only ever sees the final result. Measured against the stock setup in `docs/child-bench.md`: about 70% fewer child tokens and 44% less time at the same hidden-test pass rate. The child can follow a precise brief but not resolve a vague one: write precise briefs.
+
+## Waiting
+
+`gruntly run` blocks in the foreground and returns the result, or after 240 s a tiny `running` status (`gruntly wait <run>` blocks again). Don't background it from an agent: that ends the agent's turn and the whole conversation is replayed in a new session to read a ~300-byte result.
 
 ## Small context windows: relays
 
@@ -74,11 +83,11 @@ Level 0 (default) is a worktree, a scrubbed environment (no `ANTHROPIC_*`, `OPEN
 
 - `status: error, model server unreachable`: start the server; check `endpoint` in `.gruntly.toml`.
 - `model ... not loaded`: set `model` to an id from `curl <endpoint>/models`.
-- Child loops or truncates: raise the context to 32k+, shrink `allowed_paths`, split the task.
+- Child loops or truncates: raise the context (16k+), shrink `allowed_paths`, split the task.
 - OpenCode `Database is not empty...`: fixed by gruntly (private state dir per run); running plain `opencode` still uses the old DB.
 - WSL2 cannot reach a Windows-hosted model: enable "Serve on Local Network" in LM Studio or use mirrored networking.
 - Windows: native Windows works for Qwen Code and OpenCode (tested); sandbox level 1 and Hermes need Linux/WSL2.
 
 ## Status
 
-v0.1.0. Verified adapters: Qwen Code 0.26.9, OpenCode 1.19.5. Hermes Agent: flags checked, live run not yet (see `docs/adapters.md`). Benchmarks: `bench/` and `docs/benchmark.md`. Design notes: `docs/decisions.md`.
+v0.3.0. Verified adapters: OpenCode 1.19.5 (benchmarked), Qwen Code 0.26.9 (one slim run measured). Hermes Agent: flags checked, live run not yet (see `docs/adapters.md`). Benchmarks: `docs/benchmark.md`, `docs/benchmark-v2.md`, `docs/benchmark-v2-sonnet.md`, `docs/child-bench.md`. Design notes: `docs/decisions.md`.

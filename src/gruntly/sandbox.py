@@ -30,11 +30,16 @@ def wrap(cmd: Command, level: int, workdir: Path, repo_root: Path, endpoint: str
     ok, why = level_available(level)
     if not ok:
         raise RuntimeError(f"sandbox level {level} unavailable: {why}")
+    state = repo_root / ".gruntly" / "child-state"
     host = urlparse(endpoint).hostname or ""
     local_model = host in ("127.0.0.1", "localhost", "::1")
     args = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp",
             "--bind", str(workdir), str(workdir), "--bind", str(repo_root / ".git"), str(repo_root / ".git"),
             "--chdir", str(workdir), "--die-with-parent", "--unshare-pid"]
+    for v in cmd.env.values():  # per-run harness state (OpenCode's XDG dirs) lives outside the worktree
+        if str(v).startswith(str(state)):
+            Path(v).mkdir(parents=True, exist_ok=True)
+            args += ["--bind", str(v), str(v)]
     if not local_model:
         args.append("--unshare-net")
     home = os.path.expanduser("~")

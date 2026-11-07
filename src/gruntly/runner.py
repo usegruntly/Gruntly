@@ -214,9 +214,14 @@ def _holdout_gate(h: dict, wt: Path, root: Path, secrets: list[str]) -> dict:
 
 def pick_profile(spec, tree: Path, adapter, forced: str | None = None) -> "profiles.ResolvedProfile":
     """`auto` only applies to harnesses that understand profiles; others keep their defaults unless asked."""
-    if forced is None and spec.profile == "auto" and not adapter.capabilities().profiles:
+    caps = adapter.capabilities()
+    if forced is None and spec.profile == "auto" and not caps.profiles:
         return profiles.resolve(spec, tree, "default")
-    return profiles.resolve(spec, tree, forced)
+    rp = profiles.resolve(spec, tree, forced)
+    if rp.rewrite_only and not caps.whole_file_write:
+        rp.rewrite_only = False
+        rp.tools = profiles.tools_for(rp.name, False, rp.inline, rp.self_check)
+    return rp
 
 
 def first_failure(gates: dict) -> str | None:

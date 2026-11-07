@@ -7,3 +7,4 @@ build/
 .gruntly/
 bench/runs/
 bench/runs-opus/
+logs/

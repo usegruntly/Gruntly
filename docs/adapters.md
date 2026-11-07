@@ -77,3 +77,5 @@ Both children ship a large system prompt and many tool schemas (OpenCode ~10.8k 
 - `--system-prompt` replaces the default system prompt. Whether `--exclude-tools` drops a tool's schema from the request is not verified.
 - Measured on the slugify task, typist profile: **passed on attempt 1 with 3 requests of ~2.2k input tokens (7,329 child tokens, 40 s)**, against ~14k per request and ~77k tokens for the stock setup.
 - Qwen's `edit` tool refuses to edit a file that was not first read with `read_file`. The first slim config excluded `read_file` (the file was inlined), so the model could never edit: 27 requests, 131k input tokens, no result. `read_file` now stays whenever editing is allowed; `get_goal` and `update_goal`, which bare mode offers and the model wandered into, are excluded.
+
+- `self_check: true` on Qwen Code gives the child its full `run_shell_command` (there is no per-command allowlist in bare mode); only OpenCode can restrict the shell to the acceptance command. The benchmark found self-checking bought nothing, so the default (no shell) is also the safer choice.

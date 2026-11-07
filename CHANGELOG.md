@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 - 2026-11-08
+
+Slim child profiles, evaluate & fix, and foreground waiting.
+
+- **Profiles** (`profile: auto|typist|worker|default`): the local model no longer pays for its harness's full system prompt and tool set. `typist` (a few small, literally named files) inlines the files in the prompt and offers only file-writing tools; `worker` adds list/search/read for tasks where the files cannot be named; `default` is the old behaviour. `auto` picks from the scope. Measured on OpenCode (`docs/child-bench.md`): ~70% fewer child tokens per run (79% on the small tasks) and ~44% less wall time at equal hidden-test pass rate (68% against 62%). A slim run on Qwen Code used ~2.2k input tokens per request instead of ~14k. Slim profiles need an 8k (typist) or 16k (worker) context window instead of 32k.
+- **Evaluate & fix** (`self_check: false`, the default): the child has no shell and is told not to run tests. gruntly runs the acceptance command and every other gate and feeds the failure straight back as the next attempt; the parent never sees intermediate failures. In the benchmark, letting the child run its own tests bought nothing.
+- **No shell, no waste:** OpenCode runs a one-line custom agent with only the tools the profile needs and no AGENTS.md, `~/.claude` skills or plugin discovery; Qwen Code runs `--bare`, which also drops its extra ~7k-token memory request. Per-request input tokens are recorded and shown in `gruntly stats`.
+- **Foreground waiting:** `gruntly run` now blocks up to `--max-block` seconds (default 240) and returns a ~150-byte `{"status": "running"}` if the run is longer; `gruntly wait <run>` blocks again. The skill says never to use `run_in_background`, which ended the parent's turn and replayed the whole conversation in a second session to read a 300-byte result. A worker that dies without a result is reported instead of hanging.
+- **Findings:** no profile fixes false passes (gates green, hidden tests red); they come from briefs and visible tests that omit behaviour the hidden tests check. On vague briefs every arm, including the stock harness, failed, so the parent keeps writing precise briefs. See `docs/child-bench.md`.
+- **Fixes found while testing:** OpenCode needs each enabled tool's permission granted explicitly or the model gets no tools and pastes code into its reply; Qwen Code's `edit` needs `read_file` to have been called first.
+- **Benchmarks:** Sonnet-parent results added (`docs/benchmark-v2-sonnet.md`). Earlier benchmark floors are not comparable with new runs: the claude.ai connectors (~50 tool schemas per session) were disabled afterwards.
+- Not done: a live Qwen Code benchmark (one slim run measured), the last 11 vague-brief runs (the machine ran out of memory), Hermes, sandbox level 1 on Linux.
+
 ## 0.2.1 - 2026-11-07
 
 Fixes found by benchmark v2 (see `docs/benchmark-v2.md`).

@@ -109,7 +109,7 @@ class OpenCodeAdapter:
         return out
 
     def capabilities(self) -> Caps:
-        return Caps(resume=True, structured_output=True, serve_mode=True, profiles=True)
+        return Caps(resume=True, structured_output=True, serve_mode=True, profiles=True, whole_file_write=True)
 
     def cancel(self, proc) -> None:
         kill_tree(proc)

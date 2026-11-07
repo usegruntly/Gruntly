@@ -23,7 +23,7 @@ budget_s: 900
 ```
 `profile: auto|typist|worker|default` (default `auto`) sets how much of the child harness the local model gets. `typist` (a few small, literally named files): short prompt, the files inlined in it, whole-file writes, no search tools. `worker`: also list/search/read tools and a longer prompt, for tasks where the child must find its own way. `default`: the harness as shipped. A slim profile cuts the child's input from ~11k to ~1.2k tokens per request, and needs only an 8k (typist) or 16k (worker) context window. `inline_files: false` stops files being embedded.
 
-`self_check: false` (default) is **evaluate & fix**: the child has no shell and is told not to run tests. gruntly runs the acceptance command and the other gates itself and sends any failure straight back to the child as the next attempt; the parent sees only the final result. `self_check: true` lets the child run the acceptance command (and nothing else) itself.
+`self_check: false` (default) is **evaluate & fix**: the child has no shell and is told not to run tests. gruntly runs the acceptance command and the other gates itself and sends any failure straight back to the child as the next attempt; the parent sees only the final result. `self_check: true` lets the child run the acceptance command itself: on OpenCode that is the only command it may run; on Qwen Code (bare mode has no per-command allowlist) it gets a general shell, so prefer the default there.
 
 Bare strings are fine for `acceptance` and path lists. gruntly warns (`warnings`, `review_hint`) when acceptance already passes before any change: such a test proves nothing.
 
@@ -45,7 +45,7 @@ Run `gruntly run` in the foreground (Bash timeout 300000) and let it block. It r
 Read `failure_bundle.reason`. Then either do it yourself (default), or if `untrusted.handoff` exists (the child ran out of context and left notes) run `gruntly continue <run> --guidance "<specific correction>"` once: a fresh child picks up in the same worktree with those notes. Do not delegate the same task more than twice.
 
 ## Errors
-`error` before any attempt costs nothing: model server down, model not loaded, context under 32k (reload with a larger context or set `allow_small_ctx: true`), or `queue busy`. Run `gruntly doctor`.
+`error` before any attempt costs nothing: model server down, model not loaded, context below the profile's floor (typist 8k, worker 16k, default 32k: reload with a larger context or set `allow_small_ctx: true`), or `queue busy`. Run `gruntly doctor`.
 
 ## Safety
 Level 0 is a worktree plus a scrubbed environment, not a security boundary: child auto-approve flags run shell commands unattended. Briefs are stored under `.gruntly/runs/`; keep secrets out of them.
