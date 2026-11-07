@@ -74,7 +74,8 @@ def run_one(task_dir: Path, mode: str, harness: str, model: str, parent_model: s
     with tempfile.TemporaryDirectory(prefix="bench-") as tmp:
         work = Path(tmp) / "repo"
         spec = prepare(task_dir, work, harness, model)
-        cmd = ["claude", "-p", prompt_for(mode, spec), "--allowedTools", *TOOLS, "--output-format", "json",
+        prompt = prompt_for(mode, spec)
+        cmd = [shutil.which("claude") or "claude", "-p", "--allowedTools", *TOOLS, "--output-format", "json",
                "--max-turns", "30", "--max-budget-usd", str(budget), "--no-session-persistence"]
         if parent_model:
             cmd += ["--model", parent_model]
@@ -82,7 +83,7 @@ def run_one(task_dir: Path, mode: str, harness: str, model: str, parent_model: s
             cmd += ["--plugin-dir", str(PLUGIN)]
         t0 = time.time()
         try:
-            p = sh(cmd, work, timeout=1500)
+            p = sh(cmd, work, timeout=1500, input=prompt)  # prompt on stdin: the Windows .cmd shim mangles multi-line args
             data = json.loads(p.stdout) if p.stdout.strip().startswith("{") else {"error": (p.stderr or p.stdout)[-300:]}
         except (subprocess.TimeoutExpired, json.JSONDecodeError) as e:
             data = {"error": f"{type(e).__name__}"}

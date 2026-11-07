@@ -109,3 +109,21 @@ def test_opencode_parser_on_real_fixture():
     assert out.session_id.startswith("ses_")
     assert out.usage["available"] and out.usage["total_tokens"] > 40000
     assert not out.is_error
+
+
+def test_same_size_same_second_edit_is_not_hidden_by_stale_bytecode(tmp_path):
+    """Regression: 'a - b' -> 'a + b' keeps size and mtime second, so a cached .pyc made a correct fix look broken."""
+    import os
+    import sys
+    from gruntly.gates import acceptance
+    (tmp_path / "m.py").write_text("def f():\n    return 1 - 1\n")
+    (tmp_path / "t.py").write_text("from m import f\nassert f() == 2\n")
+    cmd = f'"{sys.executable}" t.py'
+    # warm a .pyc the way an earlier attempt would have (without our flag)
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE"}
+    import subprocess
+    subprocess.run([sys.executable, "t.py"], cwd=tmp_path, env=env, capture_output=True)
+    st = (tmp_path / "m.py").stat()
+    (tmp_path / "m.py").write_text("def f():\n    return 1 + 1\n")
+    os.utime(tmp_path / "m.py", (st.st_atime, st.st_mtime))  # same mtime, same size
+    assert acceptance.run_cmd(cmd, tmp_path, 30)["ok"] is True

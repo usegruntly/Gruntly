@@ -64,7 +64,7 @@ class Adapter(Protocol):
 def scrub_env(extra: dict[str, str], allow: list[str] | None = None) -> dict[str, str]:
     keys = set(BASE_ENV_KEYS) | set(allow or [])
     base = {k: v for k, v in os.environ.items() if k.upper() in {x.upper() for x in keys}}
-    return {**base, **extra}
+    return {**base, "PYTHONDONTWRITEBYTECODE": "1", **extra}
 
 
 def kill_tree(proc: subprocess.Popen) -> None:
