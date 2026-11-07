@@ -59,3 +59,19 @@ Not verified end to end.
 - A real two-bug task passed on attempt 2: attempt 1 failed a gate, the retry used `-r <session_id>` and fixed it. Cost about 145k child tokens and 100 s on the 9B model. The result JSON was about 1.6 KB.
 - An impossible task (acceptance always exits 1) escalated after 2 attempts via stuck detection, with a 1.4 KB result.
 - Real usage numbers from `result.usage` populate `child_usage`.
+
+## Slim profiles (measured 2026-11-07)
+
+Both children ship a large system prompt and many tool schemas (OpenCode ~10.8k input tokens on the first request of a trivial task, Qwen Code ~14k plus a ~7k "memory extractor" request). `profiles.py` replaces that with just what a task needs.
+
+**OpenCode 1.19.5**
+- A custom `agent` in `OPENCODE_CONFIG_CONTENT` with its own `prompt` replaces the default system prompt; select it with `--agent`. `--title x` should skip the hidden title-generation request (not verified).
+- Each tool in the `tools` map set to `false` is removed from the request. A tool is only offered if its **permission is also granted explicitly**; with the tools map alone the first request was 355 tokens, no tools were offered and the model pasted its code into the reply (found by the child smoke test; now covered by a unit test).
+- `edit`, `write` and `patch` share one `edit` permission, so `write` cannot be offered without `edit`. The prompt asks for whole-file rewrites; both tools exist.
+- For bash, permission rules are ordered and the last match wins, so the catch-all `"*": "deny"` has to come first.
+- `OPENCODE_DISABLE_PROJECT_CONFIG`, `OPENCODE_DISABLE_CLAUDE_CODE` and `OPENCODE_DISABLE_EXTERNAL_SKILLS` stop it reading AGENTS.md and `~/.claude` skills into the prompt.
+- Result: slugify task with the typist profile: 2 requests of 1,235 and 1,488 input tokens, 3,136 child tokens in total, passed on attempt 1. Default profile: ~4 requests of ~11k, ~47-60k tokens.
+
+**Qwen Code 0.26.9** (from the bundle and `--help`; the measured spike is still to do)
+- `--bare` skips auto-discovery and turns off the managed-memory extractor (the ~7k-token extra request). It forces the core tools to read_file, edit, notebook_edit and run_shell_command and ignores `--core-tools`, so unwanted tools are removed with `--exclude-tools`. There is no whole-file write tool in bare mode (`edit` with an empty `old_string` creates files).
+- `--system-prompt` replaces the default system prompt. Whether `--exclude-tools` drops a tool's schema from the request is not verified.
