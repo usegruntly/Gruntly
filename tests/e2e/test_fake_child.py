@@ -31,7 +31,7 @@ def test_fails_gate_then_escalates(run_task, make_spec):
 
 def test_retry_recovers(run_task, make_spec):
     res, _ = run_task(make_spec("fix_on_retry", max_attempts=3))
-    assert res["status"] == "passed"
+    assert res["status"] == "passed", res
     assert res["attempts"] == 2
 
 
