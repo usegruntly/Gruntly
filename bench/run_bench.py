@@ -55,6 +55,8 @@ def prompt_for(arm: str, spec: dict) -> str:
     paths = ", ".join(spec["allowed_paths"])
     extra = " You may edit the existing tests." if spec.get("tests_writable") else ""
     base = spec["brief"] + f"\n\nThe check is `{cmd}`; edit only {paths}.{extra}"
+    if arm == "gd":  # the one-request slash command: just the user's words, nothing else
+        return "/gruntly:gd " + " ".join(spec["brief"].split())
     if arm == "alone":
         return base + "\nDo the work yourself and run the check to confirm. Reply in two lines."
     if arm == "forced":
@@ -149,7 +151,7 @@ def mean(xs):
 
 
 def report(rows: list[dict], meta: dict) -> str:
-    arms = [x for x in ("alone", "forced", "policy") if any(r["arm"] == x for r in rows)]
+    arms = [x for x in ("alone", "forced", "policy", "gd") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "
