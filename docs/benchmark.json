@@ -213,5 +213,239 @@
    1601
   ],
   "child_tokens": 12465
+ },
+ {
+  "task": "lru_cache",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1028,
+  "turns": 7,
+  "wall_s": 335,
+  "tokens": {
+   "input": 12,
+   "cache_write": 18956,
+   "cache_read": 183205,
+   "output": 863
+  },
+  "error": null,
+  "reply": "`LRUCache` is now in `lru.py`, written by the local model on the first attempt and applied but not committed. `python -m pytest -q test_lru.py` passes (1 test), and I read the whole diff and found no problems.\n\nMy own eviction check also passed: with capacity 2, a `get` on `a` before a third `put` evicts `b` and keeps `a`.",
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   1091
+  ],
+  "child_tokens": 77265
+ },
+ {
+  "task": "merge_intervals",
+  "mode": "gruntly",
+  "passed": false,
+  "cost_usd": 0.1481,
+  "turns": 7,
+  "wall_s": 328,
+  "tokens": {
+   "input": 14,
+   "cache_write": 4301,
+   "cache_read": 256139,
+   "output": 1238
+  },
+  "error": null,
+  "reply": "`merge_intervals` now sorts first and merges touching intervals, and `python -m pytest -q test_intervals.py` passes (1 test). The first gruntly run timed out with no progress, so I discarded it. The second run, with a sharper brief, passed all its gates. I applied its patch to `intervals.py` but haven't committed it.\n\nThe new code mutates the caller's first inner list when it merges (`merged = [sorted_intervals[0]]`). I left it as is. `spec.yaml` and `__pycache__/` are untracked leftovers.",
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   1024
+  ],
+  "child_tokens": 47384
+ },
+ {
+  "task": "paginate",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1185,
+  "turns": 9,
+  "wall_s": 194,
+  "tokens": {
+   "input": 14,
+   "cache_write": 20719,
+   "cache_read": 226707,
+   "output": 1295
+  },
+  "error": null,
+  "reply": "Fixed and applied, uncommitted: `pager.py` now uses `start = (page - 1) * per_page`. `python -m pytest -q test_pager.py` passes (1 passed) when I run it myself.\n\nGruntly escalated because its gate's Python had no pytest, so the acceptance gate failed twice. I checked the one-line diff and applied it myself rather than re-delegating, since the code wasn't the problem.",
+  "gruntly_status": [
+   "escalate"
+  ],
+  "gruntly_attempts": [
+   2
+  ],
+  "gruntly_result_chars": [
+   1599
+  ],
+  "child_tokens": 51601
+ },
+ {
+  "task": "parse_duration",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1578,
+  "turns": 13,
+  "wall_s": 395,
+  "tokens": {
+   "input": 22,
+   "cache_write": 23319,
+   "cache_read": 385284,
+   "output": 2598
+  },
+  "error": null,
+  "reply": "`parse_duration` is in `durations.py` and `python -m pytest -q test_durations.py` passes (1 test). The gruntly run escalated twice, so I applied its patch and added a one-line fix myself. The child's regex returned 0 for an empty string, so I added a guard that raises `ValueError`.\n\nAd-hoc checks gave 7200 for `2h`, 5400 for `90m` and 5415 for `1h30m15s`. `''`, `'5'`, `'1x'`, `'abc'` and `'1h2x'` all raise `ValueError`. The first escalation was the child creating stray uv files; the second was the gate's own Python missing pytest, which I ran with the system `python` instead. The change is unc",
+  "gruntly_status": [
+   "escalate"
+  ],
+  "gruntly_attempts": [
+   2
+  ],
+  "gruntly_result_chars": [
+   1762
+  ],
+  "child_tokens": 94134
+ },
+ {
+  "task": "retry",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1113,
+  "turns": 9,
+  "wall_s": 170,
+  "tokens": {
+   "input": 12,
+   "cache_write": 20417,
+   "cache_read": 189780,
+   "output": 1063
+  },
+  "error": null,
+  "reply": "`retry` is in `retrying.py`, written by gruntly's local model, and I applied it without committing.\nI read the diff and re-ran `python -m pytest -q test_retrying.py` after applying: 1 passed, 1 warning.",
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_attempts": [
+   2
+  ],
+  "gruntly_result_chars": [
+   1054
+  ],
+  "child_tokens": 73777
+ },
+ {
+  "task": "rolling_mean",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1153,
+  "turns": 9,
+  "wall_s": 67,
+  "tokens": {
+   "input": 14,
+   "cache_write": 20329,
+   "cache_read": 226689,
+   "output": 1133
+  },
+  "error": null,
+  "reply": "`rolling_mean` is applied to `rolling.py` (uncommitted). I read the diff and the logic is correct: ValueError for window < 1, `[]` for an oversized window, otherwise the mean of each full window. Gruntly passed on the first attempt, and the full pytest run after applying gave 1 passed.\n\nThe only test is `test_basic`, so the ValueError and oversized-window paths aren't covered by it.",
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   1042
+  ],
+  "child_tokens": 47264
+ },
+ {
+  "task": "roman",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1158,
+  "turns": 9,
+  "wall_s": 91,
+  "tokens": {
+   "input": 14,
+   "cache_write": 20415,
+   "cache_read": 225405,
+   "output": 1158
+  },
+  "error": null,
+  "reply": "`to_roman` and `from_roman` are now in `roman.py`, uncommitted. Gruntly passed all its gates on the first attempt, and I read the diff and spot-checked it. The full suite passes, but it's only one test (`1 passed`).\n\n`from_roman` rejects non-canonical numerals like `IIII` by checking that `to_roman` of the parsed value gives back the input. A bool passes the int check, so `to_roman(True)` returns `'I'`, which I left alone.",
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   1156
+  ],
+  "child_tokens": 48592
+ },
+ {
+  "task": "slugify",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1141,
+  "turns": 9,
+  "wall_s": 105,
+  "tokens": {
+   "input": 14,
+   "cache_write": 20154,
+   "cache_read": 226117,
+   "output": 1084
+  },
+  "error": null,
+  "reply": "`slugify` is implemented in `slugify.py` by the local model and applied to the working tree, uncommitted. gruntly's gates passed on the first attempt. I read the whole diff (it's only a few lines), and `python -m pytest -q` passes (1 test).\n\nThe test file only checks `\"Hello World\"`, so edge cases like leading/trailing punctuation are covered by the implementation but not by a test.",
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   975
+  ],
+  "child_tokens": 59685
+ },
+ {
+  "task": "word_count",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1299,
+  "turns": 11,
+  "wall_s": 365,
+  "tokens": {
+   "input": 18,
+   "cache_write": 21057,
+   "cache_read": 300909,
+   "output": 1551
+  },
+  "error": null,
+  "reply": "`word_count` in `words.py` now lowercases the text and pulls out words with `re.findall(r\"[a-z0-9']+\", ...)`. I applied it without committing, and the full suite passes (1 test).\nThe first gruntly run timed out with no output, so I discarded it and re-ran once with a sharper brief. I read the diff before applying it.",
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   1046
+  ],
+  "child_tokens": 46950
  }
 ]
