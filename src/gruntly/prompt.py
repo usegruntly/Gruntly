@@ -44,7 +44,8 @@ def _slim(spec, ctx: Ctx) -> str:
     else:
         lines.append("Do not run tests. Make your edits and finish your turn: the system runs the tests and sends you "
                      "the errors if they fail. Reply with two lines saying what you changed.")
-    lines.append("No git. Do not install packages. If you are blocked, say why in two lines.")
+    lines.append("Make changes with the file tools: code you only show in your reply is ignored. "
+                 "No git. Do not install packages. If you are blocked, say why in two lines.")
     if rp.name == "worker":
         lines.append("Look around only as much as you need. State any assumption you had to make in your final message. "
                      f"If your context runs out, write {HANDOFF_FILE} (files read, understood, done, remaining) and stop.")

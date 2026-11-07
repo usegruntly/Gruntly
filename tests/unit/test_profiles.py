@@ -113,7 +113,8 @@ def test_evaluate_and_fix_prompt_forbids_running_tests_and_names_no_command(tmp_
     assert "Do not run tests" in text and "the system runs the tests" in text
     assert "pytest" not in text  # the child is never told the command
     assert "FILE calc.py" in text and "return a - b" in text
-    assert len(text.split()) < 140
+    assert "code you only show in your reply is ignored" in text
+    assert len(text.split()) < 160
 
 
 def test_self_check_prompt_allows_only_the_acceptance_command(tmp_path):
@@ -144,7 +145,8 @@ def test_opencode_slim_agent_has_only_the_profiles_tools(tmp_path):
     cfg = agent_config(s, profiles.resolve(s, t))
     on = {k for k, v in cfg["tools"].items() if v}
     assert on == {"write", "edit"}  # OpenCode ties write and edit together; everything else is off
-    assert "permission" not in cfg
+    # regression: without an explicit grant the model got no tools and pasted code into its reply
+    assert cfg["permission"] == {"edit": "allow"}
     assert len(cfg["prompt"].split()) < 25
 
 

@@ -33,10 +33,20 @@ def agent_config(task, profile) -> dict:
     on = {t for logical in profile.tools for t in TOOLMAP.get(logical, [])}
     cfg = {"mode": "primary", "description": "gruntly child", "prompt": SYSTEM,
            "tools": {t: (t in on) for t in ALL_TOOLS}}
+    # A tool is only offered to the model if its permission is granted explicitly: with the tools map alone the
+    # model received no tools at all (355 input tokens) and pasted its code into the reply instead of writing it.
+    perm: dict = {}
+    if on & {"edit", "write"}:
+        perm["edit"] = "allow"
+    for t in ("read", "list", "grep", "glob"):
+        if t in on:
+            perm[t] = "allow"
     if "bash" in on:  # only the acceptance command(s); rules are ordered and the last match wins
         rules = {"*": "deny"}
         rules.update({a["cmd"]: "allow" for a in task.acceptance})
-        cfg["permission"] = {"bash": rules}
+        perm["bash"] = rules
+    if perm:
+        cfg["permission"] = perm
     return cfg
 
 
