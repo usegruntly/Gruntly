@@ -78,17 +78,30 @@ def pytest(cwd, *args):
                           capture_output=True, text=True).returncode
 
 
+def acceptance(task: Path, cwd) -> int:
+    import yaml
+    cmd = yaml.safe_load((task / "task.yaml").read_text(encoding="utf8"))["acceptance"][0]["cmd"]
+    cmd = cmd.replace("python ", f'"{sys.executable}" ')
+    return subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True).returncode
+
+
 def main() -> int:
     bad = 0
     for t in sorted((HERE / "tasks").iterdir()):
         with tempfile.TemporaryDirectory() as tmp:
             w = Path(tmp) / "r"
             shutil.copytree(t / "repo", w)
-            mod = next(p for p in w.glob("*.py") if not p.name.startswith("test_"))
-            starter_fails = pytest(w, "-x") != 0
-            mod.write_text(REF[mod.stem], encoding="utf8")
+            starter_fails = acceptance(t, w) != 0
+            if (t / "reference").is_dir():  # larger tasks ship their solved files
+                for f in (t / "reference").rglob("*"):
+                    if f.is_file():
+                        (w / f.relative_to(t / "reference")).parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(f, w / f.relative_to(t / "reference"))
+            else:
+                mod = next(p for p in w.glob("*.py") if not p.name.startswith("test_"))
+                mod.write_text(REF[mod.stem], encoding="utf8")
             shutil.copy(t / "hidden" / "test_hidden.py", w / "test_hidden.py")
-            ref_passes = pytest(w) == 0
+            ref_passes = acceptance(t, w) == 0 and pytest(w) == 0
             ok = starter_fails and ref_passes
             bad += not ok
             print(f"{'ok ' if ok else 'BAD'} {t.name}: starter_fails={starter_fails} reference_passes={ref_passes}")

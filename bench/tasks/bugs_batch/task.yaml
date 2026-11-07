@@ -1,0 +1,19 @@
+brief: 'Six independent modules in this repo each have a bug that their visible test
+  exposes: pager.py, words.py,
+
+  intervals.py, stats.py, limits.py and chunks.py. Fix every one so the whole suite
+  passes. Each fix should
+
+  handle the obvious edge cases for that function (empty input, invalid arguments
+  raise ValueError, inputs are
+
+  not mutated), not just the visible test.'
+allowed_paths:
+- pager.py
+- words.py
+- intervals.py
+- stats.py
+- limits.py
+- chunks.py
+acceptance:
+- cmd: python -m pytest -q

@@ -1,0 +1,4 @@
+from stats import median
+
+def test_even():
+    assert median([1, 2, 3, 4]) == 2.5
