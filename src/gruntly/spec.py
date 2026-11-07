@@ -128,7 +128,16 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
     return spec
 
 
+def _as_list(v):
+    """A bare string or mapping means a one-item list; iterating a string would split it into characters."""
+    if v is None:
+        return []
+    return [v] if isinstance(v, (str, dict)) else list(v)
+
+
 def _validate(s: Spec) -> None:
+    for f in ("context_files", "allowed_paths", "deny_paths", "env_allow", "acceptance"):
+        setattr(s, f, _as_list(getattr(s, f)))
     if s.harness not in HARNESSES:
         raise SpecError(f"harness must be one of {HARNESSES}")
     if s.base not in ("head", "working-tree"):
@@ -138,7 +147,7 @@ def _validate(s: Spec) -> None:
     if s.max_attempts < 1:
         raise SpecError("max_attempts must be >= 1")
     norm = []
-    for a in s.acceptance or []:
+    for a in s.acceptance:
         if isinstance(a, str):
             a = {"cmd": a}
         if not isinstance(a, dict) or not a.get("cmd"):

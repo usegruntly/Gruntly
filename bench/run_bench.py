@@ -22,7 +22,7 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 PLUGIN = HERE.parent / "plugin"
-TOOLS = ["Bash", "Write", "Read", "Edit", "Glob", "Grep", "Skill"]
+TOOLS = ["Bash", "Write", "Read", "Edit", "Glob", "Grep", "Skill", "mcp__plugin_gruntly_gruntly"]  # last: the plugin's MCP server
 
 
 def sh(args, cwd, **kw):
@@ -71,7 +71,7 @@ def gruntly_runs(work: Path) -> list[dict]:
 
 
 def run_one(task_dir: Path, mode: str, harness: str, model: str, parent_model: str | None, budget: float) -> dict:
-    with tempfile.TemporaryDirectory(prefix="bench-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="bench-", ignore_cleanup_errors=True) as tmp:
         work = Path(tmp) / "repo"
         spec = prepare(task_dir, work, harness, model)
         prompt = prompt_for(mode, spec)
@@ -92,7 +92,7 @@ def run_one(task_dir: Path, mode: str, harness: str, model: str, parent_model: s
         child_tokens = sum(((r.get("child_usage") or {}).get("total_tokens") or 0) for r in grs)
         return {"task": task_dir.name, "mode": mode, "passed": judge(task_dir, work),
                 "cost_usd": round(data.get("total_cost_usd") or 0, 4), "turns": data.get("num_turns"),
-                "wall_s": wall, "tokens": tokens(data.get("usage")), "error": data.get("error"),
+                "wall_s": wall, "tokens": tokens(data.get("usage")), "error": data.get("error"), "reply": (data.get("result") or "")[:600],
                 "gruntly_status": [r["status"] for r in grs], "gruntly_attempts": [r["attempts"] for r in grs],
                 "gruntly_result_chars": [len(json.dumps(r)) for r in grs], "child_tokens": child_tokens}
 
@@ -139,13 +139,17 @@ def main():
     ap.add_argument("--tasks", default="")
     ap.add_argument("--modes", default="alone,gruntly")
     ap.add_argument("--budget-usd", type=float, default=1.0, help="per-run cap for the parent")
+    ap.add_argument("--resume", action="store_true", help="continue from the saved .json next to --out")
     ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmark.md"))
     a = ap.parse_args()
     names = [n for n in a.tasks.split(",") if n] or sorted(p.name for p in (HERE / "tasks").iterdir() if p.is_dir())
-    rows = []
     raw = Path(a.out).with_suffix(".json")
+    rows = json.loads(raw.read_text(encoding="utf8")) if raw.exists() and a.resume else []
+    done = {(r["task"], r["mode"]) for r in rows}
     for n in names:
         for m in a.modes.split(","):
+            if (n, m) in done:
+                continue
             print(f"[{n} / {m}] ...", flush=True)
             r = run_one(HERE / "tasks" / n, m, a.harness, a.model, a.parent_model, a.budget_usd)
             rows.append(r)

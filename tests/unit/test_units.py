@@ -127,3 +127,12 @@ def test_same_size_same_second_edit_is_not_hidden_by_stale_bytecode(tmp_path):
     (tmp_path / "m.py").write_text("def f():\n    return 1 + 1\n")
     os.utime(tmp_path / "m.py", (st.st_atime, st.st_mtime))  # same mtime, same size
     assert acceptance.run_cmd(cmd, tmp_path, 30)["ok"] is True
+
+
+def test_bare_strings_are_one_item_lists_not_characters():
+    """Regression from a real session: `acceptance: "pytest -q"` ran the command `p`."""
+    s = build_spec({"brief": "x", "acceptance": "python -m pytest -q", "allowed_paths": "calc.py", "deny_paths": ".env*"})
+    assert s.acceptance == [{"cmd": "python -m pytest -q", "timeout_s": 300}]
+    assert s.allowed_paths == ["calc.py"] and s.deny_paths == [".env*"]
+    s2 = build_spec({"brief": "x", "acceptance": {"cmd": "true", "timeout_s": 5}})
+    assert s2.acceptance == [{"cmd": "true", "timeout_s": 5}]

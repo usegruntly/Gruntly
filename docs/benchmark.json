@@ -1,0 +1,217 @@
+[
+ {
+  "task": "flatten",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0691,
+  "turns": 4,
+  "wall_s": 12,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14393,
+   "cache_read": 75002,
+   "output": 404
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "lru_cache",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0736,
+  "turns": 5,
+  "wall_s": 14,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14785,
+   "cache_read": 75244,
+   "output": 695
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "merge_intervals",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0702,
+  "turns": 4,
+  "wall_s": 11,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14531,
+   "cache_read": 75105,
+   "output": 455
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "paginate",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0702,
+  "turns": 4,
+  "wall_s": 26,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14611,
+   "cache_read": 74985,
+   "output": 426
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "parse_duration",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0752,
+  "turns": 5,
+  "wall_s": 14,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14889,
+   "cache_read": 75240,
+   "output": 809
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "retry",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0709,
+  "turns": 4,
+  "wall_s": 13,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14531,
+   "cache_read": 75074,
+   "output": 530
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "rolling_mean",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0717,
+  "turns": 4,
+  "wall_s": 13,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14717,
+   "cache_read": 75039,
+   "output": 533
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "roman",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0783,
+  "turns": 5,
+  "wall_s": 15,
+  "tokens": {
+   "input": 6,
+   "cache_write": 15101,
+   "cache_read": 75241,
+   "output": 1035
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "slugify",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0721,
+  "turns": 5,
+  "wall_s": 12,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14802,
+   "cache_read": 75193,
+   "output": 539
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "word_count",
+  "mode": "alone",
+  "passed": true,
+  "cost_usd": 0.0708,
+  "turns": 4,
+  "wall_s": 13,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14637,
+   "cache_read": 75032,
+   "output": 473
+  },
+  "error": null,
+  "gruntly_status": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ },
+ {
+  "task": "flatten",
+  "mode": "gruntly",
+  "passed": true,
+  "cost_usd": 0.1129,
+  "turns": 9,
+  "wall_s": 228,
+  "tokens": {
+   "input": 12,
+   "cache_write": 20550,
+   "cache_read": 189634,
+   "output": 1176
+  },
+  "error": null,
+  "gruntly_status": [
+   "escalate"
+  ],
+  "gruntly_attempts": [
+   2
+  ],
+  "gruntly_result_chars": [
+   1601
+  ],
+  "child_tokens": 12465
+ }
+]
