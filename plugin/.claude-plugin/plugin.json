@@ -1,0 +1,11 @@
+{
+  "name": "gruntly",
+  "displayName": "Gruntly",
+  "version": "0.1.0",
+  "description": "Hand the grunt work to your local model. Delegates well-scoped coding tasks to a local-model agent and verifies the result with gates before you take it back.",
+  "author": { "name": "usegruntly" },
+  "homepage": "https://github.com/usegruntly/Gruntly",
+  "repository": "https://github.com/usegruntly/Gruntly",
+  "license": "MIT",
+  "keywords": ["ai", "coding-agent", "local-llm", "delegation"]
+}
