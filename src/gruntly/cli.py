@@ -92,6 +92,34 @@ def _wait(root: Path, rid: str, timeout_s: float) -> dict:
         time.sleep(1)
 
 
+def cmd_do(a) -> int:
+    """Plain request in, one short verdict out. Always exits 0: an injected slash-command aborts on exit >= 2."""
+    from . import do
+    try:
+        if a.request and a.request != ["-"]:
+            request = " ".join(a.request)
+        elif sys.stdin.isatty():
+            request = ""
+        else:
+            request = sys.stdin.read()
+        root = wtmod.preflight(Path.cwd())
+        p = do.plan(request, root)
+        if isinstance(p, do.Refusal):
+            text, payload = do.render(None, None, refusal=p), {"status": "refused", "reason": p.reason}
+        else:
+            rid = runner.prepare(build_spec(do.spec_for(request, p), root), root)
+            if a.max_block > 0:
+                _spawn_worker(root, rid)
+                res = _wait(root, rid, a.max_block)
+            else:
+                res = runner.execute(root, rid)
+            text, payload = do.render(res, p), res
+    except Exception as e:  # noqa: BLE001 - the caller must still get a readable verdict
+        text, payload = do.render(None, None, error=f"{type(e).__name__}: {e}"), {"status": "error", "error": str(e)}
+    print(json.dumps(payload, ensure_ascii=False) if a.json else text)
+    return 0
+
+
 def cmd_wait(a) -> int:
     out(_wait(_root(), a.run, a.timeout), a.human)
     return 0
@@ -311,6 +339,10 @@ def build_parser() -> argparse.ArgumentParser:
     i.add_argument("--snippet", action="store_true")
     add("stats", cmd_stats)
     add("gc", cmd_gc)
+    d = add("do", cmd_do)
+    d.add_argument("request", nargs="*", help="what to change, in plain words (or read from stdin)")
+    d.add_argument("--max-block", type=int, default=100, help="seconds to wait before returning `still running` (0 = in this process)")
+    d.add_argument("--json", action="store_true")
     add("guide", cmd_guide)
     add("mcp", cmd_mcp)
     add("_worker", cmd_worker, "run")

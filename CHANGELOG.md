@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `gruntly do "<request>"` and the `/gruntly:gd` slash command: a plain request becomes a verified delegation with no model in the loop (locate the target with `ast`, find the covering test, require it to fail first, delegate, apply on pass). The slash command runs it before Claude is called, so the task costs one model request; refusals are free. Python and pytest projects only.
+
 ## 0.3.0 - 2026-11-08
 
 Slim child profiles, evaluate & fix, and foreground waiting.

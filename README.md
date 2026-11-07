@@ -43,6 +43,7 @@ This installs the skill (when to delegate, how to write briefs, what to inspect,
 | Command | What it does |
 |---|---|
 | `gruntly run --spec F` | Run a task (`--spec -` for stdin, `--async` returns a run id). |
+| `gruntly do "fix paginate()"` | One-step mode: finds the file and test from a plain request, checks the test fails, delegates, applies on pass. Refuses (free) if unsure. |
 | `gruntly wait <run>` | Block (up to 240 s) until a run that returned `running` has a result. |
 | `gruntly status/result <run>` | Progress of an async run; the compact result again. |
 | `gruntly diff <run>` | Bounded diff: `--stat`, `--file F`, `--hunks N`. |
@@ -66,6 +67,12 @@ Delegating has a fixed cost (a spec to write, a result to read), so it only pays
 ## Slim profiles and evaluate & fix
 
 A coding-agent CLI sends ~11k input tokens per request before it reads your task. gruntly replaces that with what the task needs: `profile: typist` for a few small named files (files inlined, only file-writing tools, ~1.2k tokens per request), `worker` when the child must look around, `default` for the stock harness; `auto` (the default) chooses. The child gets **no shell**: it is told not to run tests, and gruntly runs the acceptance command and the other gates itself and sends any failure straight back as the next attempt, so the parent only ever sees the final result. Measured against the stock setup in `docs/child-bench.md`: about 70% fewer child tokens and 44% less time at the same hidden-test pass rate. The child can follow a precise brief but not resolve a vague one: write precise briefs.
+
+## One-request mode: `/gruntly:gd`
+
+`gruntly do "fix the off-by-one in paginate()"` resolves the request with code, not a model: it finds the function in the repo (Python `ast`), finds the test that covers it, checks that the test **fails now** (a passing test cannot verify a change), and only then delegates to the local model and applies on pass. If it cannot do this safely it refuses and says why, at no cost.
+
+The plugin's `/gruntly:gd <request>` command runs it *before* Claude is called, so the whole task is **one model request** (measured: 1 request, no tool calls, 31 s with the real local model). On a refusal or failure Claude gets the reason and does the task itself with its normal tools. Python and pytest projects only; set `harness` and `model` in `.gruntly.toml` first. For a bare `/gd`, copy `plugin/commands/gd.md` to `.claude/commands/`.
 
 ## Waiting
 
