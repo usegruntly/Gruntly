@@ -1,4 +1,4 @@
-"""Hermes Agent adapter. Unverified: Milestone 3 replaces this with fixtures from a real install."""
+"""Hermes Agent. Flags verified against 0.19.0 --help (WSL); live output NOT verified: no reachable model server."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,12 +12,14 @@ class HermesAdapter:
     def detect(self) -> Detection:
         if not which("hermes"):
             return Detection(False, None, "hermes not on PATH")
-        return Detection(True, None, "installed; adapter not yet verified against real output")
+        return Detection(True, None, "installed; live output unverified (see docs/adapters.md)")
 
     def command(self, task, workdir: Path, prompt: str, resume: str | None) -> Command:
-        argv = [which("hermes") or "hermes", "chat", "-Q", "-q", prompt]
+        argv = [which("hermes") or "hermes", "chat", "-Q", "--yolo", "--ignore-rules", "-q", prompt]
         if task.model:
             argv += ["-m", task.model]
+        if resume:
+            argv += ["--resume", resume]
         return Command(argv=argv, env={}, stdin=None)
 
     def parse(self, stdout: str, stderr: str, exit_code: int) -> ChildOutcome:

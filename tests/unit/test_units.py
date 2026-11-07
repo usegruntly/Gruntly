@@ -98,3 +98,14 @@ def test_bwrap_wrap_builds_readonly_command(monkeypatch, tmp_path):
     assert "--unshare-net" not in c.argv  # model server is local to the host
     c2 = sandbox.wrap(Command(["qwen"]), 1, tmp_path / "wt", tmp_path, "https://example.com/v1")
     assert "--unshare-net" in c2.argv
+
+
+def test_opencode_parser_on_real_fixture():
+    from pathlib import Path
+    from gruntly.adapters.opencode import OpenCodeAdapter
+    fx = Path(__file__).parents[1] / "fixtures" / "opencode"
+    out = OpenCodeAdapter().parse((fx / "run_json_success.jsonl").read_text(encoding="utf8"), "", 0)
+    assert "a + b" in out.final_message
+    assert out.session_id.startswith("ses_")
+    assert out.usage["available"] and out.usage["total_tokens"] > 40000
+    assert not out.is_error
