@@ -1,0 +1,7 @@
+brief: word_count(text) in words.py should count words case-insensitively and ignore
+  punctuation, returning a dict word -> count. It currently splits on whitespace only.
+  Fix it.
+allowed_paths:
+- words.py
+acceptance:
+- cmd: python -m pytest -q test_words.py

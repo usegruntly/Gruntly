@@ -1,0 +1,7 @@
+brief: Implement class LRUCache(capacity) in lru.py with get(key) (returns None if
+  missing, marks key recently used) and put(key, value) (evicts the least recently
+  used key when over capacity).
+allowed_paths:
+- lru.py
+acceptance:
+- cmd: python -m pytest -q test_lru.py

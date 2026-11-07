@@ -1,0 +1,6 @@
+brief: paginate(items, page, per_page) in pager.py returns the items for a 1-based
+  page but is off by one. Fix it.
+allowed_paths:
+- pager.py
+acceptance:
+- cmd: python -m pytest -q test_pager.py

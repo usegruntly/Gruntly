@@ -1,0 +1,6 @@
+brief: Implement to_roman(n) (1..3999) and from_roman(s) in roman.py. Raise ValueError
+  for out-of-range numbers and for invalid roman numerals.
+allowed_paths:
+- roman.py
+acceptance:
+- cmd: python -m pytest -q test_roman.py

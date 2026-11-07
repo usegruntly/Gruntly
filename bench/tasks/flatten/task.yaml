@@ -1,0 +1,6 @@
+brief: 'Implement flatten(x) in flat.py: flatten arbitrarily nested lists into one
+  flat list, preserving order. Strings are not lists and must stay whole.'
+allowed_paths:
+- flat.py
+acceptance:
+- cmd: python -m pytest -q test_flat.py

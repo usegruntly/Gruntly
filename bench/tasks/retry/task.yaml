@@ -1,0 +1,8 @@
+brief: 'Implement a decorator retry(times, exceptions=(Exception,)) in retrying.py:
+  call the function up to `times` times, retrying only when one of `exceptions` is
+  raised, and re-raise the last exception if all attempts fail. Return the function''s
+  value on success.'
+allowed_paths:
+- retrying.py
+acceptance:
+- cmd: python -m pytest -q test_retrying.py

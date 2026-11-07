@@ -1,0 +1,6 @@
+brief: 'Implement slugify(text) in slugify.py: lowercase, replace runs of non-alphanumeric
+  characters with a single hyphen, no leading or trailing hyphens.'
+allowed_paths:
+- slugify.py
+acceptance:
+- cmd: python -m pytest -q test_slugify.py
