@@ -44,3 +44,9 @@ Delegation does not save money on tasks the parent finishes in 3 to 5 turns: the
 - User decision: the local model gets **no shell**. It is told not to run tests; gruntly runs the acceptance command and all other gates and feeds any failure back as the next attempt, so the parent never sees intermediate failures. `self_check: true` (acceptance command only) stays available as a benchmark arm.
 - A native minimal agent loop in gruntly was considered and not built: the slimmed harnesses reach ~1.2k tokens per request, which is the target the native loop was meant to hit.
 - `auto` only applies to harnesses that declare `Caps.profiles`; generic and Hermes keep `default` unless a profile is named.
+
+## claude.ai connectors disabled for coding sessions (2026-11-07)
+
+`"disableClaudeAiConnectors": true` was set in the user-level `~/.claude/settings.json` (backup: `settings.json.bak-before-connectors`; remove the key to re-enable). The Gmail, Drive, Docs and Calendar connectors added ~50 tool schemas to every Claude Code session. Verified with a trivial `claude -p --model sonnet` prompt: 53 connector tools before, 0 after; cost $0.0554 -> $0.0347.
+
+Consequence for the benchmarks: **runs made before this change are not comparable with runs made after it.** The per-session cost floor (~$0.15 on Opus, ~$0.07 on Sonnet in benchmark v2) included these schemas, so both the `alone` and `gruntly` arms get cheaper. Any claim about delegation overhead has to be re-measured on the same footing.
