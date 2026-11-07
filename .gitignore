@@ -6,3 +6,4 @@ build/
 .pytest_cache/
 .gruntly/
 bench/runs/
+bench/runs-opus/

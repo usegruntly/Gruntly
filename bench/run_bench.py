@@ -192,7 +192,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--harness", default="opencode")
     ap.add_argument("--model", default="qwen/qwen3.5-9b")
-    ap.add_argument("--parent-model", default=None)
+    ap.add_argument("--parent-model", default="sonnet", help="Claude model for the parent (alias or id)")
     ap.add_argument("--tasks", default="")
     ap.add_argument("--arms", default="alone,forced,policy")
     ap.add_argument("--reps", type=int, default=1)
