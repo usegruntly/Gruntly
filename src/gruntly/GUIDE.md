@@ -27,6 +27,9 @@ budget_s: 900
 
 Bare strings are fine for `acceptance` and path lists. gruntly warns (`warnings`, `review_hint`) when acceptance already passes before any change: such a test proves nothing.
 
+## Waiting
+Run `gruntly run` in the foreground (Bash timeout 300000) and let it block. It returns the result, or after 240 s (`--max-block`) a tiny `{"status": "running"}`; the run keeps going in a detached worker, so call `gruntly wait <run>` (same foreground call). Do not use `run_in_background` or poll with short calls: backgrounding ends the parent's turn, the conversation is replayed in a new session to read the result, and every poll is a turn that re-reads the context.
+
 ## Commands
 - `gruntly run --spec F|-  [--apply-on-pass] [--async]`
 - `gruntly status|result <run>`; `gruntly diff <run> [--stat|--file F|--hunks N]`; `gruntly log <run> --tail N`

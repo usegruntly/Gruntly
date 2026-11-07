@@ -28,6 +28,10 @@ elif scenario == "fix_on_retry":
         print("fixed on retry")
     else:
         print("looked around, changed nothing")
+elif scenario == "slow_pass":
+    time.sleep(4)
+    fix()
+    print("fixed after a pause")
 elif scenario == "no_fix":
     print("I did my best.")
 elif scenario == "out_of_scope":

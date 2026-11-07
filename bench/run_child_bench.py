@@ -66,7 +66,7 @@ def run_one(task_dir: Path, brief: str, arm: str, rep: int, a) -> dict:
         spec = build_spec(task_dir, brief, arm, a)
         env = {**os.environ, "GRUNTLY_STATE_DIR": str(state), "GRUNTLY_CONFIG_DIR": str(Path(tmp) / "cfg")}
         t0 = time.time()
-        p = sh([sys.executable, "-m", "gruntly", "run", "--spec", "-"], work, input=yaml.safe_dump(spec), env=env, timeout=a.budget_s + 600)
+        p = sh([sys.executable, "-m", "gruntly", "run", "--spec", "-", "--max-block", "0"], work, input=yaml.safe_dump(spec), env=env, timeout=a.budget_s + 600)
         wall = round(time.time() - t0)
         try:
             res = json.loads(p.stdout)

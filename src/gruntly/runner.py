@@ -242,6 +242,7 @@ def prepare(spec: Spec, root: Path, run_id: str | None = None) -> str:
 
 def execute(root: Path, run_id: str, guidance: str | None = None, extra_attempts: int | None = None) -> dict:
     st = Store.existing(root, run_id)
+    st.set_state("queued", pid=os.getpid())  # lets `gruntly wait` notice a worker that died without a result
     spec = Spec(**st.read_json("spec.json"))
     if extra_attempts:
         spec.max_attempts = extra_attempts
