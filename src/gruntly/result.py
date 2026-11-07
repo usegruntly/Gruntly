@@ -1,15 +1,22 @@
-"""The compact result contract. Hard cap ~6000 chars; tails cut from the front, summaries from the back."""
+"""The compact result contract (schema 2).
+
+A pass is ~250 bytes: status, files, line counts and whether it was applied. Anything the child wrote
+(its summary, test output, handoff notes) lives under the single `untrusted` key, only on non-passes,
+and is length-capped. Nothing child-written appears anywhere else, including `next`.
+Hard cap ~6000 chars; tails are cut from the front, summaries from the back.
+"""
 from __future__ import annotations
 
 import json
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MAX_CHARS = 6000
-SUMMARY_CHARS = 600
-BUNDLE_LINES = 60
+SUMMARY_CHARS = 300
+BUNDLE_LINES = 20
+GATE_TAIL_LINES = 60  # raw capture per gate before it is compacted
 
 
-def tail_lines(text: str, n: int, max_chars: int = 2500) -> str:
+def tail_lines(text: str, n: int, max_chars: int = 2000) -> str:
     out = "\n".join(text.strip().splitlines()[-n:])
     return out if len(out) <= max_chars else "…" + out[-max_chars:]
 
@@ -23,63 +30,58 @@ def size(result: dict) -> int:
     return len(json.dumps(result, ensure_ascii=False))
 
 
+def compact_gates(gates: dict) -> dict:
+    """Passing gates are `true`; failing ones keep their detail, minus raw command output."""
+    out = {}
+    for name, g in gates.items():
+        if g.get("ok"):
+            out[name] = True
+        else:
+            out[name] = {k: v for k, v in g.items() if k not in ("tail", "output")}
+    return out
+
+
 def enforce_cap(result: dict, cap: int = MAX_CHARS) -> dict:
-    """Shrink the largest free-text fields until the result fits."""
+    u = result.get("untrusted") or {}
     steps = [
-        lambda r: _shrink_bundle(r, 30),
-        lambda r: _shrink_tails(r, 1200),
-        lambda r: r.__setitem__("child_summary", head_chars(r.get("child_summary", ""), 300)),
-        lambda r: _shrink_bundle(r, 15),
-        lambda r: _shrink_tails(r, 400),
-        lambda r: _drop_attempts(r),
-        lambda r: r.__setitem__("child_summary", head_chars(r.get("child_summary", ""), 100)),
-        lambda r: _shrink_bundle(r, 5),
-        lambda r: _shrink_tails(r, 100),
+        lambda: u.__setitem__("gate_output", tail_lines(u.get("gate_output", ""), 10, 800)) if "gate_output" in u else None,
+        lambda: u.__setitem__("summary", head_chars(u.get("summary", ""), 100)) if "summary" in u else None,
+        lambda: u.pop("handoff", None),
+        lambda: result.get("failure_bundle", {}).__setitem__("attempts", result["failure_bundle"].get("attempts", [])[-2:])
+        if result.get("failure_bundle") else None,
+        lambda: u.pop("gate_output", None),
     ]
     for step in steps:
         if size(result) <= cap:
             break
-        step(result)
+        step()
     return result
 
 
-def _shrink_bundle(r: dict, lines: int) -> None:
-    b = r.get("failure_bundle")
-    if b and b.get("output"):
-        b["output"] = tail_lines(b["output"], lines, max_chars=lines * 80)
-
-
-def _shrink_tails(r: dict, chars: int) -> None:
-    for g in r.get("gates", {}).values():
-        if isinstance(g, dict) and g.get("tail"):
-            g["tail"] = "…" + g["tail"][-chars:] if len(g["tail"]) > chars else g["tail"]
-    b = r.get("failure_bundle")
-    if b and len(b.get("output", "")) > chars:
-        b["output"] = "…" + b["output"][-chars:]
-
-
-def _drop_attempts(r: dict) -> None:
-    b = r.get("failure_bundle")
-    if b:
-        b["attempts"] = b.get("attempts", [])[-2:]
-
-
-def build(*, run_id: str, status: str, attempts: int, gates: dict, diff_stat: dict, child_summary: str,
-          failure_bundle: dict | None, timing: dict, child_usage: dict, next_cmds: list[str],
-          error: str | None = None) -> dict:
-    r = {
-        "schema_version": SCHEMA_VERSION,
-        "run_id": run_id,
-        "status": status,
-        "attempts": attempts,
-        "gates": gates,
-        "diff_stat": diff_stat,
-        "child_summary": "UNTRUSTED. " + head_chars(child_summary, SUMMARY_CHARS),
-        "failure_bundle": failure_bundle,
-        "timing": timing,
-        "child_usage": child_usage,
-        "next": next_cmds,
-    }
+def build(*, run_id: str, status: str, attempts: int, gates: dict, diff_stat: dict, failure_bundle: dict | None,
+          wall_s: int, child_tokens: int | None, next_cmds: list[str], untrusted: dict | None = None,
+          applied: bool | None = None, verify: str | None = None, review_hint: list[str] | None = None,
+          warnings: list[str] | None = None, error: str | None = None) -> dict:
+    r: dict = {"schema_version": SCHEMA_VERSION, "run_id": run_id, "status": status, "attempts": attempts}
+    if applied is not None:
+        r["applied"] = applied
+    if verify:
+        r["verify"] = verify
+    r["gates"] = compact_gates(gates)
+    r["diff_stat"] = {"files": diff_stat["files"], "insertions": diff_stat["insertions"],
+                      "deletions": diff_stat["deletions"], "paths": diff_stat["paths"][:10]}
+    if review_hint:
+        r["review_hint"] = review_hint
+    if warnings:
+        r["warnings"] = warnings
+    if failure_bundle:
+        r["failure_bundle"] = failure_bundle
+    if untrusted:
+        r["untrusted"] = untrusted
     if error:
         r["error"] = head_chars(error, 400)
+    r["wall_s"] = wall_s
+    if child_tokens:
+        r["child_tokens"] = child_tokens
+    r["next"] = next_cmds
     return enforce_cap(r)

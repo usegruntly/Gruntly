@@ -60,7 +60,7 @@ def preflight(start: Path | str) -> Path:
     return root
 
 
-def _temp_index_tree(cwd: Path, from_head: bool) -> str:
+def _temp_index_tree(cwd: Path, from_head: bool, exclude: list[str] | None = None) -> str:
     fd, idx = tempfile.mkstemp(prefix="gruntly-idx-")
     os.close(fd)
     os.unlink(idx)
@@ -69,6 +69,8 @@ def _temp_index_tree(cwd: Path, from_head: bool) -> str:
         if from_head:
             git(["read-tree", "HEAD"], cwd, env=env)
         git(["add", "-A", "--", ".", *NOISE], cwd, env=env)
+        if exclude:
+            git(["rm", "-r", "--cached", "-q", "--ignore-unmatch", "--", *exclude], cwd, env=env)
         return git(["write-tree"], cwd, env=env).stdout.strip()
     finally:
         if os.path.exists(idx):
@@ -86,11 +88,11 @@ def changed_between(root: Path, a: str, b: str) -> list[str]:
     return [x for x in git(["diff-tree", "-r", "--name-only", a, b], root).stdout.splitlines() if x]
 
 
-def snapshot_commit(root: Path, base: str) -> str:
+def snapshot_commit(root: Path, base: str, exclude: list[str] | None = None) -> str:
     head = git(["rev-parse", "HEAD"], root).stdout.strip()
-    if base == "head":
+    if base == "head" and not exclude:
         return head
-    tree = _temp_index_tree(root, from_head=False)
+    tree = _temp_index_tree(root, from_head=(base == "head"), exclude=exclude)
     return git(["commit-tree", tree, "-p", head, "-m", "gruntly snapshot"], root, env=IDENT).stdout.strip()
 
 
@@ -101,8 +103,8 @@ class Worktree:
     base: str
 
 
-def create(root: Path, run_id: str, base: str) -> Worktree:
-    commit = snapshot_commit(root, base)
+def create(root: Path, run_id: str, base: str, exclude: list[str] | None = None) -> Worktree:
+    commit = snapshot_commit(root, base, exclude)
     path = root / ".gruntly" / "worktrees" / run_id
     path.parent.mkdir(parents=True, exist_ok=True)
     branch = f"gruntly/{run_id}"

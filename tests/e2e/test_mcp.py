@@ -22,24 +22,28 @@ def test_tools_listed_and_async_run_round_trip(repo, make_spec):
 
     async def go():
         names = {t.name for t in await server.list_tools()}
-        assert {"gruntly_run", "gruntly_status", "gruntly_result", "gruntly_diff", "gruntly_apply",
-                "gruntly_discard", "gruntly_continue"} <= names
-        started = _text(await server.call_tool("gruntly_run", {"spec_yaml": yaml.safe_dump(make_spec("pass")),
-                                                               "repo": str(repo)}))
-        started = started if isinstance(started, dict) else json.loads(started)
-        assert started["status"] == "queued"
+        assert names == {"gruntly_run", "gruntly_manage"}  # tool schemas sit in context every turn: keep few
+        def d(x):
+            return x if isinstance(x, dict) else json.loads(x)
+
+        # default: blocks, applies on pass, returns the compact result
+        res = d(_text(await server.call_tool("gruntly_run", {"spec_yaml": yaml.safe_dump(make_spec("pass")),
+                                                             "repo": str(repo)})))
+        assert res["status"] == "passed" and res["applied"] is True
+        # async path: queue, poll, read
+        (repo / "calc.py").write_text("def add(a, b):\n    return a - b\n")
+        started = d(_text(await server.call_tool("gruntly_run", {"spec_yaml": yaml.safe_dump(make_spec("pass")),
+                                                                 "repo": str(repo), "wait": False,
+                                                                 "apply_on_pass": False})))
         rid = started["run_id"]
         for _ in range(120):
-            st = _text(await server.call_tool("gruntly_status", {"run_id": rid, "repo": str(repo)}))
-            st = st if isinstance(st, dict) else json.loads(st)
+            st = d(_text(await server.call_tool("gruntly_manage", {"run_id": rid, "action": "status", "repo": str(repo)})))
             if st["state"] == "done":
                 break
             await asyncio.sleep(0.5)
-        res = _text(await server.call_tool("gruntly_result", {"run_id": rid, "repo": str(repo)}))
-        res = res if isinstance(res, dict) else json.loads(res)
+        res = d(_text(await server.call_tool("gruntly_manage", {"run_id": rid, "action": "result", "repo": str(repo)})))
         assert res["status"] == "passed"
-        applied = _text(await server.call_tool("gruntly_apply", {"run_id": rid, "repo": str(repo)}))
-        applied = applied if isinstance(applied, dict) else json.loads(applied)
+        applied = d(_text(await server.call_tool("gruntly_manage", {"run_id": rid, "action": "apply", "repo": str(repo)})))
         assert applied["applied"] is True
 
     asyncio.run(go())

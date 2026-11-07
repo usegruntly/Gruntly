@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 - 2026-11-07
+
+Rework after a cost audit of the 0.1.0 benchmark (delegating cost 70% more than doing the work alone; most of it was fixed overhead in the parent's turns, not escalations).
+
+- One-call flow: `gruntly run --apply-on-pass` applies a passing patch, re-verifies in your tree only if it changed, reverses the patch if that check fails, and cleans up the worktree.
+- Result schema 2: a pass is ~300 bytes (was ~1 KB). All child-written text (summary, test output, handoff) is under one `untrusted` key and only on non-passes; `child_summary`, `timing` and `child_usage` are gone from the parent's view.
+- New gates and signals: `holdout` (parent-written tests the child never sees), `regression` (run the wider suite), red-before-green warning when acceptance already passes at the base, `review_hint`.
+- Preflight refuses a model context under 32k tokens (`allow_small_ctx` overrides); queue waits are capped at the run budget and say who holds the slot.
+- Plugin: skill cut from ~1,200 to ~230 words (full manual via `gruntly guide`), MCP tools cut from 7 to 2, MCP install pinned to a release tag.
+- `gruntly stats` keys by harness/model/context and recommends `delegate`, `avoid` or `unknown`.
+
 ## 0.1.0 - 2026-11-07
 
 First release.

@@ -35,16 +35,17 @@ def _big_result():
         run_id="r_x", status="escalate", attempts=3,
         gates={"acceptance": {"ok": False, "cmd": "pytest", "tail": "line\n" * 5000}},
         diff_stat={"files": 1, "insertions": 1, "deletions": 0, "paths": ["a"] * 20},
-        child_summary="x" * 5000,
-        failure_bundle={"reason": "r", "gate": "acceptance", "output": "fail\n" * 5000, "files_touched": ["a"] * 20,
+        failure_bundle={"reason": "r", "gate": "acceptance", "files_touched": ["a"] * 20,
                         "attempts": [{"n": i} for i in range(4)]},
-        timing={}, child_usage={"available": False}, next_cmds=["a"] * 3)
+        untrusted={"gate_output": "fail\n" * 5000, "handoff": "h" * 5000, "summary": "x" * 5000},
+        wall_s=1, child_tokens=5, next_cmds=["a"] * 3)
 
 
 def test_result_is_capped_and_keeps_failing_tail():
     r = _big_result()
     assert len(json.dumps(r)) <= resmod.MAX_CHARS
-    assert r["child_summary"].startswith("UNTRUSTED.")
+    assert set(r["untrusted"]) <= {"gate_output", "handoff", "summary"}  # child text lives only here
+    assert "line" not in json.dumps({k: v for k, v in r.items() if k != "untrusted"})
 
 
 def test_tail_truncates_from_front():

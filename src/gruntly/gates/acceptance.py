@@ -20,9 +20,10 @@ def purge_bytecode(root: Path) -> None:
                 dn.remove(d)
 
 
-def run_cmd(cmd: str, cwd: Path, timeout_s: int, env: dict | None = None) -> dict:
+def run_cmd(cmd: str, cwd: Path, timeout_s: int, env: dict | None = None, purge: bool = True) -> dict:
     env = {**(env if env is not None else os.environ), "PYTHONDONTWRITEBYTECODE": "1"}
-    purge_bytecode(cwd)
+    if purge:
+        purge_bytecode(cwd)
     t0 = time.monotonic()
     try:
         p = subprocess.run(cmd, shell=True, cwd=str(cwd), capture_output=True, text=True,
@@ -36,11 +37,11 @@ def run_cmd(cmd: str, cwd: Path, timeout_s: int, env: dict | None = None) -> dic
     return {"ok": ok, "cmd": cmd, "exit": code, "output": out[-MAX_CAPTURE:], "secs": round(time.monotonic() - t0, 1)}
 
 
-def check(spec, wt: Path) -> dict:
+def check(spec, wt: Path, purge: bool = True) -> dict:
     last = {"ok": True, "cmd": "", "exit": 0, "output": "", "secs": 0}
     total = 0.0
     for a in spec.acceptance:
-        r = run_cmd(a["cmd"], wt, a["timeout_s"])
+        r = run_cmd(a["cmd"], wt, a["timeout_s"], purge=purge)
         total += r["secs"]
         last = r
         if not r["ok"]:

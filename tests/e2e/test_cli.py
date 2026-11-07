@@ -120,7 +120,7 @@ def test_init_writes_config_and_snippet(repo, capsys, monkeypatch):
     assert rc == 0 and (repo / ".gruntly.toml").exists()
     assert "doctor" in json.loads(out)
     _, out = call(capsys, "init", "--snippet")
-    assert "UNTRUSTED" in out and "gruntly run" in out
+    assert "untrusted" in out and "gruntly run --apply-on-pass" in out
     assert ".gruntly/" in (repo / ".git" / "info" / "exclude").read_text()
 
 
@@ -129,7 +129,7 @@ def test_stats_aggregates_runs(repo, run_task, make_spec, capsys):
     run_task(make_spec("no_fix", max_attempts=1))
     _, out = call(capsys, "stats")
     s = json.loads(out)
-    b = s["by_harness_model"]["generic/None"]
+    b = s["by_harness_model"]["generic/None/ctx=?"]
     assert s["total_runs"] == 2 and b["passed"] == 1 and b["escalated"] == 1 and b["pass_rate"] == 0.5
 
 

@@ -25,6 +25,7 @@ DEFAULTS: dict[str, Any] = {
         "diff_max_lines": 400,
         "no_test_weakening": True,
         "no_new_deps": True,
+        "regression": None,
         "lint": None,
         "typecheck": None,
     },
@@ -38,6 +39,10 @@ DEFAULTS: dict[str, Any] = {
     "sandbox_level": 0,
     "max_concurrency": 1,
     "env_allow": [],
+    "apply_on_pass": False,
+    "holdout": None,
+    "min_context": 32768,
+    "allow_small_ctx": False,
 }
 HARNESSES = ("qwen", "opencode", "hermes", "generic")
 
@@ -69,6 +74,10 @@ class Spec:
     sandbox_level: int = 0
     max_concurrency: int = 1
     env_allow: list[str] = field(default_factory=list)
+    apply_on_pass: bool = False
+    holdout: Any = None            # {files: [...], cmd: "..."}: parent-written tests the child never sees
+    min_context: int = 32768
+    allow_small_ctx: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -156,5 +165,10 @@ def _validate(s: Spec) -> None:
     s.acceptance = norm
     if s.kind == "code" and not norm:
         raise SpecError("code tasks need at least one acceptance command")
+    if s.holdout is not None:
+        h = s.holdout
+        if not isinstance(h, dict) or not h.get("cmd") or not _as_list(h.get("files")):
+            raise SpecError("holdout needs {files: [...], cmd: '...'}")
+        s.holdout = {"files": [str(f) for f in _as_list(h["files"])], "cmd": str(h["cmd"])}
     if s.harness == "generic" and not s.child_cmd:
         raise SpecError("harness 'generic' needs child_cmd")

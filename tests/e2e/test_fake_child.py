@@ -11,10 +11,10 @@ def test_pass(run_task, make_spec):
     res, root = run_task(make_spec("pass"))
     assert res["status"] == "passed"
     assert res["attempts"] == 1
-    assert all(g["ok"] for g in res["gates"].values())
+    assert all(v is True for v in res["gates"].values())
     assert res["diff_stat"]["paths"] == ["calc.py"]
-    assert res["child_summary"].startswith("UNTRUSTED.")
-    assert len(json.dumps(res)) <= MAX_CHARS
+    assert "untrusted" not in res and "child_summary" not in res  # nothing child-written on a pass
+    assert len(json.dumps(res)) <= 600  # a pass is tiny
     # user's tree is untouched until apply
     assert "a - b" in (root / "calc.py").read_text()
 
@@ -23,7 +23,7 @@ def test_fails_gate_then_escalates(run_task, make_spec):
     res, _ = run_task(make_spec("no_fix", max_attempts=3))
     assert res["status"] == "escalate"
     assert res["gates"]["acceptance"]["ok"] is False
-    assert "assert" in res["gates"]["acceptance"]["tail"]
+    assert "assert" in res["untrusted"]["gate_output"]
     assert res["failure_bundle"]["gate"] == "acceptance"
     assert "stuck" in res["failure_bundle"]["reason"]  # identical failure twice stops early
     assert res["attempts"] == 2
@@ -63,7 +63,7 @@ def test_wall_budget(run_task, make_spec):
 
 def test_test_weakening(run_task, make_spec):
     res, _ = run_task(make_spec("weaken", max_attempts=1, allowed_paths=["calc.py", "test_calc.py"]))
-    assert res["gates"]["acceptance"]["ok"] is True  # the tests "pass"...
+    assert res["gates"]["acceptance"] is True  # the tests "pass"...
     assert res["status"] == "escalate"                # ...but the gate wins
     assert not res["gates"]["test_weakening"]["ok"]
 
@@ -124,7 +124,7 @@ def test_handoff_relay_across_runs(run_task, make_spec):
     res, root = run_task(make_spec("handoff", max_attempts=1))
     assert res["status"] == "escalate"
     assert res["failure_bundle"]["context_exhausted"] is True
-    assert "calc.py" in res["failure_bundle"]["handoff"]
+    assert "calc.py" in res["untrusted"]["handoff"]
     res2 = runner.execute(root, res["run_id"], guidance="Just change the operator.", extra_attempts=1)
     assert res2["status"] == "passed"
     assert res2["attempts"] == 2  # attempt counter carries on across the relay

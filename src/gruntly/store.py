@@ -73,7 +73,8 @@ class Store:
             else round(s.get("updated", 0) - s.get("created", 0), 1)
         return {"run_id": self.run_id, **s}
 
-    def save_result(self, result: dict) -> None:
+    def save_result(self, result: dict, meta: dict | None = None) -> None:
+        meta = meta or {}
         self.write_json("result.json", result)
         self.set_state("done")
         idx = state_dir()
@@ -82,8 +83,8 @@ class Store:
                 "status": result.get("status"), "attempts": result.get("attempts"),
                 "harness": (self.read_json("spec.json") or {}).get("harness"),
                 "model": (self.read_json("spec.json") or {}).get("model"),
-                "wall_s": (result.get("timing") or {}).get("wall_s"),
-                "result_bytes": len(json.dumps(result)), "child_usage": result.get("child_usage")}
+                "wall_s": meta.get("wall_s", result.get("wall_s")), "ctx": self.read_json("status.json", {}).get("ctx"),
+                "result_bytes": len(json.dumps(result)), "child_usage": meta.get("child_usage")}
         with (idx / "runs.jsonl").open("a", encoding="utf8") as f:
             f.write(json.dumps(line) + "\n")
 

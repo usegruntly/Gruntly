@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -11,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import doctor, prompt, result as resmod, sandbox, worktree as wtmod
+from .apply import apply_run
 from .adapters.base import get_adapter, scrub_env
 from .gates import acceptance, deps, diff_size, scope, test_weakening
 from .redact import redact, secrets_from_env
@@ -23,7 +25,9 @@ INFRA = re.compile(r"(?i)(ECONNREFUSED|connection refused|fetch failed|connectio
                    r"max retries exceeded|no route to host|name or service not known)")
 CONTEXT = re.compile(r"(?i)(context[ _-]?(length|window)|maximum context|n_ctx|exceeds the (available )?context|"
                      r"too many tokens|token limit)")
-GATE_PRIORITY = ["scope", "test_weakening", "new_deps", "diff_size", "acceptance", "lint", "typecheck"]
+GATE_PRIORITY = ["scope", "test_weakening", "new_deps", "diff_size", "acceptance", "holdout", "regression", "lint", "typecheck"]
+RISKY_PATH = re.compile(r"(?i)(auth|secur|crypt|secret|passw|token|migrat|\.env|\.lock$|dockerfile|\.github/)")
+REVIEW_LINES = 150
 
 
 # ---------------------------------------------------------------- child process
@@ -146,13 +150,23 @@ def acquire_slot(root: Path, max_conc: int, stale_s: float, wait_s: float = 3600
                 except (OSError, ValueError):
                     pass
         if time.time() - t0 > wait_s:
-            raise TimeoutError("queue wait exceeded")
+            holders = []
+            for q in d.glob("slot*.lock"):
+                try:
+                    holders.append(f"pid {q.read_text().strip()} for {int(time.time() - q.stat().st_mtime)}s")
+                except OSError:
+                    pass
+            raise TimeoutError(f"queue busy: another run holds the only slot ({', '.join(holders) or 'unknown'}); "
+                               f"waited {int(wait_s)}s")
         time.sleep(1)
 
 
 # ---------------------------------------------------------------- gates
 def _failing_text(name: str, g: dict) -> str:
-    if name == "acceptance" or name in ("lint", "typecheck"):
+    if name == "holdout":  # the child sees which holdout tests failed, never their bodies or assertion text
+        names = [ln.strip()[:160] for ln in g.get("tail", "").splitlines() if ln.startswith("FAILED ")]
+        return "\n".join(names) or "holdout check failed (no test names available)"
+    if name == "acceptance" or name in ("regression", "lint", "typecheck"):
         return g.get("tail", "")
     return "\n".join(g.get("violations") or g.get("findings") or g.get("problems") or g.get("files") or [name])
 
@@ -166,14 +180,35 @@ def run_gates(spec: Spec, wt: Path, base: str, root: Path, main_fp: str, secrets
     g["new_deps"] = deps.check(spec, wt, base) if on.get("no_new_deps", True) else {"ok": True, "skipped": True}
     a = acceptance.check(spec, wt)
     g["acceptance"] = {"ok": a["ok"], "cmd": a["cmd"], "tail": "" if a["ok"] else
-                       resmod.tail_lines(redact(a["output"], secrets), resmod.BUNDLE_LINES)}
-    for extra in ("lint", "typecheck"):
+                       resmod.tail_lines(redact(a["output"], secrets), resmod.GATE_TAIL_LINES)}
+    for extra in ("regression", "lint", "typecheck"):
         cmd = on.get(extra)
         if cmd:
             r = acceptance.run_cmd(cmd, wt, 300)
             g[extra] = {"ok": r["ok"], "cmd": cmd, "tail": "" if r["ok"] else
-                        resmod.tail_lines(redact(r["output"], secrets), resmod.BUNDLE_LINES)}
+                        resmod.tail_lines(redact(r["output"], secrets), resmod.GATE_TAIL_LINES)}
+    if spec.holdout:
+        g["holdout"] = _holdout_gate(spec.holdout, wt, root, secrets)
     return g
+
+
+def _holdout_gate(h: dict, wt: Path, root: Path, secrets: list[str]) -> dict:
+    """Copy the parent's held-out tests in, run them, remove them. The child never sees them."""
+    copied: list[Path] = []
+    try:
+        for rel in h["files"]:
+            src, dst = root / rel, wt / rel
+            if not src.is_file():
+                return {"ok": False, "tail": f"holdout file missing: {rel}"}
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dst)
+            copied.append(dst)
+        r = acceptance.run_cmd(h["cmd"], wt, 300)
+        return {"ok": r["ok"], "cmd": h["cmd"], "tail": "" if r["ok"] else
+                resmod.tail_lines(redact(r["output"], secrets), resmod.GATE_TAIL_LINES)}
+    finally:
+        for f in copied:
+            f.unlink(missing_ok=True)
 
 
 def first_failure(gates: dict) -> str | None:
@@ -204,7 +239,7 @@ def execute(root: Path, run_id: str, guidance: str | None = None, extra_attempts
         spec.max_attempts = extra_attempts
     t_start = time.monotonic()
     try:
-        slot = acquire_slot(root, spec.max_concurrency, spec.budget_s + 600)
+        slot = acquire_slot(root, spec.max_concurrency, spec.budget_s + 600, wait_s=min(spec.budget_s, 3600))
     except TimeoutError as e:
         return _finish(st, spec, root, "error", 0, {}, {"files": 0, "insertions": 0, "deletions": 0, "paths": []},
                        "", None, t_start, 0.0, 0.0, {"available": False}, error=str(e))
@@ -237,13 +272,21 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         if spec.model and spec.model not in p["models"]:
             return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
                            error=f"model {spec.model!r} not loaded on the server; available: {p['models']}")
+        ctx = p["ctx"].get(spec.model) if spec.model else (next(iter(p["ctx"].values()), None))
+        if ctx:
+            st.set_state("running", ctx=ctx)
+            if ctx < spec.min_context and not spec.allow_small_ctx:
+                return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
+                               error=f"model context is {ctx} tokens (< {spec.min_context}): the agent's own prompt "
+                                     f"nearly fills it and runs fail. Reload the model with a larger context, or set "
+                                     f"allow_small_ctx: true to run anyway.")
 
     if cont:
         base, main_fp = prior["base"], prior["main_fp"]
         wt = root / ".gruntly" / "worktrees" / run_id
     else:
         main_fp = wtmod.fingerprint(root)
-        w = wtmod.create(root, run_id, spec.base)
+        w = wtmod.create(root, run_id, spec.base, exclude=(spec.holdout or {}).get("files"))
         base, wt = w.base, w.path
     attempt_no = prior.get("attempts", 0)
     session = prior.get("session")
@@ -258,6 +301,11 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
     status, error, gates = "escalate", None, {}
     reason = "attempts exhausted"
     caps = adapter.capabilities()
+    warnings: list[str] = list(prior.get("warnings", []))
+    if not cont and spec.kind == "code":
+        # red before green: if acceptance already passes at the base, it proves nothing about the child's work
+        if acceptance.check(spec, wt)["ok"]:
+            warnings.append("acceptance already passes before any change: it cannot prove the task was done")
 
     for local in range(1, spec.max_attempts + 1):
         attempt_no += 1
@@ -330,35 +378,68 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
     stats = diff_stat(wt, base)
     bundle = None
     if status in ("escalate", "timeout"):
-        files = stats["paths"]
-        notes = handoff_path.read_text(encoding="utf8", errors="replace")[:1500] if handoff_path.exists() else ""
-        bundle = {"reason": reason, "gate": last_gate, "output": last_text, "files_touched": files,
-                  "attempts": attempts_log[-4:]}
-        if notes:
-            bundle["handoff"] = redact(notes, [])
+        bundle = {"reason": reason, "gate": last_gate, "files_touched": stats["paths"], "attempts": attempts_log[-4:]}
         if context_hit:
             bundle["context_exhausted"] = True
+    notes = redact(handoff_path.read_text(encoding="utf8", errors="replace")[:1500], []) \
+        if status in ("escalate", "timeout") and handoff_path.exists() else ""
     st.write_json("state.json", {"base": base, "main_fp": main_fp, "attempts": attempt_no, "session": session,
-                                 "attempts_log": attempts_log})
+                                 "attempts_log": attempts_log, "warnings": warnings})
+    applied = hint = None
+    if status == "passed":
+        hint = _review_hint(gates, stats, warnings)
+        if spec.apply_on_pass:
+            applied = apply_run(root, st, spec, base, main_fp)
+            if applied.get("applied"):
+                wtmod.remove(root, run_id)  # the patch is in the user's tree; keep only the run record
+            else:
+                status = "escalate"
+                bundle = {"reason": applied.get("error", "apply failed"), "gate": "apply",
+                          "files_touched": stats["paths"], "attempts": attempts_log[-4:]}
+                last_text = applied.get("gate_output") or "\n".join(
+                    applied.get("violations") or applied.get("conflicts") or [])
     return _finish(st, spec, root, status, attempt_no, gates, stats, summary, bundle, t_start, child_s, gates_s,
-                   usage, error=error)
+                   usage, error=error, last_text=last_text, handoff=notes, applied=applied, review_hint=hint,
+                   warnings=warnings)
+
+
+def _review_hint(gates: dict, stats: dict, warnings: list[str]) -> list[str]:
+    """When the parent should look at the diff. Empty means the gates are enough."""
+    hint = []
+    lines = stats["insertions"] + stats["deletions"]
+    if lines > REVIEW_LINES:
+        hint.append(f"large diff ({lines} lines)")
+    risky = [x for x in stats["paths"] if RISKY_PATH.search(x)]
+    if risky:
+        hint.append("touches sensitive paths: " + ", ".join(risky[:3]))
+    if warnings:
+        hint.append("weak acceptance: " + warnings[0])
+    return hint
 
 
 def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_start, child_s, gates_s, usage,
-            error=None) -> dict:
+            error=None, last_text="", handoff="", applied=None, review_hint=None, warnings=None) -> dict:
     rid = st.run_id
-    nxt = [f"gruntly diff {rid} --stat"]
-    if status == "passed":
-        nxt += [f"gruntly apply {rid}", f"gruntly discard {rid}"]
+    applied = applied or {}
+    ok_applied = bool(applied.get("applied"))
+    if status == "passed" and ok_applied:
+        nxt = []
+    elif status == "passed":
+        nxt = [f"gruntly apply {rid}"] + ([f"gruntly diff {rid} --stat"] if review_hint else [])
     elif status in ("escalate", "timeout"):
-        nxt += [f"gruntly diff {rid} --stat", f'gruntly continue {rid} --guidance "<what to do differently>"',
-                f"gruntly apply {rid}  # keep partial work", f"gruntly discard {rid}"]
+        nxt = [f"gruntly diff {rid} --stat", f'gruntly continue {rid} --guidance "<what to do differently>"',
+               f"gruntly discard {rid}"]
     else:
-        nxt = [f"gruntly doctor", f"gruntly discard {rid}"]
+        nxt = ["gruntly doctor"]
+    untrusted = None
+    if status != "passed":
+        untrusted = {k: v for k, v in {
+            "gate_output": resmod.tail_lines(last_text, resmod.BUNDLE_LINES) if last_text else "",
+            "handoff": handoff, "summary": resmod.head_chars(summary, resmod.SUMMARY_CHARS)}.items() if v}
     res = resmod.build(run_id=rid, status=status, attempts=attempts, gates=gates, diff_stat=stats,
-                       child_summary=summary, failure_bundle=bundle,
-                       timing={"wall_s": round(time.monotonic() - t_start), "child_s": round(child_s),
-                               "gates_s": round(gates_s)},
-                       child_usage=usage, next_cmds=list(dict.fromkeys(nxt)), error=error)
-    st.save_result(res)
+                       failure_bundle=bundle, wall_s=round(time.monotonic() - t_start),
+                       child_tokens=(usage or {}).get("total_tokens"), next_cmds=nxt, untrusted=untrusted,
+                       applied=ok_applied if applied else None, verify=applied.get("verify"),
+                       review_hint=review_hint, warnings=warnings, error=error)
+    st.save_result(res, meta={"wall_s": res["wall_s"], "child_usage": usage})
     return res
