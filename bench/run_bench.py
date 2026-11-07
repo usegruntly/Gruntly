@@ -29,6 +29,10 @@ HERE = Path(__file__).parent
 PLUGIN = HERE.parent / "plugin"
 TOOLS = ["Bash", "Write", "Read", "Edit", "Glob", "Grep", "Skill"]
 LARGE = {"bugs_batch", "rename_domain", "cli_json"}
+# per-arm `[do]` settings for the slash-command arms: gd = old behaviour, gdA = diff in the request, gdAB = diff + hints
+DO_TOML = {"gd": "\n[do]\ndiff = false\nhints = false\n", "gdA": "\n[do]\ndiff = true\nhints = false\n",
+           "gdAB": "\n[do]\ndiff = true\nhints = true\n"}
+GD_ARMS = tuple(DO_TOML)
 
 
 def sh(args, cwd, **kw):
@@ -39,11 +43,11 @@ def bucket(task: str) -> str:
     return "L" if task in LARGE else "S"
 
 
-def prepare(task_dir: Path, work: Path, harness: str, model: str) -> dict:
+def prepare(task_dir: Path, work: Path, harness: str, model: str, extra: str = "") -> dict:
     spec = yaml.safe_load((task_dir / "task.yaml").read_text(encoding="utf8"))
     shutil.copytree(task_dir / "repo", work)
     (work / ".gruntly.toml").write_text(
-        f'harness = "{harness}"\nmodel = "{model}"\nbudget_s = 900\nno_progress_s = 300\nmax_attempts = 2\n', encoding="utf8")
+        f'harness = "{harness}"\nmodel = "{model}"\nbudget_s = 900\nno_progress_s = 300\nmax_attempts = 2\n' + extra, encoding="utf8")
     sh(["git", "init", "-q", "-b", "main"], work)
     sh(["git", "add", "-A"], work)
     sh(["git", "-c", "user.name=b", "-c", "user.email=b@b", "commit", "-qm", "start"], work)
@@ -55,7 +59,7 @@ def prompt_for(arm: str, spec: dict) -> str:
     paths = ", ".join(spec["allowed_paths"])
     extra = " You may edit the existing tests." if spec.get("tests_writable") else ""
     base = spec["brief"] + f"\n\nThe check is `{cmd}`; edit only {paths}.{extra}"
-    if arm == "gd":  # the one-request slash command: just the user's words, nothing else
+    if arm in GD_ARMS:  # the one-request slash command: just the user's words, nothing else
         return "/gruntly:gd " + " ".join(spec["brief"].split())
     if arm == "alone":
         return base + "\nDo the work yourself and run the check to confirm. Reply in two lines."
@@ -117,7 +121,7 @@ def gruntly_runs(work: Path) -> list[dict]:
 def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
     with tempfile.TemporaryDirectory(prefix="bench-", ignore_cleanup_errors=True) as tmp:
         work = Path(tmp) / "repo"
-        spec = prepare(task_dir, work, a.harness, a.model)
+        spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, ""))
         cmd = [shutil.which("claude") or "claude", "-p", "--allowedTools", *TOOLS, "--output-format", "stream-json", "--verbose",
                "--max-turns", "40", "--max-budget-usd", str(a.budget_usd)]
         if a.parent_model:
@@ -151,7 +155,7 @@ def mean(xs):
 
 
 def report(rows: list[dict], meta: dict) -> str:
-    arms = [x for x in ("alone", "forced", "policy", "gd") if any(r["arm"] == x for r in rows)]
+    arms = [x for x in ("alone", "forced", "policy", "gd", "gdA", "gdAB") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "
