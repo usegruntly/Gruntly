@@ -132,6 +132,7 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
     if repo_root is not None:
         merged = _merge(merged, _toml(repo_root / ".gruntly.toml"))
     merged = _merge(merged, raw)
+    merged.pop("do", None)  # the `[do]` table in .gruntly.toml configures `gruntly do`, not a task spec
     brief = merged.pop("brief", None)
     if not isinstance(brief, str) or not brief.strip():
         raise SpecError("'brief' is required")

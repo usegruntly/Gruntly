@@ -107,13 +107,17 @@ def cmd_do(a) -> int:
         if isinstance(p, do.Refusal):
             text, payload = do.render(None, None, refusal=p), {"status": "refused", "reason": p.reason}
         else:
-            rid = runner.prepare(build_spec(do.spec_for(request, p), root), root)
+            rid = runner.prepare(build_spec(do.spec_for(request, p, root), root), root)
             if a.max_block > 0:
                 _spawn_worker(root, rid)
                 res = _wait(root, rid, a.max_block)
             else:
                 res = runner.execute(root, rid)
-            text, payload = do.render(res, p), res
+            patch = ""
+            pf = root / ".gruntly" / "runs" / str(res.get("run_id", "")) / "apply.patch"
+            if res.get("applied") and pf.is_file():
+                patch = pf.read_text(encoding="utf8", errors="replace")
+            text, payload = do.render(res, p, request=request, patch=patch, cfg=do.settings(root)), res
     except Exception as e:  # noqa: BLE001 - the caller must still get a readable verdict
         text, payload = do.render(None, None, error=f"{type(e).__name__}: {e}"), {"status": "error", "error": str(e)}
     print(json.dumps(payload, ensure_ascii=False) if a.json else text)
