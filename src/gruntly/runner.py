@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -328,6 +329,11 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
                            child_s, gates_s, usage, error=str(e))
         env = scrub_env(cmd.env, spec.env_allow)
         secrets = secrets_from_env(env)
+        # keep exactly what the child was sent, so a run can be audited afterwards
+        st.write_text(f"attempts/{attempt_no}/prompt.txt", redact(text, secrets))
+        st.write_text(f"attempts/{attempt_no}/command.json", redact(json.dumps(
+            {"argv": cmd.argv, "env_passed_to_child": sorted(env), "extra_env": cmd.env,
+             "prompt_via_stdin": cmd.stdin is not None}, indent=2), secrets))
         st.set_state("running", attempt=attempt_no)
         cr = run_child(adapter, cmd.argv, env, cmd.stdin, wt, min(remaining, spec.budget_s), spec.no_progress_s)
         child_s += cr.secs
@@ -357,7 +363,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         gates_s += time.monotonic() - tg
         st.write_text(f"attempts/{attempt_no}/diff.patch", redact(wtmod.patch(wt, base), secrets))
         for n, g in gates.items():
-            st.write_text(f"attempts/{attempt_no}/gate_{n}.txt", redact(_failing_text(n, g), secrets))
+            st.write_text(f"attempts/{attempt_no}/gate_{n}.txt", "" if g.get("ok") else redact(_failing_text(n, g), secrets))
         failed = first_failure(gates)
         attempts_log.append({"n": attempt_no, "files": stats["files"], "ins": stats["insertions"],
                              "del": stats["deletions"], "failed_gate": failed})

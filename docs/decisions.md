@@ -23,6 +23,10 @@ Small local models may not fit a whole task in one context window. A child that 
 - Status `failed` from the brief is unused: gate failures after the last attempt are `escalate`.
 - The Qwen prompt goes on stdin because the npm `.cmd` shim on Windows mangles multi-line arguments.
 
+## Benchmark v2 outcome (2026-11-07)
+
+Delegation does not save money on tasks the parent finishes in 3 to 5 turns: the flow is near parity on clean runs, and every parent session has a ~$0.15 floor from its cached context. Policy arm declines to delegate on such tasks, which is the right behaviour. The hypothesis that delegation wins on 15+ turn tasks is untested; the next experiment needs real-repo tasks of that size. Not built: cloud child ladder (would end "nothing leaves your machine"; needs opt-in), scout mode (wait for the long-session result), batching.
+
 ## M3-M6 notes
 
 - OpenCode state is isolated per run (XDG dirs under `.gruntly/child-state/`); a foreign OpenCode database made headless runs fail on this machine.

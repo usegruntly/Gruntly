@@ -4,7 +4,7 @@ description: Delegate a mechanical coding task that has an executable check to a
 ---
 # gruntly
 
-Delegate only if all hold: a command proves it done; it is mechanical (implement to a spec, migrate, add tests, fix a reproduced bug); you would need ~8+ turns. Otherwise do it yourself. If `gruntly stats` says `avoid` for this model, do it yourself.
+Delegate only if all hold: a command proves it done; it is mechanical (implement to a spec, migrate, add tests, fix a reproduced bug); you would need ~8+ turns. Otherwise do it yourself, including anything one shell command (sed, a codemod) can do. If `gruntly stats` says `avoid` for this model, do it yourself.
 
 **One call**, run in the background, do not poll:
 
@@ -17,7 +17,7 @@ holdout: {files: [<your test file>], cmd: "<run it>"}   # optional; the child ne
 EOF
 ```
 
-Tests decide, not you: write an assertion for every behaviour the brief promises. A weak test means a false pass.
+Tests decide, not you: write an assertion for every behaviour the brief promises. A weak test means a false pass. Holdout files must be inside the repo (untracked is fine). If the task edits existing tests, add `tests_writable: true`.
 
 **Result**
 - `applied` with `verify: ok|unchanged`: done. Do not re-read the diff or rerun tests.

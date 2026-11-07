@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1 - 2026-11-07
+
+Fixes found by benchmark v2 (see `docs/benchmark-v2.md`).
+
+- A holdout file outside the repo, or missing, now fails at spec time with a clear message instead of a raw git error after the child's work.
+- Skill: holdout files must be inside the repo; set `tests_writable: true` when the task edits existing tests; do not delegate what one shell command (sed, a codemod) can do.
+- `gruntly` now saves the exact prompt and command sent to the child for every attempt (`attempts/N/prompt.txt`, `command.json`), and `bench/trace.py` merges that with Claude's transcript into one verbatim log. Passing gates no longer write their own name into the gate files.
+
 ## 0.2.0 - 2026-11-07
 
 Rework after a cost audit of the 0.1.0 benchmark (delegating cost 70% more than doing the work alone; most of it was fixed overhead in the parent's turns, not escalations).

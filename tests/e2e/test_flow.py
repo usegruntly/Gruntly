@@ -165,3 +165,23 @@ def test_skill_stays_short():
     from pathlib import Path
     words = len((Path(__file__).parents[2] / "plugin" / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").split())
     assert words < 330, words  # it is loaded into context; the full manual is `gruntly guide`
+
+
+def test_holdout_outside_the_repo_fails_fast_with_a_clear_message(repo, make_spec, tmp_path):
+    """Found in the benchmark: a parent put its holdout test in a temp dir and got a raw git error after wasting a turn."""
+    from gruntly.spec import SpecError
+    outside = tmp_path / "elsewhere" / "holdout_calc.py"
+    outside.parent.mkdir()
+    outside.write_text(HOLDOUT)
+    root = worktree.preflight(repo)
+    spec = make_spec("pass", holdout={"files": [str(outside)], "cmd": "pytest -q"})
+    with pytest.raises(SpecError) as e:
+        build_spec(spec, root)
+    assert "outside the repo" in str(e.value) and "untracked is fine" in str(e.value)
+
+
+def test_missing_holdout_file_fails_before_the_child_runs(repo, make_spec):
+    from gruntly.spec import SpecError
+    root = worktree.preflight(repo)
+    with pytest.raises(SpecError, match="does not exist"):
+        build_spec(make_spec("pass", holdout={"files": ["nope.py"], "cmd": "pytest -q"}), root)

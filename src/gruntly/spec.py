@@ -134,7 +134,21 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
         raise SpecError(f"unknown spec fields: {sorted(unknown)}")
     spec = Spec(brief=brief.strip(), **merged)
     _validate(spec)
+    if spec.holdout and repo_root is not None:
+        _check_holdout(spec.holdout, repo_root)
     return spec
+
+
+def _check_holdout(h: dict, repo_root: Path) -> None:
+    """Fail before the child runs, not at gating: a bad holdout path would waste the whole attempt."""
+    root = Path(repo_root).resolve()
+    for f in h["files"]:
+        p = (root / f).resolve()
+        if not p.is_relative_to(root):
+            raise SpecError(f"holdout file {f!r} is outside the repo. Put it inside the repo (untracked is fine, "
+                            f"e.g. tests/holdout_x.py): gruntly keeps it out of the child's worktree and removes it after gating.")
+        if not p.is_file():
+            raise SpecError(f"holdout file {f!r} does not exist")
 
 
 def _as_list(v):

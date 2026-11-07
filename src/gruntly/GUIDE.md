@@ -13,7 +13,7 @@ deny_paths: [".env*", ".github/**"]
 acceptance:                              # run by gruntly, never by the child
   - cmd: "pytest tests/api -q"
     timeout_s: 300
-holdout:                                 # optional, strongest check: your tests, copied in only at gating
+holdout:                                 # optional, strongest check: your tests (inside the repo, untracked is fine), copied in only at gating
   files: [tests/holdout_client.py]
   cmd: "pytest -q tests/holdout_client.py"
 tests_writable: false                    # true lets the child edit existing tests
