@@ -139,7 +139,7 @@ def cmd_apply(a) -> int:
         out({"applied": False, "error": "nothing to apply"}, a.human)
         return 0
     spec = Spec(**st.read_json("spec.json"))
-    sc = scope.check(spec, wt, s["base"], root, s["main_fp"]) if spec.gates.get("scope", True) else {"ok": True}
+    sc = scope.check(spec, wt, s["base"], root, None) if spec.gates.get("scope", True) else {"ok": True}
     if not sc["ok"]:
         out({"applied": False, "error": "scope gate failed at apply", "violations": sc["violations"]}, a.human)
         return 0

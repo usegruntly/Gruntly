@@ -31,3 +31,10 @@ Not yet installed. Covered in Milestone 3.
 
 - WSL2 Ubuntu cannot reach `127.0.0.1:1234` on the Windows host (needs mirrored networking or the host IP) and has no Node of its own. M0 ran natively on Windows.
 - Loaded context is 15000. Raising it needs `lms load qwen/qwen3.5-9b --context-length 32768`, with RAM at 15.7 GB.
+
+## Verified through gruntly (M2, 2026-11-07)
+
+- Prompt on stdin works with `qwen --auth-type openai --approval-mode yolo -o json` (no positional prompt); this avoids the Windows `.cmd` shim mangling multi-line arguments.
+- A real two-bug task passed on attempt 2: attempt 1 failed a gate, the retry used `-r <session_id>` and fixed it. Cost about 145k child tokens and 100 s on the 9B model. The result JSON was about 1.6 KB.
+- An impossible task (acceptance always exits 1) escalated after 2 attempts via stuck detection, with a 1.4 KB result.
+- Real usage numbers from `result.usage` populate `child_usage`.

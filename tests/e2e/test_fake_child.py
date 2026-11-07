@@ -151,3 +151,12 @@ def test_apply_refuses_when_scope_violated(repo, run_task, make_spec, capsys, mo
     out = json.loads(capsys.readouterr().out)
     assert out["applied"] is False and "scope" in out["error"]
     assert "a - b" in (repo / "calc.py").read_text()
+
+
+def test_apply_allows_parent_edits_made_after_the_run(repo, run_task, make_spec, capsys, monkeypatch):
+    from gruntly import cli
+    res, _ = run_task(make_spec("pass"))
+    (repo / "notes.txt").write_text("parent kept working\n")
+    monkeypatch.chdir(repo)
+    cli.main(["apply", res["run_id"]])
+    assert json.loads(capsys.readouterr().out)["applied"] is True
