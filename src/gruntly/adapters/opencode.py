@@ -36,6 +36,9 @@ def agent_config(task, profile) -> dict:
     # A tool is only offered to the model if its permission is granted explicitly: with the tools map alone the
     # model received no tools at all (355 input tokens) and pasted its code into the reply instead of writing it.
     perm: dict = {}
+    if getattr(task, "web", False):   # opt-in: the harness's own page-fetch tool; the gates still judge the result
+        cfg["tools"]["webfetch"] = True
+        perm["webfetch"] = "allow"
     if on & {"edit", "write"}:
         perm["edit"] = "allow"
     for t in ("read", "list", "grep", "glob"):

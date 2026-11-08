@@ -46,6 +46,7 @@ DEFAULTS: dict[str, Any] = {
     "profile": "auto",             # auto | typist | worker | default (see profiles.py)
     "inline_files": "auto",        # embed the target files in the prompt: auto | true | false
     "followup": False,             # a follow-up on work already in the tree: the tests are expected to pass before the change
+    "web": False,                  # True lets the child use its harness's page-fetch tool (OpenCode); fetched text is untrusted
     "self_check": False,           # True lets the child run the acceptance command itself; False = evaluate & fix
 }
 HARNESSES = ("qwen", "opencode", "hermes", "generic")
@@ -86,6 +87,7 @@ class Spec:
     inline_files: Any = "auto"
     self_check: bool = False
     followup: bool = False
+    web: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)

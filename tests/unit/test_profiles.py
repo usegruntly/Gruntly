@@ -235,3 +235,12 @@ def test_bench_report_counts_false_passes_and_first_try():
     out = b.report(rows, {"harness": "opencode", "model": "m"})
     line = next(ln for ln in out.splitlines() if ln.startswith("| typist |"))
     assert "| 50% | 50% | 1 |" in line  # first-try 50%, hidden pass 50%, one false pass
+
+
+def test_opencode_web_is_off_by_default_and_opt_in(tmp_path):
+    t = git_repo(tmp_path, SMALL)
+    off = agent_config(spec_for(), profiles.resolve(spec_for(), t))
+    assert off["tools"]["webfetch"] is False and "webfetch" not in off["permission"]
+    s = spec_for(web=True)
+    cfg = agent_config(s, profiles.resolve(s, t))
+    assert cfg["tools"]["webfetch"] is True and cfg["permission"]["webfetch"] == "allow"
