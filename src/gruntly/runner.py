@@ -286,6 +286,9 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
                        error="worktree is gone; nothing to continue")
     st.set_state("running")
+    if spec.harness == "auto":
+        from .adapters.base import pick_installed
+        spec.harness = pick_installed() or "qwen"       # none installed: "qwen" makes the error say what to install
     adapter = get_adapter(spec.harness)
 
     # infrastructure preflight: never spend an attempt on a down server
@@ -301,6 +304,8 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         if spec.model and spec.model not in p["models"]:
             return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
                            error=f"model {spec.model!r} not loaded on the server; available: {p['models']}")
+        if not spec.model and p["ctx"]:
+            spec.model = next(iter(p["ctx"]))           # no model named: use the one loaded on the server
         ctx = p["ctx"].get(spec.model) if spec.model else (next(iter(p["ctx"].values()), None))
         if ctx:
             st.set_state("running", ctx=ctx)

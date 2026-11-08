@@ -90,6 +90,17 @@ def count_malformed(*texts: str) -> int:
     return sum(len(MALFORMED.findall(t)) for t in texts)
 
 
+INSTALL_ORDER = ("opencode", "qwen", "hermes")   # opencode first: it is the one benchmarked and traced most
+
+
+def pick_installed() -> str | None:
+    """The first child harness found on this machine, or None."""
+    for name in INSTALL_ORDER:
+        if get_adapter(name).detect().installed:
+            return name
+    return None
+
+
 def get_adapter(name: str, spec=None) -> "Adapter":
     from .generic import GenericAdapter
     from .hermes import HermesAdapter

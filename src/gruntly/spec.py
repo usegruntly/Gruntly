@@ -13,7 +13,7 @@ import yaml
 
 DEFAULTS: dict[str, Any] = {
     "kind": "code",
-    "harness": "qwen",
+    "harness": "auto",                 # auto = the first of opencode, qwen, hermes installed on this machine
     "model": None,
     "context_files": [],
     "allowed_paths": ["**"],
@@ -49,7 +49,7 @@ DEFAULTS: dict[str, Any] = {
     "web": False,                  # True lets the child use its harness's page-fetch tool (OpenCode); fetched text is untrusted
     "self_check": False,           # True lets the child run the acceptance command itself; False = evaluate & fix
 }
-HARNESSES = ("qwen", "opencode", "hermes", "generic")
+HARNESSES = ("auto", "qwen", "opencode", "hermes", "generic")
 
 
 class SpecError(ValueError):
@@ -61,7 +61,7 @@ class Spec:
     brief: str
     id: str | None = None
     kind: str = "code"
-    harness: str = "qwen"
+    harness: str = "auto"
     model: str | None = None
     context_files: list[str] = field(default_factory=list)
     allowed_paths: list[str] = field(default_factory=lambda: ["**"])

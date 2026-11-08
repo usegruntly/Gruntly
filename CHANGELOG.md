@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `harness` now defaults to `auto`: the first of opencode, qwen, hermes found on the machine, and the model defaults to the one loaded on the server. Name either in `.gruntly.toml` to override.
 - `web = true` (in `.gruntly.toml` or a spec) lets an OpenCode child use the harness's own `webfetch` tool. Off by default; fetched pages are untrusted text and the gates still judge the result. Not yet wired for Qwen Code or Hermes.
 - Plugin 0.4.0: the skill now teaches `agent-run` (Bash timeout 600000, read one result block, follow-up rules). `agent-run` splits a request naming several files into one run per file, runs without a covering test (the child adds one) and on refactors whose tests already pass, gives "everywhere" requests project-wide scope, restarts the main-tree baseline on `--continue`, and `gruntly discard` no longer crashes on Windows when files are still held open. See docs/lean-long-tasks.md.
 - `gruntly do "<request>"` and the `/gruntly:gd` slash command: a plain request becomes a verified delegation with no model in the loop (locate the target with `ast`, find the covering test, require it to fail first, delegate, apply on pass). The slash command runs it before Claude is called, so the task costs one model request; refusals are free. Python and pytest projects only.

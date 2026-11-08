@@ -14,8 +14,8 @@ from .redact import redact
 from .spec import Spec, SpecError, build_spec, parse_spec_text, global_config_path
 
 PROJECT_TEMPLATE = """# gruntly project defaults (task specs override these)
-harness = "qwen"
-# model = "qwen/qwen3.5-9b"
+# harness = "auto"   # auto = the first of opencode, qwen, hermes installed here; or name one
+# model = "qwen/qwen3.5-9b"   # default: the model loaded on the server
 endpoint = "http://127.0.0.1:1234/v1"
 allowed_paths = ["**"]
 deny_paths = [".env*", ".github/**"]

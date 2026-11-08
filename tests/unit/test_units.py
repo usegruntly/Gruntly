@@ -146,3 +146,18 @@ def test_a_child_that_repeats_a_long_line_is_stopped_as_a_loop(tmp_path):
     code = "import time\nfor _ in range(200):\n print('the same long tool call repeated again and again ' * 3, flush=True)\n time.sleep(0.05)\n"
     cr = run_child(GenericAdapter(), [sys.executable, "-c", code], {}, None, tmp_path, 30, 30)
     assert cr.breach == "loop"
+
+
+def test_auto_harness_picks_the_first_installed_child(monkeypatch):
+    from gruntly.adapters import base
+    seen = {"opencode": False, "qwen": True, "hermes": True}
+    class D:  # noqa: D401
+        def __init__(self, ok): self.installed = ok
+    class A:
+        def __init__(self, n): self.n = n
+        def detect(self): return D(seen[self.n])
+    monkeypatch.setattr(base, "get_adapter", lambda n, spec=None: A(n))
+    assert base.pick_installed() == "qwen"
+    seen["qwen"] = False
+    seen["hermes"] = False
+    assert base.pick_installed() is None
