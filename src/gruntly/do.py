@@ -288,6 +288,8 @@ def render(result: dict | None, p: Plan | None, refusal: Refusal | None = None, 
                f"-{ds.get('deletions', 0)}) and the tests now pass. Run {rid}, verify={r.get('verify')}. Nothing is committed.")
         extra = (r.get("review_hint") or []) + (r.get("warnings") or [])
         out += " Look at: " + "; ".join(extra) + "." if extra else ""
+        if r.get("child_trace"):
+            out += "\n" + r["child_trace"]
         cfg = cfg or {}
         if cfg.get("diff") and patch.strip():
             out += (f"\nThe request was: {' '.join(request.split())[:240]}"

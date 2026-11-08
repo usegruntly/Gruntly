@@ -57,6 +57,8 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     else:
         reason = (r.get("failure_bundle") or {}).get("reason") or st
         lines += [f"status: failed ({reason})", f"files: {files}; partial work kept: gruntly diff {rid}, gruntly discard {rid}"]
+    if r.get("child_trace"):
+        lines.append(r["child_trace"])
     if flags:
         lines.append("flags: " + "; ".join(flags))
     if contract:

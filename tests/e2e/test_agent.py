@@ -65,3 +65,11 @@ def test_a_follow_up_after_an_applied_run_starts_a_new_run_on_the_current_tree(p
     assert not (proj / ".gruntly" / "worktrees" / rid).exists()  # applied runs drop their worktree
     second = say(capsys, monkeypatch, proj, "also keep the names", "--continue", rid)
     assert second.startswith(agent.OPEN) and "worktree is gone" not in second, second
+
+
+def test_the_trace_line_and_trace_flags_reach_the_block():
+    r = {"run_id": "r1", "status": "passed", "applied": True, "diff_stat": {"paths": ["a.py"]},
+         "child_trace": "child: 3 tool calls (read x1, edit x1, run x1), 0 failed, 1 test run",
+         "review_hint": ["the child repeated one tool call 3 times"]}
+    out = agent.block(r, None, patch="+x")
+    assert "child: 3 tool calls" in out and "repeated one tool call 3 times" in out

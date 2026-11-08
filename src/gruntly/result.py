@@ -61,7 +61,8 @@ def enforce_cap(result: dict, cap: int = MAX_CHARS) -> dict:
 def build(*, run_id: str, status: str, attempts: int, gates: dict, diff_stat: dict, failure_bundle: dict | None,
           wall_s: int, child_tokens: int | None, next_cmds: list[str], untrusted: dict | None = None,
           applied: bool | None = None, verify: str | None = None, review_hint: list[str] | None = None,
-          warnings: list[str] | None = None, error: str | None = None) -> dict:
+          warnings: list[str] | None = None, error: str | None = None,
+          child_trace: str = "") -> dict:
     r: dict = {"schema_version": SCHEMA_VERSION, "run_id": run_id, "status": status, "attempts": attempts}
     if applied is not None:
         r["applied"] = applied
@@ -74,6 +75,8 @@ def build(*, run_id: str, status: str, attempts: int, gates: dict, diff_stat: di
         r["review_hint"] = review_hint
     if warnings:
         r["warnings"] = warnings
+    if child_trace:
+        r["child_trace"] = child_trace
     if failure_bundle:
         r["failure_bundle"] = failure_bundle
     if untrusted:

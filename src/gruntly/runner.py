@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import doctor, profiles, prompt, result as resmod, sandbox, worktree as wtmod
+from . import doctor, profiles, prompt, result as resmod, sandbox, trace as tracemod, worktree as wtmod
 from .apply import apply_run
 from .adapters.base import get_adapter, scrub_env
 from .gates import acceptance, deps, diff_size, scope, test_weakening
@@ -373,6 +373,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         st.append_text("child.log", redact(f"\n=== attempt {attempt_no} exit={cr.exit_code} breach={cr.breach} ===\n"
                                            f"{cr.stdout}\n--- stderr ---\n{cr.stderr}\n", secrets))
         out = adapter.parse(cr.stdout, cr.stderr, cr.exit_code if cr.exit_code is not None else -1)
+        st.write_json("trace.json", tracemod.merge(st.read_json("trace.json", {}), tracemod.summarize(tracemod.calls_from(cr.stdout))))
         summary = redact(out.final_message, secrets)
         session = out.session_id or session
         if out.usage.get("available"):
@@ -427,7 +428,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
                                  "attempts_log": attempts_log, "warnings": warnings, "profile": rp.name})
     applied = hint = None
     if status == "passed":
-        hint = _review_hint(gates, stats, warnings)
+        hint = _review_hint(gates, stats, warnings, st.read_json("trace.json", {}))
         if spec.apply_on_pass:
             applied = apply_run(root, st, spec, base, main_fp)
             if applied.get("applied"):
@@ -443,7 +444,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
                    warnings=warnings)
 
 
-def _review_hint(gates: dict, stats: dict, warnings: list[str]) -> list[str]:
+def _review_hint(gates: dict, stats: dict, warnings: list[str], trace: dict | None = None) -> list[str]:
     """When the parent should look at the diff. Empty means the gates are enough."""
     hint = []
     lines = stats["insertions"] + stats["deletions"]
@@ -454,6 +455,7 @@ def _review_hint(gates: dict, stats: dict, warnings: list[str]) -> list[str]:
         hint.append("touches sensitive paths: " + ", ".join(risky[:3]))
     if warnings:
         hint.append("weak acceptance: " + warnings[0])
+    hint += tracemod.concerns(trace or {})
     return hint
 
 
@@ -480,6 +482,7 @@ def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_s
                        failure_bundle=bundle, wall_s=round(time.monotonic() - t_start),
                        child_tokens=(usage or {}).get("total_tokens"), next_cmds=nxt, untrusted=untrusted,
                        applied=ok_applied if applied else None, verify=applied.get("verify"),
-                       review_hint=review_hint, warnings=warnings, error=error)
+                       review_hint=review_hint, warnings=warnings, error=error,
+                       child_trace=tracemod.line(st.read_json("trace.json", {})))
     st.save_result(res, meta={"wall_s": res["wall_s"], "child_usage": usage})
     return res
