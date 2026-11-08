@@ -121,3 +121,8 @@ def test_the_childs_own_new_test_file_stays_editable(proj):
     refusal = do.plan("change noop() in util.py", proj)
     plan, raw = agent.loose_plan("change noop() in util.py", proj, refusal)
     assert raw["tests_writable"] and raw["followup"] and any(p.startswith("test_gruntly_util") for p in raw["allowed_paths"])
+
+
+def test_a_refactor_whose_tests_already_pass_still_runs(proj, capsys, monkeypatch):
+    out = say(capsys, monkeypatch, proj, "rename add() in calc.py to plus and keep behaviour")
+    assert "status: refused" not in out or "already pass" not in out

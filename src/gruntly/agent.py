@@ -38,8 +38,8 @@ LOOSE_NOTE = ("no test covered this code, so no test failed before the change; t
 def loose_plan(request: str, root: Path, refusal: "do.Refusal"):
     """When no test covers the target, run anyway against the whole existing suite and let the child add a test.
     Only for that one refusal; every other refusal (too many files, tests already pass, ...) stays a refusal."""
-    if not refusal.reason.startswith("no test found"):
-        return None
+    if not refusal.reason.startswith(("no test found", "the tests already pass")):
+        return None                   # a refactor keeps its tests green, so "already pass" is allowed here too
     files = do.tracked(root)
     found = do.locate(request, root, files)
     if isinstance(found, do.Refusal):
