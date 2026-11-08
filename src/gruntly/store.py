@@ -17,14 +17,24 @@ def state_dir() -> Path:
 
 
 def force_rmtree(path: Path) -> None:
-    """rmtree that also removes read-only files (git packs inside a harness's state dir on Windows)."""
+    """rmtree that also removes read-only files (git packs inside a harness's state dir on Windows).
+    A file still held open by a dying child cannot be removed yet: retry once, then leave it for `gruntly gc` rather than
+    failing the caller (a failed discard must not look like a crash)."""
     import stat
+    import time
 
     def _writable(func, p, _exc):
-        os.chmod(p, stat.S_IWRITE)
-        func(p)
+        try:
+            os.chmod(p, stat.S_IWRITE)
+            func(p)
+        except OSError:
+            pass
 
-    shutil.rmtree(path, onerror=_writable)
+    for attempt in range(2):
+        shutil.rmtree(path, onerror=_writable)
+        if not Path(path).exists():
+            return
+        time.sleep(0.5)
 
 
 class RunNotFound(KeyError):
