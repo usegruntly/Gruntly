@@ -150,7 +150,7 @@ def cmd_agent_run(a) -> int:
                 raw = {k: old[k] for k in ("allowed_paths", "context_files", "acceptance", "profile", "inline_files") if k in old}
                 head = old["brief"].rsplit("\n\nMake the failing tests pass", 1)[0]
                 raw.update(brief=head + "\n\nThe code already contains a first attempt that passes the tests. Change it as "
-                           "follows, and keep the tests passing:\n" + request, apply_on_pass=True, max_attempts=2)
+                           "follows, and keep the tests passing:\n" + request, apply_on_pass=True, max_attempts=2, followup=True)
                 rid = runner.prepare(build_spec(raw, root), root)
                 _spawn_worker(root, rid)
                 res = _wait(root, rid, a.max_block)

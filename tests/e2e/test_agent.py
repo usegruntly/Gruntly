@@ -73,3 +73,9 @@ def test_the_trace_line_and_trace_flags_reach_the_block():
          "review_hint": ["the child repeated one tool call 3 times"]}
     out = agent.block(r, None, patch="+x")
     assert "child: 3 tool calls" in out and "repeated one tool call 3 times" in out
+
+
+def test_a_flag_is_not_listed_twice():
+    r = {"run_id": "r1", "status": "passed", "applied": True, "diff_stat": {"paths": ["a.py"]},
+         "review_hint": ["weak acceptance: tests pass first"], "warnings": ["tests pass first"]}
+    assert agent.block(r, None).count("tests pass first") == 1

@@ -49,7 +49,8 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     ds = r.get("diff_stat") or {}
     files = ", ".join(f"{x} " for x in ds.get("paths", [])).strip() or "(none)"
     lines = [f"run: {rid}"]
-    flags = (r.get("review_hint") or []) + (r.get("warnings") or [])
+    hints = r.get("review_hint") or []
+    flags = hints + [w for w in (r.get("warnings") or []) if not any(w in h for h in hints)]
     if st == "passed" and r.get("applied"):
         lines += ["status: passed",
                   f"tests: pass (attempts: {r.get('attempts', '?')}, verify: {r.get('verify')})",

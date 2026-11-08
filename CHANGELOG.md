@@ -3,6 +3,8 @@
 ## Unreleased
 
 - `gruntly do "<request>"` and the `/gruntly:gd` slash command: a plain request becomes a verified delegation with no model in the loop (locate the target with `ast`, find the covering test, require it to fail first, delegate, apply on pass). The slash command runs it before Claude is called, so the task costs one model request; refusals are free. Python and pytest projects only.
+- `gruntly agent-run "<prompt>"` and `gruntly agent "<task>"`: a lean Claude (one Bash tool, one-line system prompt, ~3k tokens of base context instead of ~25k) directs the local agent and reads one marked result block (status, tests, files, child trace, contract, whole diff). Follow-ups with `--continue RUN`, also after a run was applied. Falls back to a full session when the lean one gives up. Benchmark arm `lean`: ~73% cheaper per small task than Claude alone, but not yet at its pass rate (`docs/benchmark-lean.md`).
+- Child trace (`trace.py`): a one-line summary of what the child did, built from OpenCode, Qwen Code and Hermes event output (counts only), with flags for repeated tool calls and mostly-failing calls. A child that repeats the same long output line is stopped as a loop.
 
 ## 0.3.0 - 2026-11-08
 

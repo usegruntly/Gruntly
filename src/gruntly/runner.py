@@ -334,7 +334,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
     reason = "attempts exhausted"
     caps = adapter.capabilities()
     warnings: list[str] = list(prior.get("warnings", []))
-    if not cont and spec.kind == "code":
+    if not cont and spec.kind == "code" and not spec.followup:
         # red before green: if acceptance already passes at the base, it proves nothing about the child's work
         if acceptance.check(spec, wt)["ok"]:
             warnings.append("acceptance already passes before any change: it cannot prove the task was done")

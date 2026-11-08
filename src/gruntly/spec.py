@@ -45,6 +45,7 @@ DEFAULTS: dict[str, Any] = {
     "allow_small_ctx": False,
     "profile": "auto",             # auto | typist | worker | default (see profiles.py)
     "inline_files": "auto",        # embed the target files in the prompt: auto | true | false
+    "followup": False,             # a follow-up on work already in the tree: the tests are expected to pass before the change
     "self_check": False,           # True lets the child run the acceptance command itself; False = evaluate & fix
 }
 HARNESSES = ("qwen", "opencode", "hermes", "generic")
@@ -84,6 +85,7 @@ class Spec:
     profile: str = "auto"
     inline_files: Any = "auto"
     self_check: bool = False
+    followup: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
