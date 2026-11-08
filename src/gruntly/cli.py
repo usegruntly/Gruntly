@@ -88,7 +88,8 @@ def _wait(root: Path, rid: str, timeout_s: float) -> dict:
         if time.time() - t0 >= timeout_s:
             cur = st.status()
             return {"run_id": rid, "status": "running", "state": cur.get("state"), "attempt": cur.get("attempt"),
-                    "elapsed_s": cur.get("elapsed_s"), "next": [f"gruntly wait {rid}"]}
+                    "elapsed_s": cur.get("elapsed_s"), "idle_s": cur.get("idle_s"),
+                    "out_bytes": cur.get("out_bytes"), "next": [f"gruntly wait {rid}"]}
         time.sleep(1)
 
 
@@ -136,11 +137,23 @@ def cmd_agent_run(a) -> int:
         root = wtmod.preflight(Path.cwd())
         if a.cont:
             st = store.Store.existing(root, a.cont)
-            st.write_json("continue.json", {"guidance": request, "attempts": a.attempts})
-            (st.dir / "result.json").unlink(missing_ok=True)
-            st.set_state("queued")
-            _spawn_worker(root, a.cont)
-            res = _wait(root, a.cont, a.max_block)
+            if (root / ".gruntly" / "worktrees" / a.cont).is_dir():
+                st.write_json("continue.json", {"guidance": request, "attempts": a.attempts})
+                (st.dir / "result.json").unlink(missing_ok=True)
+                st.set_state("queued")
+                _spawn_worker(root, a.cont)
+                res = _wait(root, a.cont, a.max_block)
+            else:
+                # The earlier run passed and was applied, so its worktree is gone. The follow-up is a NEW run on the
+                # current tree (which holds the earlier work), with the same files and test command as before.
+                old = st.read_json("spec.json")
+                raw = {k: old[k] for k in ("allowed_paths", "context_files", "acceptance", "profile", "inline_files") if k in old}
+                head = old["brief"].rsplit("\n\nMake the failing tests pass", 1)[0]
+                raw.update(brief=head + "\n\nThe code already contains a first attempt that passes the tests. Change it as "
+                           "follows, and keep the tests passing:\n" + request, apply_on_pass=True, max_attempts=2)
+                rid = runner.prepare(build_spec(raw, root), root)
+                _spawn_worker(root, rid)
+                res = _wait(root, rid, a.max_block)
         else:
             p = do.plan(request, root)
             if isinstance(p, do.Refusal):
@@ -397,7 +410,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("request", nargs="*", help="what to change (or the follow-up when --continue is given)")
     g.add_argument("--continue", dest="cont", metavar="RUN", help="send a follow-up to the same run (the child keeps its context)")
     g.add_argument("--attempts", type=int)
-    g.add_argument("--max-block", type=int, default=100)
+    g.add_argument("--max-block", type=int, default=540, help="seconds to wait in this one call (the caller's Bash timeout must be longer)")
     g = add("agent", cmd_agent)
     g.add_argument("task", nargs="*", help="the task for a lean Claude to direct through gruntly")
     g.add_argument("--model", default="sonnet")

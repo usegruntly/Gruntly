@@ -137,3 +137,12 @@ def test_bare_strings_are_one_item_lists_not_characters():
     assert s.allowed_paths == ["calc.py"] and s.deny_paths == [".env*"]
     s2 = build_spec({"brief": "x", "acceptance": {"cmd": "true", "timeout_s": 5}})
     assert s2.acceptance == [{"cmd": "true", "timeout_s": 5}]
+
+
+def test_a_child_that_repeats_a_long_line_is_stopped_as_a_loop(tmp_path):
+    import sys
+    from gruntly.adapters.generic import GenericAdapter
+    from gruntly.runner import run_child
+    code = "import time\nfor _ in range(200):\n print('the same long tool call repeated again and again ' * 3, flush=True)\n time.sleep(0.05)\n"
+    cr = run_child(GenericAdapter(), [sys.executable, "-c", code], {}, None, tmp_path, 30, 30)
+    assert cr.breach == "loop"

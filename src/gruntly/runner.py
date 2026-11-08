@@ -56,7 +56,10 @@ def _tree_mtime(path: Path, limit: int = 20000) -> float:
     return newest
 
 
-def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float) -> ChildRun:
+LOOP_LINE_MIN, LOOP_REPEATS, LOOP_WINDOW = 60, 6, 24   # a long identical line seen 6 times in the last 24 lines = a loop
+
+
+def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None) -> ChildRun:
     kw = {}
     if os.name == "nt":
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -66,13 +69,21 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
     proc = subprocess.Popen(argv, cwd=str(cwd), env=env, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kw)
     bufs = {"out": [], "err": []}
-    state = {"last": time.monotonic(), "size": 0}
+    state = {"last": time.monotonic(), "size": 0, "loop": False}
+    recent: list[int] = []
 
     def pump(stream, key):
         for chunk in iter(lambda: stream.read1(65536), b""):
             bufs[key].append(chunk)
             state["size"] += len(chunk)
             state["last"] = time.monotonic()
+            if key == "out":
+                for line in chunk.decode("utf8", "replace").splitlines():
+                    if len(line) >= LOOP_LINE_MIN:
+                        recent.append(hash(line))
+                        del recent[:-LOOP_WINDOW]
+                        if recent.count(recent[-1]) >= LOOP_REPEATS:
+                            state["loop"] = True
 
     def feed():
         try:
@@ -96,11 +107,15 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
             breach = "output"
         elif now - state["last"] > idle_s:
             breach = "idle"
+        elif state["loop"]:
+            breach = "loop"
         if breach:
             adapter.cancel(proc)
             break
         if now - last_scan > 3:
             last_scan = now
+            if beat:
+                beat({"out_bytes": state["size"], "idle_s": round(now - state["last"])})
             new = _tree_mtime(cwd)
             if new > mt:
                 mt, state["last"] = new, now
@@ -352,7 +367,8 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
             {"argv": cmd.argv, "env_passed_to_child": sorted(env), "extra_env": cmd.env,
              "prompt_via_stdin": cmd.stdin is not None}, indent=2), secrets))
         st.set_state("running", attempt=attempt_no)
-        cr = run_child(adapter, cmd.argv, env, cmd.stdin, wt, min(remaining, spec.budget_s), spec.no_progress_s)
+        cr = run_child(adapter, cmd.argv, env, cmd.stdin, wt, min(remaining, spec.budget_s), spec.no_progress_s,
+                       beat=lambda info, a=attempt_no: st.set_state("running", attempt=a, **info))
         child_s += cr.secs
         st.append_text("child.log", redact(f"\n=== attempt {attempt_no} exit={cr.exit_code} breach={cr.breach} ===\n"
                                            f"{cr.stdout}\n--- stderr ---\n{cr.stderr}\n", secrets))
@@ -366,7 +382,8 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         if cr.breach:
             status = "timeout"
             reason = {"wall": "wall-clock budget exceeded", "idle": f"no progress for {spec.no_progress_s}s",
-                      "output": "child output size cap exceeded"}[cr.breach]
+                      "output": "child output size cap exceeded",
+                      "loop": "the child repeated the same output over and over"}[cr.breach]
             st.write_text(f"attempts/{attempt_no}/diff.patch", redact(wtmod.patch(wt, base), secrets))
             break
         stats = diff_stat(wt, base)

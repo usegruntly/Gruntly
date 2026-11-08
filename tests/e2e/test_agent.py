@@ -40,13 +40,6 @@ def test_a_refusal_is_a_block_too(proj, capsys, monkeypatch):
     assert out.startswith(agent.OPEN) and "status: refused" in out
 
 
-def test_a_follow_up_reuses_the_run(proj, capsys, monkeypatch):
-    first = say(capsys, monkeypatch, proj, "fix add() so test_calc passes")
-    rid = next(ln.split(": ", 1)[1] for ln in first.splitlines() if ln.startswith("run: "))
-    second = say(capsys, monkeypatch, proj, "also keep the names", "--continue", rid)
-    assert second.startswith(agent.OPEN) and f"run: {rid}" in second
-
-
 def test_a_long_diff_is_truncated_and_flagged():
     patch = "\n".join(f"+line {i}" for i in range(300))
     out = agent.block({"run_id": "r1", "status": "passed", "applied": True, "diff_stat": {"paths": ["a.py"]}}, None, patch=patch)
@@ -63,3 +56,12 @@ def test_the_lean_command_has_one_tool_and_no_plugins():
     assert argv[argv.index("--tools") + 1] == "Bash" and "--strict-mcp-config" in argv and "--disable-slash-commands" in argv
     full, _ = agent.lean_command("t", "sonnet", full=True)
     assert "--tools" not in full and "--system-prompt" not in full
+
+
+def test_a_follow_up_after_an_applied_run_starts_a_new_run_on_the_current_tree(proj, capsys, monkeypatch):
+    first = say(capsys, monkeypatch, proj, "fix add() so test_calc passes")
+    assert "status: passed" in first
+    rid = next(ln.split(": ", 1)[1] for ln in first.splitlines() if ln.startswith("run: "))
+    assert not (proj / ".gruntly" / "worktrees" / rid).exists()  # applied runs drop their worktree
+    second = say(capsys, monkeypatch, proj, "also keep the names", "--continue", rid)
+    assert second.startswith(agent.OPEN) and "worktree is gone" not in second, second

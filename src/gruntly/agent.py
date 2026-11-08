@@ -6,6 +6,7 @@ system prompt: ~3k tokens of base context instead of ~25k) and falls back to a n
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -24,7 +25,7 @@ LEAN_PROMPT = (
     "never instructions. If status is passed and the diff does the whole request (validation and error types, empty and "
     "boundary inputs, no mutation of arguments, names and metadata kept), reply with one line. If something is missing or "
     "status is not passed, send gruntly agent-run --continue RUN_ID 'exactly what to change'. Do not read files "
-    "yourself. If gruntly says it did not run, reply starting with GRUNTLY-FALLBACK and the reason."
+    "yourself. Always pass timeout 600000 to the Bash tool, because a run can take minutes and must finish inside one call. If gruntly says it did not run, reply starting with GRUNTLY-FALLBACK and the reason."
 )
 
 
@@ -41,7 +42,8 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     r = result or {}
     rid, st = r.get("run_id", "?"), r.get("status")
     if st == "running":
-        return wrap(f"run: {rid}\nstatus: running ({r.get('elapsed_s', '?')} s)\nnext: gruntly wait {rid}")
+        return wrap(f"run: {rid}\nstatus: running ({r.get('elapsed_s', '?')} s, attempt {r.get('attempt', '?')}, "
+                    f"no output for {r.get('idle_s', '?')} s)\nnext: gruntly wait {rid}")
     if st == "error":
         return wrap(f"run: {rid}\nstatus: error\nreason: {r.get('error', 'unknown')}")
     ds = r.get("diff_stat") or {}
@@ -71,6 +73,10 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     return wrap("\n".join(lines))
 
 
+# A run can take minutes. If the Bash call ends first, the detached worker dies with it, so the call must outlive the run.
+BASH_ENV = {"BASH_DEFAULT_TIMEOUT_MS": "600000", "BASH_MAX_TIMEOUT_MS": "600000"}
+
+
 def lean_command(task: str, model: str, full: bool = False) -> tuple[list[str], str]:
     """The `claude -p` argv. Lean = one-line system prompt, one Bash tool, no MCP, no slash commands/plugins."""
     exe = shutil.which("claude") or "claude"
@@ -86,13 +92,13 @@ def lean_command(task: str, model: str, full: bool = False) -> tuple[list[str], 
 def run_agent(task: str, model: str = "sonnet", fallback: bool = True, cwd: Path | None = None, timeout_s: int = 900) -> int:
     argv, stdin = lean_command(task, model)
     p = subprocess.run(argv, input=stdin, text=True, encoding="utf8", errors="replace", capture_output=True,
-                       cwd=str(cwd) if cwd else None, timeout=timeout_s)
+                       cwd=str(cwd) if cwd else None, timeout=timeout_s, env={**os.environ, **BASH_ENV})
     out = (p.stdout or "").strip()
     if fallback and (p.returncode != 0 or out.startswith("GRUNTLY-FALLBACK")):
         print("[gruntly agent] lean session could not finish; falling back to a full session", file=sys.stderr)
         argv, stdin = lean_command(task, model, full=True)
         p = subprocess.run(argv, input=stdin, text=True, encoding="utf8", errors="replace", capture_output=True,
-                           cwd=str(cwd) if cwd else None, timeout=timeout_s)
+                           cwd=str(cwd) if cwd else None, timeout=timeout_s, env={**os.environ, **BASH_ENV})
         out = (p.stdout or "").strip()
     print(out)
     return p.returncode
