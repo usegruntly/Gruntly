@@ -7,6 +7,7 @@ system prompt: ~3k tokens of base context instead of ~25k) and falls back to a n
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -31,6 +32,7 @@ LEAN_PROMPT = (
 )
 
 
+BROAD = re.compile(r"\b(everywhere|across the (?:repo|repository|codebase|project)|throughout|in every file|in all files|all files)\b", re.I)
 LOOSE_NOTE = ("no test covered this code, so no test failed before the change; the pass only shows the existing suite "
               "still passes plus whatever test the child added. Check edge cases in the diff yourself")
 
@@ -38,13 +40,20 @@ LOOSE_NOTE = ("no test covered this code, so no test failed before the change; t
 def loose_plan(request: str, root: Path, refusal: "do.Refusal"):
     """When no test covers the target, run anyway against the whole existing suite and let the child add a test.
     Only for that one refusal; every other refusal (too many files, tests already pass, ...) stays a refusal."""
-    if not refusal.reason.startswith(("no test found", "the tests already pass")):
+    broad = bool(BROAD.search(request))
+    if not broad and not refusal.reason.startswith(("no test found", "the tests already pass")):
         return None                   # a refactor keeps its tests green, so "already pass" is allowed here too
     files = do.tracked(root)
-    found = do.locate(request, root, files)
-    if isinstance(found, do.Refusal):
-        return None
-    targets, names = found
+    if broad:                         # "everywhere": the scope is the whole project, tests included
+        targets = [f for f in files if f.endswith(".py") and not do.is_test_path(f)]
+        names: list[str] = []
+        if not targets:
+            return None
+    else:
+        found = do.locate(request, root, files)
+        if isinstance(found, do.Refusal):
+            return None
+        targets, names = found
     tests = [f for f in files if f.endswith(".py") and do.is_test_path(f)][: do.MAX_TESTS]
     py = do.python_cmd(root)
     acceptance = (f"{py} -m pytest -q -p no:cacheprovider" if tests
@@ -53,11 +62,16 @@ def loose_plan(request: str, root: Path, refusal: "do.Refusal"):
     raw = do.spec_for(request, plan, root)
     tdir = (tests[0].rsplit("/", 1)[0] + "/") if tests and "/" in tests[0] else ""
     new_test = f"{tdir}test_gruntly_{Path(targets[0]).stem}.py"
-    raw["brief"] = raw["brief"].replace(
-        "Make the failing tests pass.",
-        f"No test covers this yet. Add tests for the new behaviour in {new_test} (empty input, invalid arguments, "
-        "unchanged behaviour of the rest), and keep the whole existing suite passing.")
+    if broad or refusal.reason.startswith("the tests already pass"):
+        tail = "The existing tests pass today and must still pass when you are done; no new test is needed."
+    else:
+        tail = (f"No test covers this yet. Add tests for the new behaviour in {new_test} (empty input, invalid arguments, "
+                "unchanged behaviour of the rest), and keep the whole existing suite passing.")
+    raw["brief"] = raw["brief"].replace("Make the failing tests pass.", tail)
     raw["allowed_paths"] = list(raw["allowed_paths"]) + [new_test]
+    if broad:
+        raw["allowed_paths"] = ["*.py", "**/*.py"]
+        raw["brief"] = raw["brief"].replace("Change only: " + ", ".join(targets) + ".", "Any .py file in the repo may change.")
     raw["tests_writable"] = True      # the child's own new test file must stay editable in follow-ups
     raw["followup"] = True            # nothing was red before, so skip the red-before-green check
     return plan, raw

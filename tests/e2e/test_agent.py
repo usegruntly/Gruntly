@@ -126,3 +126,11 @@ def test_the_childs_own_new_test_file_stays_editable(proj):
 def test_a_refactor_whose_tests_already_pass_still_runs(proj, capsys, monkeypatch):
     out = say(capsys, monkeypatch, proj, "rename add() in calc.py to plus and keep behaviour")
     assert "status: refused" not in out or "already pass" not in out
+
+
+def test_an_everywhere_request_may_change_every_python_file(proj):
+    from gruntly import do
+    req = "rename add to plus everywhere in the repo"
+    plan, raw = agent.loose_plan(req, proj, do.Refusal("the request matches 9 files"))
+    assert "**/*.py" in raw["allowed_paths"] and raw["tests_writable"]
+    assert agent.loose_plan("fix add()", proj, do.Refusal("the request matches 9 files")) is None
