@@ -75,7 +75,7 @@ def test_skill_and_guide_forbid_backgrounding():
     from pathlib import Path
     root = Path(__file__).parents[2]
     skill = (root / "plugin" / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8")
-    assert "Never use `run_in_background`" in skill and "gruntly wait" in skill and "300000" in skill
+    assert "Never use `run_in_background`" in skill and "gruntly wait" in skill and "600000" in skill
     guide = (root / "src" / "gruntly" / "GUIDE.md").read_text(encoding="utf8")
     assert "run_in_background" in guide and "gruntly wait" in guide
     assert "run_in_background" not in cli.SNIPPET.replace("never run_in_background", "")
