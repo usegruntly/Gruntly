@@ -1,0 +1,32 @@
+[
+ {
+  "task": "cli_json",
+  "bucket": "L",
+  "arm": "lean",
+  "rep": 1,
+  "passed": false,
+  "wall_s": 11,
+  "error": null,
+  "cost_usd": 0.0245,
+  "turns": 3,
+  "reply": "GRUNTLY-FALLBACK: gruntly refused twice and made no changes. Its reason both times was \"no test found that covers tool/cli.py. Write a failing test first, or use a spec file.\" It gave no run ID to continue from, and it refused even when I asked it to write the tests first. To go ahead, I need a test file for `tool/cli.py` or a spec file to point gruntly at.",
+  "tools": {
+   "Bash": 2
+  },
+  "sessions": 1,
+  "background_calls": 0,
+  "tool_output_bytes": 452,
+  "peak_ctx": 4311,
+  "tokens": {
+   "input": 6,
+   "cache_write": 4309,
+   "cache_read": 7352,
+   "output": 653
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0
+ }
+]
