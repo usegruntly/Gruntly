@@ -29,8 +29,69 @@ LEAN_PROMPT = (
 )
 
 
+LOOSE_NOTE = ("no test covered this code, so no test failed before the change; the pass only shows the existing suite "
+              "still passes plus whatever test the child added. Check edge cases in the diff yourself")
+
+
+def loose_plan(request: str, root: Path, refusal: "do.Refusal"):
+    """When no test covers the target, run anyway against the whole existing suite and let the child add a test.
+    Only for that one refusal; every other refusal (too many files, tests already pass, ...) stays a refusal."""
+    if not refusal.reason.startswith("no test found"):
+        return None
+    files = do.tracked(root)
+    found = do.locate(request, root, files)
+    if isinstance(found, do.Refusal):
+        return None
+    targets, names = found
+    tests = [f for f in files if f.endswith(".py") and do.is_test_path(f)][: do.MAX_TESTS]
+    py = do.python_cmd(root)
+    acceptance = (f"{py} -m pytest -q -p no:cacheprovider" if tests
+                  else f"{py} -m compileall -q {' '.join(targets)}")
+    plan = do.Plan(targets, tests, acceptance, names)
+    raw = do.spec_for(request, plan, root)
+    tdir = (tests[0].rsplit("/", 1)[0] + "/") if tests and "/" in tests[0] else ""
+    new_test = f"{tdir}test_gruntly_{Path(targets[0]).stem}.py"
+    raw["brief"] = raw["brief"].replace(
+        "Make the failing tests pass.",
+        f"No test covers this yet. Add tests for the new behaviour in {new_test} (empty input, invalid arguments, "
+        "unchanged behaviour of the rest), and keep the whole existing suite passing.")
+    raw["allowed_paths"] = list(raw["allowed_paths"]) + [new_test]
+    raw["followup"] = True            # nothing was red before, so skip the red-before-green check
+    return plan, raw
+
+
+def split_request(request: str, root: Path) -> list[str]:
+    """A request that names several files becomes one request per file, run in turn inside one call."""
+    import re
+    paths = [p for p in do.candidates(request)[2]]
+    files = do.tracked(root)
+    hits: list[str] = []
+    for p in paths:
+        m = [f for f in files if f == p or f.endswith("/" + p)]
+        if len(m) == 1 and not do.is_test_path(m[0]) and m[0] not in hits:
+            hits.append(m[0])
+    if len(hits) < 2:
+        return [request]
+    out = []
+    for h in hits:
+        text = request
+        for o in hits:
+            if o != h:
+                text = re.sub(re.escape(o) + "|" + re.escape(o.rsplit("/", 1)[-1]), "the other modules", text)
+        out.append(f"In {h}: {text}")
+    return out
+
+
+def join_blocks(blocks: list[str]) -> str:
+    if len(blocks) == 1:
+        return blocks[0]
+    inner = [b.replace(OPEN + "\n", "", 1).rsplit("\n" + CLOSE, 1)[0] for b in blocks]
+    parts = [f"--- part {i} of {len(inner)} ---\n{x}" for i, x in enumerate(inner, 1)]
+    return OPEN + "\n" + "\n".join(parts) + "\n" + CLOSE
+
+
 def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | None = None, patch: str = "",
-          request: str = "", contract: list[str] | None = None) -> str:
+          request: str = "", contract: list[str] | None = None, note: str = "") -> str:
     """The single block the caller reads. Child-written text appears only inside [untrusted] fences."""
     def wrap(body: str) -> str:
         return f"{OPEN}\n{body}\n{CLOSE}"
@@ -50,7 +111,7 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     files = ", ".join(f"{x} " for x in ds.get("paths", [])).strip() or "(none)"
     lines = [f"run: {rid}"]
     hints = r.get("review_hint") or []
-    flags = hints + [w for w in (r.get("warnings") or []) if not any(w in h for h in hints)]
+    flags = ([note] if note else []) + hints + [w for w in (r.get("warnings") or []) if not any(w in h for h in hints)]
     if st == "passed" and r.get("applied"):
         lines += ["status: passed",
                   f"tests: pass (attempts: {r.get('attempts', '?')}, verify: {r.get('verify')})",

@@ -125,24 +125,21 @@ def cmd_do(a) -> int:
     return 0
 
 
-def cmd_agent_run(a) -> int:
-    """One prompt in, one marked result block out (see agent.py). Always exits 0."""
+def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = None) -> dict:
+    """One agent-run step: returns the pieces `agent.block` needs. Never raises."""
     import re
     from . import agent, do
-    res = p = refusal = None
-    error = None
-    patch, request = "", ""
+    out: dict = {"res": None, "p": None, "refusal": None, "error": None, "patch": "", "contract": None, "request": request,
+                 "note": ""}
     try:
-        request = " ".join(a.request) if a.request and a.request != ["-"] else (sys.stdin.read() if not sys.stdin.isatty() else "")
-        root = wtmod.preflight(Path.cwd())
-        if a.cont:
-            st = store.Store.existing(root, a.cont)
-            if (root / ".gruntly" / "worktrees" / a.cont).is_dir():
+        if cont:
+            st = store.Store.existing(root, cont)
+            if (root / ".gruntly" / "worktrees" / cont).is_dir():
                 st.write_json("continue.json", {"guidance": request, "attempts": a.attempts})
                 (st.dir / "result.json").unlink(missing_ok=True)
                 st.set_state("queued")
-                _spawn_worker(root, a.cont)
-                res = _wait(root, a.cont, a.max_block)
+                _spawn_worker(root, cont)
+                out["res"] = _wait(root, cont, budget_s)
             else:
                 # The earlier run passed and was applied, so its worktree is gone. The follow-up is a NEW run on the
                 # current tree (which holds the earlier work), with the same files and test command as before.
@@ -153,27 +150,63 @@ def cmd_agent_run(a) -> int:
                            "follows, and keep the tests passing:\n" + request, apply_on_pass=True, max_attempts=2, followup=True)
                 rid = runner.prepare(build_spec(raw, root), root)
                 _spawn_worker(root, rid)
-                res = _wait(root, rid, a.max_block)
+                out["res"] = _wait(root, rid, budget_s)
         else:
             p = do.plan(request, root)
+            raw = None
             if isinstance(p, do.Refusal):
-                refusal, p = p, None
+                loose = agent.loose_plan(request, root, p)
+                if loose is None:
+                    out["refusal"] = p
+                else:
+                    p, raw = loose
+                    out["note"] = agent.LOOSE_NOTE
             else:
-                rid = runner.prepare(build_spec(do.spec_for(request, p, root), root), root)
+                raw = do.spec_for(request, p, root)
+            if raw is not None:
+                out["p"] = p
+                rid = runner.prepare(build_spec(raw, root), root)
                 _spawn_worker(root, rid)
-                res = _wait(root, rid, a.max_block)
-        contract = None
+                out["res"] = _wait(root, rid, budget_s)
+        res = out["res"]
         if res and res.get("applied"):
             pf = root / ".gruntly" / "runs" / str(res.get("run_id", "")) / "apply.patch"
             if pf.is_file():
-                patch = pf.read_text(encoding="utf8", errors="replace")
+                out["patch"] = pf.read_text(encoding="utf8", errors="replace")
+            patch = out["patch"]
             names = set(re.findall(r"^\+\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))
             names |= set(re.findall(r"^@@[^@]*@@\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))  # edited, not added
-            contract, _ = do.contract_and_shape(root, (res.get("diff_stat") or {}).get("paths", []), list(names))
+            out["contract"], _ = do.contract_and_shape(root, (res.get("diff_stat") or {}).get("paths", []), list(names))
     except Exception as e:  # noqa: BLE001 - the caller must still get a readable block
-        error = f"{type(e).__name__}: {e}"
-        contract = None
-    print(agent.block(res, p, refusal=refusal, error=error, patch=patch, request=request, contract=contract))
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
+def cmd_agent_run(a) -> int:
+    """One prompt in, one marked result block out (see agent.py). Always exits 0."""
+    import time
+    from . import agent
+    blocks: list[str] = []
+    try:
+        request = " ".join(a.request) if a.request and a.request != ["-"] else (sys.stdin.read() if not sys.stdin.isatty() else "")
+        root = wtmod.preflight(Path.cwd())
+        parts = [(request, a.cont)] if a.cont else [(r, None) for r in agent.split_request(request, root)]
+        t0 = time.time()
+        for i, (req, cont) in enumerate(parts):
+            left = int(a.max_block - (time.time() - t0))
+            if i and left < 60:      # out of time inside this call: say what was not started instead of starting it
+                blocks.append(agent.block(None, None, error="not started (out of time in this call): " + req[:160]))
+                continue
+            o = _agent_one(root, req, a, max(left, 30), cont)
+            blocks.append(agent.block(o["res"], o["p"], refusal=o["refusal"], error=o["error"], patch=o["patch"],
+                                      request=req, contract=o["contract"], note=o["note"]))
+            if (o["res"] or {}).get("status") == "running":
+                for rest, _ in parts[i + 1:]:
+                    blocks.append(agent.block(None, None, error="not started (an earlier part is still running): " + rest[:160]))
+                break
+    except Exception as e:  # noqa: BLE001
+        blocks = [agent.block(None, None, error=f"{type(e).__name__}: {e}")]
+    print(agent.join_blocks(blocks))
     return 0
 
 
