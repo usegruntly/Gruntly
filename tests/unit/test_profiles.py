@@ -24,6 +24,7 @@ def git_repo(tmp_path, files):
 
 def spec_for(**over):
     d = {"brief": "Fix add().", "allowed_paths": ["calc.py"], "acceptance": ["python -m pytest -q test_calc.py"]}
+    d.setdefault("profile", "auto")
     d.update(over)
     return build_spec(d)
 
@@ -144,9 +145,9 @@ def test_opencode_slim_agent_has_only_the_profiles_tools(tmp_path):
     s = spec_for()
     cfg = agent_config(s, profiles.resolve(s, t))
     on = {k for k, v in cfg["tools"].items() if v}
-    assert on == {"write", "edit"}  # OpenCode ties write and edit together; everything else is off
+    assert on == {"write", "edit", "webfetch"}  # write+edit are tied together; web is on by default, the rest is off
     # regression: without an explicit grant the model got no tools and pasted code into its reply
-    assert cfg["permission"] == {"edit": "allow"}
+    assert cfg["permission"] == {"webfetch": "allow", "edit": "allow"}
     assert len(cfg["prompt"].split()) < 25
 
 
@@ -237,10 +238,25 @@ def test_bench_report_counts_false_passes_and_first_try():
     assert "| 50% | 50% | 1 |" in line  # first-try 50%, hidden pass 50%, one false pass
 
 
-def test_opencode_web_is_off_by_default_and_opt_in(tmp_path):
+def test_opencode_web_is_on_by_default_and_can_be_turned_off(tmp_path):
     t = git_repo(tmp_path, SMALL)
-    off = agent_config(spec_for(), profiles.resolve(spec_for(), t))
-    assert off["tools"]["webfetch"] is False and "webfetch" not in off["permission"]
-    s = spec_for(web=True)
+    on = agent_config(spec_for(), profiles.resolve(spec_for(), t))
+    assert on["tools"]["webfetch"] is True and on["permission"]["webfetch"] == "allow"
+    s = spec_for(web=False)
     cfg = agent_config(s, profiles.resolve(s, t))
-    assert cfg["tools"]["webfetch"] is True and cfg["permission"]["webfetch"] == "allow"
+    assert cfg["tools"]["webfetch"] is False and "webfetch" not in cfg["permission"]
+
+
+def test_child_permission_mode_follows_the_parent(tmp_path, monkeypatch):
+    from gruntly.adapters.opencode import OpenCodeAdapter
+    from gruntly.spec import permission_mode
+    t = git_repo(tmp_path, SMALL)
+    monkeypatch.delenv("GRUNTLY_PARENT_MODE", raising=False)
+    assert permission_mode(spec_for()) == "bypass"
+    monkeypatch.setenv("GRUNTLY_PARENT_MODE", "plan")
+    assert permission_mode(spec_for()) == "plan"
+    assert permission_mode(spec_for(permissions="bypass")) == "bypass"
+    s = spec_for(profile="default")
+    cmd = OpenCodeAdapter().command(s, t, "go", None, profiles.resolve(s, t))
+    cfg = json.loads(cmd.env["OPENCODE_CONFIG_CONTENT"])
+    assert cfg["permission"] == {"bash": "deny", "edit": "deny"} and "agent" not in cfg

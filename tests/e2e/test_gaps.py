@@ -24,6 +24,7 @@ def repo_with(tmp_path, files):
 
 def spec_for(**over):
     d = {"brief": "Fix add().", "allowed_paths": ["calc.py"], "acceptance": ["python -m pytest -q test_calc.py"]}
+    d.setdefault("profile", "auto")
     d.update(over)
     return build_spec(d)
 

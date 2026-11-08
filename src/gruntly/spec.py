@@ -43,12 +43,27 @@ DEFAULTS: dict[str, Any] = {
     "holdout": None,
     "min_context": None,           # None = the profile's floor (typist 8k, worker 16k, default 32k)
     "allow_small_ctx": False,
-    "profile": "auto",             # auto | typist | worker | default (see profiles.py)
+    "profile": "default",          # default = the child harness as shipped (all its tools); auto | typist | worker = slimmer (see profiles.py)
     "inline_files": "auto",        # embed the target files in the prompt: auto | true | false
     "followup": False,             # a follow-up on work already in the tree: the tests are expected to pass before the change
-    "web": False,                  # True lets the child use its harness's page-fetch tool (OpenCode); fetched text is untrusted
+    "web": True,                   # slim profiles only: also offer the harness's page-fetch tool; fetched text is untrusted
+    "permissions": "inherit",      # child permission mode: inherit (env GRUNTLY_PARENT_MODE, else bypass) | bypass | accept-edits | plan
     "self_check": False,           # True lets the child run the acceptance command itself; False = evaluate & fix
 }
+PERMISSION_MODES = ("inherit", "bypass", "accept-edits", "plan")
+_CLAUDE_MODES = {"bypasspermissions": "bypass", "acceptedits": "accept-edits", "default": "accept-edits", "plan": "plan",
+                "bypass": "bypass", "accept-edits": "accept-edits"}
+
+
+def permission_mode(spec) -> str:
+    """The child's permission mode: the parent's (GRUNTLY_PARENT_MODE, a Claude Code mode name) unless the spec fixes one."""
+    import os
+    m = getattr(spec, "permissions", "inherit")
+    if m == "inherit":
+        m = _CLAUDE_MODES.get(os.environ.get("GRUNTLY_PARENT_MODE", "").replace("_", "").lower(), "bypass")
+    return m
+
+
 HARNESSES = ("auto", "qwen", "opencode", "hermes", "generic")
 
 
@@ -87,7 +102,8 @@ class Spec:
     inline_files: Any = "auto"
     self_check: bool = False
     followup: bool = False
-    web: bool = False
+    web: bool = True
+    permissions: str = "inherit"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -192,6 +208,8 @@ def _validate(s: Spec) -> None:
         raise SpecError("code tasks need at least one acceptance command")
     if s.profile not in ("auto", "typist", "worker", "default"):
         raise SpecError("profile must be auto, typist, worker or default")
+    if s.permissions not in PERMISSION_MODES:
+        raise SpecError("permissions must be one of " + ", ".join(PERMISSION_MODES))
     if s.inline_files not in ("auto", True, False):
         raise SpecError("inline_files must be auto, true or false")
     if s.holdout is not None:

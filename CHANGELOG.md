@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- The child now runs its harness as shipped (`profile = "default"`, all its tools, web on) unless a slim profile is asked for; its permission mode follows the parent (`GRUNTLY_PARENT_MODE`, or `permissions` in the spec).
 
 - `harness` now defaults to `auto`: the first of opencode, qwen, hermes found on the machine, and the model defaults to the one loaded on the server. Name either in `.gruntly.toml` to override.
 - `web = true` (in `.gruntly.toml` or a spec) lets an OpenCode child use the harness's own `webfetch` tool. Off by default; fetched pages are untrusted text and the gates still judge the result. Not yet wired for Qwen Code or Hermes.

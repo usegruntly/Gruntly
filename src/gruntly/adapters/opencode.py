@@ -15,6 +15,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from ..spec import permission_mode
 from .base import Caps, ChildOutcome, Command, Detection, count_malformed, kill_tree, which
 
 PROVIDER = "lmstudio"
@@ -27,6 +28,15 @@ TOOLMAP = {"read": ["read"], "write": ["write", "edit"], "edit": ["edit", "write
            "search": ["grep", "glob"], "test": ["bash"]}
 SLIM_ENV = {"OPENCODE_DISABLE_PROJECT_CONFIG": "1", "OPENCODE_DISABLE_CLAUDE_CODE": "1",
             "OPENCODE_DISABLE_EXTERNAL_SKILLS": "1"}
+
+
+def mode_permission(mode: str) -> dict:
+    """OpenCode permission rules for a parent mode; bypass adds none (the run already uses --auto)."""
+    if mode == "accept-edits":
+        return {"bash": "deny"}
+    if mode == "plan":
+        return {"bash": "deny", "edit": "deny"}
+    return {}
 
 
 def agent_config(task, profile) -> dict:
@@ -48,6 +58,7 @@ def agent_config(task, profile) -> dict:
         rules = {"*": "deny"}
         rules.update({a["cmd"]: "allow" for a in task.acceptance})
         perm["bash"] = rules
+    perm.update(mode_permission(permission_mode(task)))
     if perm:
         cfg["permission"] = perm
     return cfg
@@ -77,6 +88,10 @@ class OpenCodeAdapter:
         argv = [which("opencode") or "opencode", "run", "--format", "json", "--auto", "-m", f"{PROVIDER}/{model}"]
         env = {"XDG_DATA_HOME": str(state / "data"), "XDG_CONFIG_HOME": str(state / "config"),
                "XDG_STATE_HOME": str(state / "state"), "XDG_CACHE_HOME": str(state / "cache")}
+        if profile is None or profile.name == "default":     # the harness as shipped, only the parent's mode applied
+            rules = mode_permission(permission_mode(task))
+            if rules:
+                cfg["permission"] = rules
         if profile is not None and profile.name != "default":
             cfg["agent"] = {AGENT: agent_config(task, profile)}
             argv += ["--agent", AGENT, "--title", "gruntly"]

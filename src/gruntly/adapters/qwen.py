@@ -16,6 +16,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from ..spec import permission_mode
 from .base import Caps, ChildOutcome, Command, Detection, count_malformed, kill_tree, which
 
 SYSTEM = "You change code files in the current directory using the tools provided. Be concise."
@@ -39,7 +40,7 @@ class QwenAdapter:
 
     def command(self, task, workdir: Path, prompt: str, resume: str | None, profile=None) -> Command:
         exe = which("qwen") or "qwen"
-        argv = [exe, "--auth-type", "openai", "--approval-mode", "yolo", "-o", "json",
+        argv = [exe, "--auth-type", "openai", "--approval-mode", {"bypass": "yolo", "accept-edits": "auto-edit", "plan": "plan"}[permission_mode(task)], "-o", "json",
                 "--max-wall-time", str(max(30, int(task.budget_s)))]
         if profile is not None and profile.name != "default":
             keep = {t for logical in profile.tools for t in BARE_TOOLS.get(logical, [])}
