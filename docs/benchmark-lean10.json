@@ -1,0 +1,40 @@
+[
+ {
+  "task": "rename_domain",
+  "bucket": "L",
+  "arm": "lean",
+  "rep": 1,
+  "passed": false,
+  "wall_s": 10,
+  "error": null,
+  "cost_usd": 0.0211,
+  "turns": 2,
+  "reply": "GRUNTLY-FALLBACK: gruntly didn't run the rename. The model context is 15000 tokens, below the 16384 minimum. To fix it, reload the model with a larger context, or set `allow_small_ctx: true` or `profile: typist`. No files were changed.",
+  "tools": {
+   "Bash": 1
+  },
+  "sessions": 1,
+  "background_calls": 0,
+  "tool_output_bytes": 377,
+  "peak_ctx": 4124,
+  "tokens": {
+   "input": 4,
+   "cache_write": 4122,
+   "cache_read": 3661,
+   "output": 421
+  },
+  "gruntly_status": [
+   "error"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   0
+  ],
+  "gruntly_result_chars": [
+   441
+  ],
+  "child_tokens": 0
+ }
+]

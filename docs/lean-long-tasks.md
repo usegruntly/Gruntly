@@ -23,3 +23,16 @@ Tasks: `bugs_batch` (six modules, six bugs) and `cli_json` (feature in a CLI wit
 - Wall time: 100-540 s against ~17 s alone. Cost is lower (about 45-75% below alone), but the local model is slow and serial.
 - `bugs_batch` has not passed on lean yet; its visible tests do not pin the edge cases, so correctness rests on the reviewer reading diffs.
 - Hermes still has no child trace.
+
+## Later rounds (same day)
+| round | bugs_batch | rename_domain (15 files) |
+|---|---|---|
+| 5 | pass, $0.046, 3 turns, 437 s | refused: tests already pass (a refactor) |
+| 6-7 | - | fail: scope gate rejected files outside the 3 located; then an environment error (LM Studio had reloaded the model at 15000 context, gruntly refused to run; reloaded at 32768) |
+| 8 | - | pass, $0.026, 3 turns, 352 s (one escalate, then passed) |
+
+More issues found and fixed:
+9. A refactor keeps its tests green, so gruntly refused it ("tests already pass"). agent-run now runs it against the existing suite.
+10. "Everywhere in the repo" only got the 3 located files as scope. Such requests now get project-wide .py scope.
+
+Results are one run per task and several fixes were made against these same tasks, so they show the setup works, not how often. Full suite: 171 passed.
