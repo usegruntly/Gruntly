@@ -124,6 +124,52 @@ def cmd_do(a) -> int:
     return 0
 
 
+def cmd_agent_run(a) -> int:
+    """One prompt in, one marked result block out (see agent.py). Always exits 0."""
+    import re
+    from . import agent, do
+    res = p = refusal = None
+    error = None
+    patch, request = "", ""
+    try:
+        request = " ".join(a.request) if a.request and a.request != ["-"] else (sys.stdin.read() if not sys.stdin.isatty() else "")
+        root = wtmod.preflight(Path.cwd())
+        if a.cont:
+            st = store.Store.existing(root, a.cont)
+            st.write_json("continue.json", {"guidance": request, "attempts": a.attempts})
+            (st.dir / "result.json").unlink(missing_ok=True)
+            st.set_state("queued")
+            _spawn_worker(root, a.cont)
+            res = _wait(root, a.cont, a.max_block)
+        else:
+            p = do.plan(request, root)
+            if isinstance(p, do.Refusal):
+                refusal, p = p, None
+            else:
+                rid = runner.prepare(build_spec(do.spec_for(request, p, root), root), root)
+                _spawn_worker(root, rid)
+                res = _wait(root, rid, a.max_block)
+        contract = None
+        if res and res.get("applied"):
+            pf = root / ".gruntly" / "runs" / str(res.get("run_id", "")) / "apply.patch"
+            if pf.is_file():
+                patch = pf.read_text(encoding="utf8", errors="replace")
+            names = set(re.findall(r"^\+\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))
+            names |= set(re.findall(r"^@@[^@]*@@\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))  # edited, not added
+            contract, _ = do.contract_and_shape(root, (res.get("diff_stat") or {}).get("paths", []), list(names))
+    except Exception as e:  # noqa: BLE001 - the caller must still get a readable block
+        error = f"{type(e).__name__}: {e}"
+        contract = None
+    print(agent.block(res, p, refusal=refusal, error=error, patch=patch, request=request, contract=contract))
+    return 0
+
+
+def cmd_agent(a) -> int:
+    from . import agent
+    task = " ".join(a.task) if a.task else sys.stdin.read()
+    return agent.run_agent(task, a.model, fallback=not a.no_fallback)
+
+
 def cmd_wait(a) -> int:
     out(_wait(_root(), a.run, a.timeout), a.human)
     return 0
@@ -347,6 +393,15 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("request", nargs="*", help="what to change, in plain words (or read from stdin)")
     d.add_argument("--max-block", type=int, default=100, help="seconds to wait before returning `still running` (0 = in this process)")
     d.add_argument("--json", action="store_true")
+    g = add("agent-run", cmd_agent_run)
+    g.add_argument("request", nargs="*", help="what to change (or the follow-up when --continue is given)")
+    g.add_argument("--continue", dest="cont", metavar="RUN", help="send a follow-up to the same run (the child keeps its context)")
+    g.add_argument("--attempts", type=int)
+    g.add_argument("--max-block", type=int, default=100)
+    g = add("agent", cmd_agent)
+    g.add_argument("task", nargs="*", help="the task for a lean Claude to direct through gruntly")
+    g.add_argument("--model", default="sonnet")
+    g.add_argument("--no-fallback", action="store_true", help="do not fall back to a full Claude session")
     add("guide", cmd_guide)
     add("mcp", cmd_mcp)
     add("_worker", cmd_worker, "run")

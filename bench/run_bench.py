@@ -33,6 +33,7 @@ LARGE = {"bugs_batch", "rename_domain", "cli_json"}
 DO_TOML = {"gd": "\n[do]\ndiff = false\nhints = false\n", "gdA": "\n[do]\ndiff = true\nhints = false\n",
            "gdAB": "\n[do]\ndiff = true\nhints = true\n"}
 GD_ARMS = tuple(DO_TOML)
+LEAN = "lean"   # a stripped-down Claude (one Bash tool, one-line system prompt) directing gruntly via `gruntly agent-run`
 
 
 def sh(args, cwd, **kw):
@@ -59,6 +60,8 @@ def prompt_for(arm: str, spec: dict) -> str:
     paths = ", ".join(spec["allowed_paths"])
     extra = " You may edit the existing tests." if spec.get("tests_writable") else ""
     base = spec["brief"] + f"\n\nThe check is `{cmd}`; edit only {paths}.{extra}"
+    if arm == LEAN:
+        return " ".join(spec["brief"].split())
     if arm in GD_ARMS:  # the one-request slash command: just the user's words, nothing else
         return "/gruntly:gd " + " ".join(spec["brief"].split())
     if arm == "alone":
@@ -121,12 +124,17 @@ def gruntly_runs(work: Path) -> list[dict]:
 def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
     with tempfile.TemporaryDirectory(prefix="bench-", ignore_cleanup_errors=True) as tmp:
         work = Path(tmp) / "repo"
-        spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, ""))
+        spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else ""))
         cmd = [shutil.which("claude") or "claude", "-p", "--allowedTools", *TOOLS, "--output-format", "stream-json", "--verbose",
                "--max-turns", "40", "--max-budget-usd", str(a.budget_usd)]
         if a.parent_model:
             cmd += ["--model", a.parent_model]
-        if arm != "alone":
+        if arm == LEAN:
+            from gruntly.agent import LEAN_PROMPT
+            cmd = [c for c in cmd if c not in TOOLS]
+            cmd[cmd.index("--allowedTools") + 1:cmd.index("--allowedTools") + 1] = ["Bash(gruntly *)"]
+            cmd += ["--system-prompt", LEAN_PROMPT, "--tools", "Bash", "--strict-mcp-config", "--disable-slash-commands"]
+        elif arm != "alone":
             cmd += ["--plugin-dir", str(PLUGIN)]
         t0 = time.time()
         err = None
@@ -155,7 +163,7 @@ def mean(xs):
 
 
 def report(rows: list[dict], meta: dict) -> str:
-    arms = [x for x in ("alone", "forced", "policy", "gd", "gdA", "gdAB") if any(r["arm"] == x for r in rows)]
+    arms = [x for x in ("alone", "forced", "policy", "gd", "gdA", "gdAB", "lean") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "

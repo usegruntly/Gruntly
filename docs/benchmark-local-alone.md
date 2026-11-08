@@ -4,11 +4,13 @@
 
 | task | hidden-test pass | visible check passes at the end | wall s | child tokens | requests |
 |---|---|---|---|---|---|
-| flatten | 1/1 | 1/1 | 204 | 45009 | 4.0 |
-| merge_intervals | 1/1 | 1/1 | 90 | 57953 | 5.0 |
-| paginate | 1/1 | 1/1 | 62 | 56821 | 5.0 |
-| parse_duration | 0/1 | 1/1 | 117 | 202889 | 15.0 |
-| retry | 0/1 | 1/1 | 57 | 69961 | 6.0 |
-| slugify | 0/1 | 1/1 | 77 | 56714 | 5.0 |
+| bugs_batch | 0/2 | 2/2 | 338 | 161137 | 11.0 |
+| cli_json | 2/2 | 2/2 | 110 | 119656 | 9.5 |
+| flatten | 2/2 | 2/2 | 179 | 44942 | 4.0 |
+| merge_intervals | 2/2 | 2/2 | 142 | 51780 | 4.5 |
+| paginate | 2/2 | 2/2 | 76 | 51347 | 4.5 |
+| parse_duration | 1/2 | 2/2 | 94 | 168520 | 13.0 |
+| retry | 0/2 | 2/2 | 64 | 71123 | 6.0 |
+| slugify | 1/2 | 2/2 | 94 | 56760 | 5.0 |
 
-**Overall: 3/6 pass the hidden tests; 6/6 pass the visible check, and 3 of those fail the hidden tests (false passes).** Mean wall time 101 s, mean 81,558 local tokens per run.
+**Overall: 10/16 pass the hidden tests; 16/16 pass the visible check, and 6 of those fail the hidden tests (false passes).** Mean wall time 137 s, mean 90,658 local tokens per run.
