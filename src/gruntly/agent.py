@@ -56,6 +56,7 @@ def loose_plan(request: str, root: Path, refusal: "do.Refusal"):
         f"No test covers this yet. Add tests for the new behaviour in {new_test} (empty input, invalid arguments, "
         "unchanged behaviour of the rest), and keep the whole existing suite passing.")
     raw["allowed_paths"] = list(raw["allowed_paths"]) + [new_test]
+    raw["tests_writable"] = True      # the child's own new test file must stay editable in follow-ups
     raw["followup"] = True            # nothing was red before, so skip the red-before-green check
     return plan, raw
 

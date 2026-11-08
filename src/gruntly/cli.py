@@ -144,7 +144,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 # The earlier run passed and was applied, so its worktree is gone. The follow-up is a NEW run on the
                 # current tree (which holds the earlier work), with the same files and test command as before.
                 old = st.read_json("spec.json")
-                raw = {k: old[k] for k in ("allowed_paths", "context_files", "acceptance", "profile", "inline_files") if k in old}
+                raw = {k: old[k] for k in ("allowed_paths", "context_files", "acceptance", "profile", "inline_files", "tests_writable") if k in old}
                 head = old["brief"].rsplit("\n\nMake the failing tests pass", 1)[0]
                 raw.update(brief=head + "\n\nThe code already contains a first attempt that passes the tests. Change it as "
                            "follows, and keep the tests passing:\n" + request, apply_on_pass=True, max_attempts=2, followup=True)

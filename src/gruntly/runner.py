@@ -312,7 +312,9 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
                                      f"allow_small_ctx: true (or profile: typist, which needs less) to run anyway.")
 
     if cont:
-        base, main_fp = prior["base"], prior["main_fp"]
+        # The main tree may legitimately have changed since this run started (other runs were applied meanwhile), so the
+        # "child touched the main tree" check starts again from now: the child only runs from this moment on.
+        base, main_fp = prior["base"], wtmod.fingerprint(root)
         wt = root / ".gruntly" / "worktrees" / run_id
     else:
         main_fp = wtmod.fingerprint(root)

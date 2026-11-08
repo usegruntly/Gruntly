@@ -112,3 +112,12 @@ def test_no_covering_test_runs_against_the_whole_suite_with_a_flag(proj, capsys,
 def test_other_refusals_are_not_loosened(proj, capsys, monkeypatch):
     out = say(capsys, monkeypatch, proj, "rewrite the flux capacitor")
     assert "status: refused" in out
+
+
+def test_the_childs_own_new_test_file_stays_editable(proj):
+    (proj / "util.py").write_text("def noop():\n    return 1\n")
+    commit(proj)
+    from gruntly import do
+    refusal = do.plan("change noop() in util.py", proj)
+    plan, raw = agent.loose_plan("change noop() in util.py", proj, refusal)
+    assert raw["tests_writable"] and raw["followup"] and any(p.startswith("test_gruntly_util") for p in raw["allowed_paths"])
