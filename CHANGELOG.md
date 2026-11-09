@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Live view of a run: `.gruntly/runs/<id>/progress.jsonl` (child = the local model, gruntly = its checks and waits), `gruntly watch`, and a Claude Code mod in plugin 0.5.0 that draws it under the running command. See docs/live-view.md.
 - `gruntly auth set|list|remove` stores provider API keys in `~/.config/gruntly/keys.toml` (owner-only); the environment variable still wins. `gruntly doctor` reports whether each provider has a key.
 - Hosted child endpoints: `provider = "gemini"` runs the child on Gemma 4 through the Gemini API behind a local proxy that keeps the key out of the child, paces requests, retries 429s and counts a daily quota. See docs/providers.md.
 - `agent-run --ask` for research: the child answers with its own tools (web, shell, files); no tests or diff, the answer comes back fenced as untrusted. Plugin 0.4.1.

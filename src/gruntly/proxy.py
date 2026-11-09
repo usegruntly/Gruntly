@@ -43,6 +43,7 @@ class Limiter:
         self.state, self.clock, self.sleep = state, clock, sleep
         self.win: deque[tuple[float, int]] = deque()
         self.lock = threading.Lock()
+        self.on_wait = None          # optional callable(seconds, why) so a UI can say why nothing is happening
         self.stats = {"requests": 0, "retries_429": 0, "waited_s": 0.0, "tokens_est": 0, "denied": 0, "retries_5xx": 0}
 
     # ---- daily count (survives runs) ----
@@ -102,6 +103,8 @@ class Limiter:
                     return True
             d = min(d + 0.2, MAX_WAIT_S)
             self.stats["waited_s"] += d
+            if self.on_wait:
+                self.on_wait(round(d), "provider rate limit")
             self.sleep(d)
 
 
@@ -157,6 +160,8 @@ class _Handler(BaseHTTPRequestHandler):
                 r.read()
                 conn.close()
                 srv.limiter.stats["retries_5xx"] += 1
+                if srv.limiter.on_wait:
+                    srv.limiter.on_wait(min(2 * (attempt + 1), 10), "provider error, retrying")
                 srv.limiter.sleep(min(2 * (attempt + 1), 10))
                 continue
             if r.status == 429 and attempt < MAX_RETRIES:
@@ -171,6 +176,8 @@ class _Handler(BaseHTTPRequestHandler):
                     return
                 srv.limiter.stats["retries_429"] += 1
                 srv.limiter.stats["waited_s"] += wait
+                if srv.limiter.on_wait:
+                    srv.limiter.on_wait(round(wait), "provider asked to slow down")
                 srv.limiter.sleep(wait + 0.5)
                 continue
             self.send_response(r.status)

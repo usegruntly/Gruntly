@@ -31,6 +31,7 @@ class Call:
     ok: bool
     sig: str           # stable fingerprint of (tool, input), used only to count repeats
     is_test: bool = False
+    what: str = ""      # short human label: a path or the start of a command
 
 
 def kind_of(tool: str) -> str:
@@ -47,6 +48,19 @@ def _shell_failed(state: dict) -> bool:
     return "Traceback (most recent call last)" in str(state.get("output") or meta.get("output") or "")[:20000]
 
 
+def _what(kind: str, args, cmd: str) -> str:
+    """A short label for a tool call; never file contents."""
+    if not isinstance(args, dict):
+        return ""
+    if kind == "run":
+        return " ".join(cmd.split())[:90]
+    for k in ("filePath", "file_path", "path", "pattern", "url", "query", "absolute_path"):
+        if args.get(k):
+            v = str(args[k]).replace("\\", "/")
+            return "/".join(v.split("/")[-3:])[:90]
+    return ""
+
+
 def _call(tool: str, args, ok: bool) -> Call:
     try:
         sig = tool + json.dumps(args, sort_keys=True, default=str)[:400]
@@ -56,7 +70,7 @@ def _call(tool: str, args, ok: bool) -> Call:
     cmd = ""
     if kind == "run" and isinstance(args, dict):
         cmd = str(args.get("command") or args.get("cmd") or "")
-    return Call(tool, kind, ok, sig, kind == "run" and any(w in cmd for w in TEST_WORDS))
+    return Call(tool, kind, ok, sig, kind == "run" and any(w in cmd for w in TEST_WORDS), _what(kind, args, cmd))
 
 
 def _events(stdout: str) -> list:

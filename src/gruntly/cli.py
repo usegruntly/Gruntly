@@ -366,6 +366,37 @@ def cmd_doctor(a) -> int:
     return 0
 
 
+def cmd_watch(a) -> int:
+    """gruntly watch [RUN]: a live feed of what the child (local model) and gruntly are doing. Read-only."""
+    import os
+    from . import progress
+    root = _root()
+    runs = root / ".gruntly" / "runs"
+    if a.run:
+        path = runs / a.run / progress.NAME
+    else:                                       # the run with the most recent activity
+        cands = sorted(runs.glob(f"*/{progress.NAME}"), key=lambda p: p.stat().st_mtime) if runs.is_dir() else []
+        path = cands[-1] if cands else runs / "none" / progress.NAME
+    deadline = time.time() + (0 if not a.follow else 15)
+    while not path.is_file() and time.time() < deadline:
+        time.sleep(0.5)
+    if not path.is_file():
+        print("no run feed found; start a run first (or pass a run id)", file=sys.stderr)
+        return 1
+    color = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+    tint = {"child": "[36m", "gruntly": "[33m"}
+    print(f"run {path.parent.name}   child = the local/small model   gruntly = its checks and waits")
+    off = 0
+    while True:
+        rows, off = progress.read_from(path, off)
+        for r in rows:
+            line = progress.format_row(r)
+            print(f"{tint.get(r.get('who'), '')}{line}[0m" if color else line, flush=True)
+        if any(r.get("k") == "done" for r in rows) or not a.follow:
+            return 0
+        time.sleep(0.5)
+
+
 def cmd_auth(a) -> int:
     """gruntly auth set|list|remove [provider]: API keys for hosted providers. Never prints a key."""
     from . import keys, providers
@@ -491,6 +522,9 @@ def build_parser() -> argparse.ArgumentParser:
     add("apply", cmd_apply, "run", branch={})
     add("discard", cmd_discard, "run")
     add("doctor", cmd_doctor)
+    wt = add("watch", cmd_watch)
+    wt.add_argument("run", nargs="?", help="run id (default: the run with the latest activity)")
+    wt.add_argument("--no-follow", dest="follow", action="store_false", help="print what exists and exit")
     au = add("auth", cmd_auth, "action")
     au.add_argument("provider", nargs="?")
     au.add_argument("--key", help="the key (prefer the hidden prompt or stdin: a flag stays in shell history)")

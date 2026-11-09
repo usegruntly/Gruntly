@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import doctor, profiles, prompt, result as resmod, sandbox, trace as tracemod, worktree as wtmod
+from . import doctor, profiles, progress, prompt, result as resmod, sandbox, trace as tracemod, worktree as wtmod
 from .apply import apply_run
 from .adapters.base import get_adapter, scrub_env
 from .gates import acceptance, deps, diff_size, scope, test_weakening
@@ -60,7 +60,7 @@ LOOP_LINE_MIN, LOOP_REPEATS, LOOP_WINDOW = 60, 6, 24   # a long identical line s
 TOOL_REPEATS, TOOL_WINDOW = 6, 12                       # the same tool call (same input) 6 times in the last 12 calls = a loop
 
 
-def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None) -> ChildRun:
+def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None, on_event=None) -> ChildRun:
     kw = {}
     if os.name == "nt":
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -73,6 +73,7 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
     state = {"last": time.monotonic(), "size": 0, "loop": False}
     recent: list[int] = []
     tools: list[int] = []
+    carry = [b""]               # a line may arrive split over two reads
 
     def pump(stream, key):
         for chunk in iter(lambda: stream.read1(65536), b""):
@@ -80,6 +81,13 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
             state["size"] += len(chunk)
             state["last"] = time.monotonic()
             if key == "out":
+                if on_event:
+                    data = carry[0] + chunk
+                    cut = data.rfind(b"\n") + 1
+                    carry[0] = data[cut:]
+                    for ln in data[:cut].decode("utf8", "replace").splitlines():
+                        for ev in progress.events_from_line(ln):
+                            on_event(ev)
                 for line in chunk.decode("utf8", "replace").splitlines():
                     if line.startswith("{"):          # structured events: the same call over and over, even with new ids
                         for c in tracemod.calls_from(line):
@@ -301,6 +309,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
     from .store import state_dir
     srv = proxymod.start(prov.name, prov.base_url, key, {"rpm": prov.rpm, "tpm": prov.tpm, "rpd": prov.rpd, **spec.rate_limits},
                          state_dir() / "providers" / f"{prov.name}.json")
+    srv.limiter.on_wait = lambda secs, why: progress.Feed(st.dir / progress.NAME).emit("gruntly", "wait", secs=secs, why=why)
     spec.endpoint, spec.api_key = srv.url, "gruntly-proxy"      # the child never sees the real key
     spec.model = spec.model or prov.default_model
     try:
@@ -369,6 +378,13 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
     handoff_path = wt / prompt.HANDOFF_FILE
     rp = pick_profile(spec, wt, adapter, prior.get("profile") if cont else None)
     st.set_state("running", profile=rp.name)
+    feed = progress.Feed(st.dir / progress.NAME)
+    feed.emit("gruntly", "start", model=spec.model, harness=spec.harness, provider=spec.provider if spec.provider != "local" else None,
+              profile=rp.name)
+
+    def child_event(ev: dict) -> None:
+        ev = progress.clean(dict(ev))
+        feed.emit("child", ev.pop("k"), **ev)
 
     child_s = gates_s = 0.0
     attempts_log: list[dict] = prior.get("attempts_log", [])
@@ -413,8 +429,9 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
             {"argv": cmd.argv, "env_passed_to_child": sorted(env), "extra_env": cmd.env,
              "prompt_via_stdin": cmd.stdin is not None}, indent=2), secrets))
         st.set_state("running", attempt=attempt_no)
+        feed.emit("gruntly", "attempt", n=attempt_no)
         cr = run_child(adapter, cmd.argv, env, cmd.stdin, wt, min(remaining, spec.budget_s), spec.no_progress_s,
-                       beat=lambda info, a=attempt_no: st.set_state("running", attempt=a, **info))
+                       beat=lambda info, a=attempt_no: st.set_state("running", attempt=a, **info), on_event=child_event)
         child_s += cr.secs
         st.append_text("child.log", redact(f"\n=== attempt {attempt_no} exit={cr.exit_code} breach={cr.breach} ===\n"
                                            f"{cr.stdout}\n--- stderr ---\n{cr.stderr}\n", secrets))
@@ -448,6 +465,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         for n, g in gates.items():
             st.write_text(f"attempts/{attempt_no}/gate_{n}.txt", "" if g.get("ok") else redact(_failing_text(n, g), secrets))
         failed = first_failure(gates)
+        feed.emit("gruntly", "gates", ok=failed is None, detail=None if failed is None else f"{failed} failed")
         attempts_log.append({"n": attempt_no, "files": stats["files"], "ins": stats["insertions"],
                              "del": stats["deletions"], "failed_gate": failed})
         if failed is None:
@@ -533,4 +551,5 @@ def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_s
                        review_hint=review_hint, warnings=warnings, error=error,
                        child_trace=tracemod.line(st.read_json("trace.json", {})))
     st.save_result(res, meta={"wall_s": res["wall_s"], "child_usage": usage})
+    progress.Feed(st.dir / progress.NAME).emit("gruntly", "done", status=status, reason=(bundle or {}).get("reason") or error)
     return res
