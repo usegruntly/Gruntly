@@ -29,6 +29,12 @@ PROVIDERS: dict[str, Provider] = {
     # The API also answers 500 INTERNAL on about half the calls; the proxy retries those.
     "gemini": Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY",
                        "gemma-4-26b-a4b-it", rpm=15, tpm=15000, note="Gemma 4 via the Gemini API"),
+    # NVIDIA NIM (build.nvidia.com). The live model list (GET /v1/models, no key needed) has google/gemma-3-4b-it, gemma-3-12b-it,
+    # nvidia/nemotron-3.5-lightning-30b-a3b (about 3B active), nemotron-3.5-bolt-e4b and mistral-nemo-12b; no Qwen. Listed does
+    # not mean free or tool-calling: check with a real request. About 40 requests/min on the free tier was reported (your
+    # account page shows the real number); no daily cap was found. Needs a phone-verified account.
+    "nvidia": Provider("nvidia", "https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY",
+                       "google/gemma-3-4b-it", rpm=30, note="NVIDIA NIM free endpoints"),
 }
 
 

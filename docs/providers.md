@@ -36,4 +36,8 @@ Both Gemma 4 models returned tool calls correctly through the OpenAI-compatible 
 **Caveat.** A hosted model is not your local model. Use it to build and test the plumbing; accuracy and token numbers still
 have to be measured on the local models.
 
-Planned providers (issues #1-#5): NVIDIA NIM and Cloudflare Workers AI (priority), then Groq, OpenRouter; xAI is not planned.
+**NVIDIA NIM** (`provider = "nvidia"`, env `NVIDIA_API_KEY`, default model `google/gemma-3-4b-it`). The preset exists but is untested with a
+real key: tool calling through the harness and the real limits still have to be checked (issue #1). Other small models on its
+list: `google/gemma-3-12b-it`, `nvidia/nemotron-3.5-lightning-30b-a3b`, `nvidia/nemotron-3.5-bolt-e4b`, `mistralai/mistral-nemo-12b`.
+
+Planned providers (issues #2-#5): Cloudflare Workers AI (priority), then Groq, OpenRouter; xAI is not planned.

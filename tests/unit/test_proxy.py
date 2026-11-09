@@ -147,3 +147,10 @@ def test_a_500_from_the_provider_is_retried(upstream):
     finally:
         stats = srv.stop()
     assert stats["retries_5xx"] == 2 and len(Fake.seen) == 3
+
+
+def test_the_nvidia_preset_is_known_and_has_its_own_key_variable():
+    p = providers.get("nvidia")
+    assert p.base_url == "https://integrate.api.nvidia.com/v1" and p.key_env == "NVIDIA_API_KEY"
+    from gruntly.spec import build_spec
+    assert build_spec({"brief": "x", "acceptance": ["true"], "provider": "nvidia"}).provider == "nvidia"
