@@ -144,7 +144,7 @@ def main():
     ap.add_argument("--budget-s", type=int, default=600)
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--out", default=str(HERE.parent / "docs" / "child-bench.md"))
+    ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmarks" / "child-bench.md"))
     a = ap.parse_args()
     all_tasks = sorted(p.name for p in (HERE / "tasks").iterdir() if p.is_dir())
     names = [n for n in a.tasks.split(",") if n] or all_tasks

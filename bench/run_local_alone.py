@@ -4,7 +4,7 @@ It is the analogue of the `alone` arm: the stock OpenCode agent works directly i
 Claude gets ("do the work yourself and run the check"), then the task's hidden tests judge the result. Costs no paid
 tokens. Also records whether the visible check passes at the end, to show how often the model's own "done" is right.
 
-  python bench/run_local_alone.py --tasks flatten,paginate --reps 2 --out docs/benchmark-local-alone.md
+  python bench/run_local_alone.py --tasks flatten,paginate --reps 2 --out docs/benchmarks/benchmark-local-alone.md
 """
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ def main():
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--timeout-s", type=int, default=900)
     ap.add_argument("--resume", action="store_true")
-    ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmark-local-alone.md"))
+    ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmarks" / "benchmark-local-alone.md"))
     a = ap.parse_args()
     names = [n for n in a.tasks.split(",") if n] or sorted(p.name for p in (HERE / "tasks").iterdir() if p.is_dir())
     raw = Path(a.out).with_suffix(".json")

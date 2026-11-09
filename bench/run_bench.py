@@ -217,7 +217,7 @@ def main():
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--budget-usd", type=float, default=1.5, help="per-run cap for the parent")
     ap.add_argument("--resume", action="store_true", help="continue from the saved .json next to --out")
-    ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmark-v2.md"))
+    ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmarks" / "benchmark-v2.md"))
     a = ap.parse_args()
     names = [n for n in a.tasks.split(",") if n] or sorted(p.name for p in (HERE / "tasks").iterdir() if p.is_dir())
     raw = Path(a.out).with_suffix(".json")

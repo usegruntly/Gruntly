@@ -3,7 +3,7 @@
   (a) >= 25% of runs sent a real steering follow-up (`--continue` after a run that PASSED, not after an error or refusal), AND
   (b) those follow-ups took >= 30% of the run's agent-run time (the child re-reading what it already knew).
 
-  python bench/persistence_check.py docs/benchmark-lean2.json
+  python bench/persistence_check.py docs/benchmarks/benchmark-lean2.json
 """
 from __future__ import annotations
 

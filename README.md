@@ -72,11 +72,11 @@ Everything the child wrote (its summary, test output, handoff notes) sits under 
 
 ## When delegating is worth it
 
-Delegating has a fixed cost (a spec to write, a result to read), so it only pays when the task would cost the parent about 8 or more turns, or large file reads. The benchmark in `docs/benchmark.md` found it loses on 4-turn tasks. `gruntly stats` tracks pass rate per harness/model/context and says `delegate`, `avoid` or `unknown`. gruntly refuses to run when the model's context is below the profile's floor (typist 8k, worker 16k, default 32k; `allow_small_ctx: true` overrides).
+Delegating has a fixed cost (a spec to write, a result to read), so it only pays when the task would cost the parent about 8 or more turns, or large file reads. The benchmark in `docs/benchmarks/benchmark.md` found it loses on 4-turn tasks. `gruntly stats` tracks pass rate per harness/model/context and says `delegate`, `avoid` or `unknown`. gruntly refuses to run when the model's context is below the profile's floor (typist 8k, worker 16k, default 32k; `allow_small_ctx: true` overrides).
 
 ## Slim profiles and evaluate & fix
 
-A coding-agent CLI sends ~11k input tokens per request before it reads your task. gruntly replaces that with what the task needs: `profile: typist` for a few small named files (files inlined, only file-writing tools, ~1.2k tokens per request), `worker` when the child must look around, `default` for the stock harness; `auto` (the default) chooses. The child gets **no shell**: it is told not to run tests, and gruntly runs the acceptance command and the other gates itself and sends any failure straight back as the next attempt, so the parent only ever sees the final result. Measured against the stock setup in `docs/child-bench.md`: about 70% fewer child tokens and 44% less time at the same hidden-test pass rate. The child can follow a precise brief but not resolve a vague one: write precise briefs.
+A coding-agent CLI sends ~11k input tokens per request before it reads your task. gruntly replaces that with what the task needs: `profile: typist` for a few small named files (files inlined, only file-writing tools, ~1.2k tokens per request), `worker` when the child must look around, `default` for the stock harness; `auto` (the default) chooses. The child gets **no shell**: it is told not to run tests, and gruntly runs the acceptance command and the other gates itself and sends any failure straight back as the next attempt, so the parent only ever sees the final result. Measured against the stock setup in `docs/benchmarks/child-bench.md`: about 70% fewer child tokens and 44% less time at the same hidden-test pass rate. The child can follow a precise brief but not resolve a vague one: write precise briefs.
 
 ## One-request mode: `/gruntly:gd`
 
@@ -107,4 +107,4 @@ Level 0 (default) is a worktree, a scrubbed environment (no `ANTHROPIC_*`, `OPEN
 
 ## Status
 
-v0.3.0. Verified adapters: OpenCode 1.19.5 (benchmarked), Qwen Code 0.26.9 (one slim run measured). Hermes Agent: flags checked, live run not yet (see `docs/adapters.md`). Benchmarks: `docs/benchmark.md`, `docs/benchmark-v2.md`, `docs/benchmark-v2-sonnet.md`, `docs/child-bench.md`. Design notes: `docs/decisions.md`.
+v0.3.0. Verified adapters: OpenCode 1.19.5 (benchmarked), Qwen Code 0.26.9 (one slim run measured). Hermes Agent: flags checked, live run not yet (see `docs/adapters.md`). Benchmarks: `docs/benchmarks/benchmark.md`, `docs/benchmarks/benchmark-v2.md`, `docs/benchmarks/benchmark-v2-sonnet.md`, `docs/benchmarks/child-bench.md`. Design notes: `docs/decisions.md`.
