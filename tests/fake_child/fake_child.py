@@ -34,6 +34,10 @@ elif scenario == "slow_pass":
     print("fixed after a pause")
 elif scenario == "no_fix":
     print("I did my best.")
+elif scenario == "edit_page":
+    page = Path("site") / "my page.html"
+    page.write_text(page.read_text().replace("[placeholder]", "hello"))
+    print("edited the page")
 elif scenario == "out_of_scope":
     fix()
     Path("other.py").write_text("x = 1\n")

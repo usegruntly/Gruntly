@@ -18,6 +18,7 @@ def preamble(spec) -> str:
         f"{_paths(spec)}\n"
         "Do not run git commit, git push, or change git config.\n"
         "Do not install packages unless the task says so.\n"
+        "Make your changes with real tool calls: describing a step in text changes nothing.\n"
         f"Before you finish, run: {acc}.\n"
         "If it passes, stop and reply with a three-line summary.\n"
         "If you are blocked, stop and say why in three lines.\n"

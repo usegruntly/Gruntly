@@ -34,7 +34,7 @@ def probe_endpoint(endpoint: str, timeout: float = 3.0) -> dict:
     return {"ok": True, "models": models, "ctx": ctx, "error": None}
 
 
-def run(endpoint: str, model: str | None = None) -> dict:
+def run(endpoint: str, model: str | None = None, hosted: str | None = None) -> dict:
     checks: list[dict] = []
 
     def add(name, ok, detail="", warn=False):
@@ -45,8 +45,12 @@ def run(endpoint: str, model: str | None = None) -> dict:
     for h in ("qwen", "opencode", "hermes"):
         d = get_adapter(h).detect()
         add(f"child:{h}", d.installed, (d.version or "") + (f" {d.detail}" if d.detail else ""), warn=not d.installed)
-    p = probe_endpoint(endpoint)
-    add("model_server", p["ok"], endpoint if p["ok"] else p["error"])
+    p = {"ok": False}
+    if hosted:                                   # the project uses a hosted provider: the local server is not part of the run
+        add("model_server", True, f"not needed: this project uses {hosted}" + (f" ({model})" if model else ""))
+    else:
+        p = probe_endpoint(endpoint)
+        add("model_server", p["ok"], endpoint if p["ok"] else p["error"])
     if p["ok"]:
         if model:
             add("model_available", model in p["models"], model if model in p["models"] else f"{model} not listed: {p['models']}")

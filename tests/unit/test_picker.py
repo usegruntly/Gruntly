@@ -201,3 +201,13 @@ def test_without_lms_and_without_a_server_the_error_says_both(monkeypatch):
     monkeypatch.setattr(models, "_lms_exe", lambda: None)
     with pytest.raises(models.ModelsError, match="`lms` command was not found"):
         models.fetch("local", "http://127.0.0.1:9/v1")
+
+
+def test_doctor_checks_the_hosted_provider_not_the_local_server(api, repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    (repo / ".gruntly.toml").write_text('provider = "fakeo"\nmodel = "vendor/beta"\n', encoding="utf8")
+    assert cli.main(["doctor"]) in (0, 1)
+    out = json.loads(capsys.readouterr().out)
+    checks = {c["check"]: c for c in out["checks"]}
+    assert checks["model_server"]["ok"] and "not needed: this project uses fakeo" in checks["model_server"]["detail"]
+    assert checks["provider_models:fakeo"]["ok"] and "2 models listed" in checks["provider_models:fakeo"]["detail"]

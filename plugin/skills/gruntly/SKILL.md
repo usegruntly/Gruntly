@@ -4,7 +4,7 @@ description: Hand a bounded Python change in named files to a local model (agent
 ---
 # gruntly
 
-Use it for a bounded, mechanical change where you can name the file (and function). Do design work, changes needing many files read first, non-Python code, or anything one shell command can do yourself.
+Use it for a bounded, mechanical change where you can name the file (and function). Do design work, changes needing many files read first, or anything one shell command can do yourself. Named non-Python files (html, md, config) work too: only a changed-file check applies, so read the diff.
 
 **One call, in the foreground, Bash timeout 600000.** A run takes 1 to 9 minutes and must finish inside that call. Never use `run_in_background`: it ends your turn and the conversation is re-billed to read the result.
 

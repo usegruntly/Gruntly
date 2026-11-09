@@ -162,7 +162,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                     out["refusal"] = p
                 else:
                     p, raw = loose
-                    out["note"] = agent.LOOSE_NOTE
+                    out["note"] = agent.TEXT_NOTE if not p.tests and not any(t.endswith(".py") for t in p.targets) else agent.LOOSE_NOTE
             else:
                 raw = do.spec_for(request, p, root)
             if raw is not None:
@@ -361,14 +361,27 @@ def cmd_discard(a) -> int:
 
 
 def cmd_doctor(a) -> int:
-    endpoint, model = "http://127.0.0.1:1234/v1", None
+    endpoint, model, provider = "http://127.0.0.1:1234/v1", None, "local"
     try:
         root = wtmod.repo_root(Path.cwd())
         s = build_spec({"brief": "x", "acceptance": ["true"]}, root)
-        endpoint, model = s.endpoint, s.model
+        endpoint, model, provider = s.endpoint, s.model, s.provider
     except Exception:  # noqa: BLE001 - doctor must work outside a repo too
         pass
-    rep = doctormod.run(endpoint, model)
+    from . import providers as provmod
+    hosted = provider if provider != "local" and provider in provmod.PROVIDERS else None
+    if hosted and not model:
+        model = provmod.PROVIDERS[hosted].default_model
+    rep = doctormod.run(endpoint, model, hosted)
+    if hosted:
+        from . import keys as keysmod, models as modelsmod
+        try:
+            ms = modelsmod.fetch(hosted)
+            ok = model in [m.id for m in ms]
+            rep["checks"].append({"check": f"provider_models:{hosted}", "ok": True, "warn": not ok,
+                                  "detail": f"{len(ms)} models listed" + ("" if ok else f"; {model} is not in the list (a listing does not guarantee a model is usable)")})
+        except modelsmod.ModelsError as e:
+            rep["checks"].append({"check": f"provider_models:{hosted}", "ok": False, "warn": False, "detail": str(e)})
     from . import keys, providers
     for name, p in providers.PROVIDERS.items():
         _, src = keys.lookup(name, p.key_env)

@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- `agent-run` now works on projects with no Python files: when the request names tracked non-Python files (a website, docs, config) it targets exactly those, checks that they changed, and tells the child to make real tool calls (a small model narrated its steps instead of running them). `gruntly doctor` checks the project's hosted provider instead of the local server. Plugin 0.6.2.
 - Switch: `gruntly mode on|off|auto` and `/gruntly on|off|auto [session]` in Claude Code (project by default, or this session only). Off makes the CLI refuse new work in one line; on tells Claude to delegate eligible changes without asking. Plugin 0.6.0. See docs/mode.md.
 - `gruntly setup` (first-run guide, offered when you type `gruntly` in a terminal for the first time), `gruntly use` (provider and model picker, saved to the project or globally) and `gruntly models` (every model an account offers, as the endpoint reports it). Docs links are printed whenever a key or model is set.
 - Live view of a run: `.gruntly/runs/<id>/progress.jsonl` (child = the local model, gruntly = its checks and waits), `gruntly watch`, and a Claude Code mod in plugin 0.5.0 that draws it under the running command. See docs/live-view.md.

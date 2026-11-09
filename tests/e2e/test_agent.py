@@ -150,3 +150,31 @@ def test_ask_fails_if_the_child_changes_a_file(repo, capsys, monkeypatch):
     out = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")
     assert "status: failed" in out or "status: error" in out
     assert "[untrusted answer" not in out
+
+
+def test_a_request_about_a_non_python_file_runs_with_a_changed_file_check(repo, capsys, monkeypatch):
+    from gruntly import worktree
+    from conftest import sh
+    web = repo / "site"
+    web.mkdir()
+    (web / "my page.html").write_text("<p>[placeholder]</p>\n")
+    (repo / "calc.py").unlink()
+    (repo / "test_calc.py").unlink()
+    sh(repo, "git", "add", "-A")
+    sh(repo, "git", "commit", "-qm", "site only")
+    write_config(repo, "edit_page")
+    out = say(capsys, monkeypatch, repo, 'In "my page.html" replace [placeholder] with hello. Change nothing else.')
+    assert "status: refused" not in out, out
+    assert "no tests apply to this kind of file" in out
+
+
+def test_a_non_python_request_that_changes_nothing_fails_the_check(repo, capsys, monkeypatch):
+    from conftest import sh
+    (repo / "notes.md").write_text("old\n")
+    (repo / "calc.py").unlink()
+    (repo / "test_calc.py").unlink()
+    sh(repo, "git", "add", "-A")
+    sh(repo, "git", "commit", "-qm", "notes only")
+    write_config(repo, "no_fix")
+    out = say(capsys, monkeypatch, repo, "In notes.md add a sentence about gruntly.")
+    assert "status: failed" in out and "status: passed" not in out

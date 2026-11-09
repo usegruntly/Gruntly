@@ -38,9 +38,44 @@ LOOSE_NOTE = ("no test covered this code, so no test failed before the change; t
               "still passes plus whatever test the child added. Check edge cases in the diff yourself")
 
 
+TEXT_NOTE = ("no tests apply to this kind of file, so the pass only shows the named file(s) changed. Read the diff to check "
+             "it does exactly what was asked")
+TEXT_TIP = ("Make your changes with REAL tool calls (write, edit, run): describing a step in text does nothing. If a file is large "
+            "or has very long lines, do not read it whole: write a small Python script with your write tool, run it with your "
+            "shell tool, then delete the script. Change nothing else.")
+
+
+def named_files(request: str, files: list[str]) -> list[str]:
+    """Tracked files the request names, by path or by file name (names may contain spaces, so match the name itself)."""
+    hits = [f for f in files if len(f.rsplit("/", 1)[-1]) >= 4 and (f in request or f.rsplit("/", 1)[-1] in request)]
+    return list(dict.fromkeys(hits))
+
+
+def text_plan(request: str, root: Path):
+    """A request about files that are not Python (a website, docs, config): no test to run, so the acceptance is that the named
+    files changed, and the child is told to make real tool calls. Returns (plan, raw spec) or None."""
+    import sys
+    files = do.tracked(root)
+    named = [f for f in named_files(request, files) if not f.endswith(".py")]
+    if not named or len(named) > do.MAX_TARGETS:
+        return None
+    quoted = " ".join(f'"{f}"' for f in named)
+    acceptance = f'"{sys.executable}" -m gruntly.checks changed {quoted}'
+    brief = request.strip()[:2000] + "\n\nChange only: " + ", ".join(named) + ".\n" + TEXT_TIP
+    plan = do.Plan(named, [], acceptance, [])
+    raw = {"brief": brief, "allowed_paths": named, "context_files": [], "acceptance": [{"cmd": acceptance, "timeout_s": 60}],
+           "apply_on_pass": True, "max_attempts": 2}
+    return plan, raw
+
+
 def loose_plan(request: str, root: Path, refusal: "do.Refusal"):
     """When no test covers the target, run anyway against the whole existing suite and let the child add a test.
     Only for that one refusal; every other refusal (too many files, tests already pass, ...) stays a refusal."""
+    if refusal.reason.startswith("this project has no Python files") or not [
+            f for f in do.tracked(root) if f.endswith(".py") and f in request]:
+        t = text_plan(request, root)               # the request names files that are not Python
+        if t is not None:
+            return t
     broad = bool(BROAD.search(request))
     if not broad and not refusal.reason.startswith(("no test found", "the tests already pass")):
         return None                   # a refactor keeps its tests green, so "already pass" is allowed here too
