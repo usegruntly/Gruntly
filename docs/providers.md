@@ -36,8 +36,18 @@ Both Gemma 4 models returned tool calls correctly through the OpenAI-compatible 
 **Caveat.** A hosted model is not your local model. Use it to build and test the plumbing; accuracy and token numbers still
 have to be measured on the local models.
 
-**NVIDIA NIM** (`provider = "nvidia"`, env `NVIDIA_API_KEY`, default model `google/gemma-3-4b-it`). The preset exists but is untested with a
-real key: tool calling through the harness and the real limits still have to be checked (issue #1). Other small models on its
-list: `google/gemma-3-12b-it`, `nvidia/nemotron-3.5-lightning-30b-a3b`, `nvidia/nemotron-3.5-bolt-e4b`, `mistralai/mistral-nemo-12b`.
+**NVIDIA NIM** (`provider = "nvidia"`, env `NVIDIA_API_KEY`, default model `nvidia/nemotron-3.5-bolt-e4b`). Checked 2026-11-09 with
+a free account: the public model list is not what you can call. `gemma-3-4b-it`, `gemma-3-12b-it`, `nemotron-nano-3-30b-a3b`,
+`mistral-nemo-12b-instruct` and `granite-3.0-8b-instruct` return 404 "Function not found for account". Two work and return tool
+calls: `nvidia/nemotron-3.5-bolt-e4b` (4B class) and `nvidia/nemotron-3.5-lightning-30b-a3b` (about 3B active).
+The long-file edit task (a one-line change in a 700 KB file), full OpenCode harness, one run each:
 
-Planned providers (issues #2-#5): Cloudflare Workers AI (priority), then Groq, OpenRouter; xAI is not planned.
+| Model | Result | Wall | Requests | Notes |
+|---|---|---|---|---|
+| nemotron-3.5-bolt-e4b | passed, attempt 1 | 13 s | 5 | no 429s, no waiting |
+| nemotron-3.5-lightning-30b-a3b | failed, scope gate | 59 s | 14 | edited the main repo's file instead of its worktree; the gate caught it (issue #6) |
+| gemma-4-26b-a4b-it (Gemini) | passed, attempt 1 | 901 s | 11 | 758 s waiting on the 16k tokens/min cap |
+
+Single runs on one task: they show the route works, not which model is better.
+
+Planned providers (issues #2-#5; #1 NVIDIA is now built): Cloudflare Workers AI (priority), then Groq, OpenRouter; xAI is not planned.

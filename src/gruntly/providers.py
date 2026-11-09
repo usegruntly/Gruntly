@@ -31,10 +31,11 @@ PROVIDERS: dict[str, Provider] = {
                        "gemma-4-26b-a4b-it", rpm=15, tpm=15000, note="Gemma 4 via the Gemini API"),
     # NVIDIA NIM (build.nvidia.com). The live model list (GET /v1/models, no key needed) has google/gemma-3-4b-it, gemma-3-12b-it,
     # nvidia/nemotron-3.5-lightning-30b-a3b (about 3B active), nemotron-3.5-bolt-e4b and mistral-nemo-12b; no Qwen. Listed does
-    # not mean free or tool-calling: check with a real request. About 40 requests/min on the free tier was reported (your
+    # not mean usable: on a free account, gemma-3-4b/12b, nemotron-nano-3, mistral-nemo-12b and granite-3.0-8b answered 404
+    # "Function not found for account"; only nemotron-3.5-bolt-e4b and nemotron-3.5-lightning-30b-a3b worked (tool calls too). About 40 requests/min on the free tier was reported (your
     # account page shows the real number); no daily cap was found. Needs a phone-verified account.
     "nvidia": Provider("nvidia", "https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY",
-                       "google/gemma-3-4b-it", rpm=30, note="NVIDIA NIM free endpoints"),
+                       "nvidia/nemotron-3.5-bolt-e4b", rpm=30, note="NVIDIA NIM free endpoints"),
 }
 
 
