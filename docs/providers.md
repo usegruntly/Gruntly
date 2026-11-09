@@ -48,6 +48,12 @@ The long-file edit task (a one-line change in a 700 KB file), full OpenCode harn
 | nemotron-3.5-lightning-30b-a3b | failed, scope gate | 59 s | 14 | edited the main repo's file instead of its worktree; the gate caught it (issue #6) |
 | gemma-4-26b-a4b-it (Gemini) | passed, attempt 1 | 901 s | 11 | 758 s waiting on the 16k tokens/min cap |
 
+Cross-check against build.nvidia.com's Free Endpoint filter (45 models, 2026-11-09): the five 404 models are not on it (the API's
+`/v1/models` still lists older models that are no longer free endpoints), while the two working ones are. Other small or
+mid-size free endpoints on that page, probed with one tool-call request: `poolside/laguna-xs-2.1` (33B MoE for agentic coding)
+works (HTTP 200, tool call, 1.9 s); `openai/gpt-oss-20b` and `deepseek-ai/deepseek-v4.1-flash` timed out at 90 s twice (queued or
+overloaded); `google/gemma-4-31b-it` and `meta/muse-glimmer-30b` timed out once. Not run on the real task yet.
+
 Single runs on one task: they show the route works, not which model is better.
 
 Planned providers (issues #2-#5; #1 NVIDIA is now built): Cloudflare Workers AI (priority), then Groq, OpenRouter; xAI is not planned.
