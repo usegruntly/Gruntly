@@ -1,4 +1,12 @@
-Hand the grunt work to your local model. Gruntly runs your AI coding agent's tasks on a local harness and checks the result before Claude Code takes it back.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/svg/horizontal-color-on-dark.svg">
+    <img alt="gruntly" src="docs/brand/svg/horizontal-color.svg" height="64">
+  </picture>
+</p>
+<p align="center"><b>Hand the grunt work to your local model.</b></p>
+
+Gruntly runs your AI coding agent's tasks on a local harness and checks the result before Claude Code takes it back.
 
 Your paid agent (the *parent*, e.g. Claude Code) writes a short brief. gruntly hands it to a local-model coding agent (the *child*: Qwen Code, OpenCode, Hermes) in a throwaway git worktree, runs its **own** checks on the result, and gives back one small JSON. Exploring, code generation and test-fix loops never touch your paid context.
 

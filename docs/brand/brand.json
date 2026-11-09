@@ -1,0 +1,33 @@
+{
+  "name": "gruntly",
+  "tagline": "Hand the grunt work to your local model.",
+  "colors": {
+    "charcoal": "#23252B",
+    "orange": "#FF6A13",
+    "cream": "#F4F1EA",
+    "sand": "#E7E2D6",
+    "orangeText": "#B84300",
+    "greyText": "#4a4d55",
+    "rule": "#CFC9BA"
+  },
+  "fonts": {
+    "display": {
+      "family": "Bitter",
+      "weight": 800,
+      "tracking": "-0.035em"
+    },
+    "mono": {
+      "family": "IBM Plex Mono"
+    }
+  },
+  "minSizes": {
+    "iconPx": 16,
+    "horizontalPx": 96,
+    "stackedPx": 64
+  },
+  "viewBox": {
+    "icon": "0 0 64 64",
+    "horizontal": "0 0 262 64",
+    "stacked": "0 0 261 140"
+  }
+}

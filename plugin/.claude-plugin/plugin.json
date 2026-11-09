@@ -1,7 +1,7 @@
 {
   "name": "gruntly",
   "displayName": "Gruntly",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Hand the grunt work to your local model. Delegates well-scoped coding tasks to a local-model agent and verifies the result with gates before you take it back.",
   "author": {
     "name": "usegruntly"
@@ -15,5 +15,6 @@
     "local-llm",
     "delegation"
   ],
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "icon": "./.claude-plugin/icon.png"
 }

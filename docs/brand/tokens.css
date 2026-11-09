@@ -1,0 +1,11 @@
+:root {
+  --gruntly-charcoal: #23252B;
+  --gruntly-orange: #FF6A13;
+  --gruntly-cream: #F4F1EA;
+  --gruntly-sand: #E7E2D6;
+  --gruntly-orange-text: #B84300;
+  --gruntly-grey-text: #4a4d55;
+  --gruntly-rule: #CFC9BA;
+  --gruntly-font-display: 'Bitter', Georgia, serif;
+  --gruntly-font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+}
