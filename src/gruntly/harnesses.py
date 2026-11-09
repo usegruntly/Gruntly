@@ -37,7 +37,7 @@ HARNESSES: dict[str, Harness] = {h.name: h for h in (
     Harness("hermes", "Hermes Agent",
             "Broadest agent: about 18 built-in tools, memory and skills. In gruntly it runs with its tools as shipped.",
             "Heaviest per request (large prompt, no slim profile). No tool trace, token counts or live view yet.",
-            "uv tool install hermes-agent  (Windows: inside WSL2, run gruntly there too)",
+            "uv tool install hermes-agent  (Windows: the Hermes installer, or WSL2)",
             "https://hermes-agent.nousresearch.com", "NousResearch/hermes-agent", False, False),
     Harness("generic", "Any other agent CLI",
             "Bring your own: gruntly runs the command you give (child_cmd) and checks the result. No resume, trace or profiles.",

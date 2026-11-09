@@ -103,7 +103,7 @@ Level 0 (default) is a worktree, a scrubbed environment (no `ANTHROPIC_*`, `OPEN
 - Child loops or truncates: raise the context (16k+), shrink `allowed_paths`, split the task.
 - OpenCode `Database is not empty...`: fixed by gruntly (private state dir per run); running plain `opencode` still uses the old DB.
 - WSL2 cannot reach a Windows-hosted model: enable "Serve on Local Network" in LM Studio or use mirrored networking.
-- Windows: native Windows works for Qwen Code and OpenCode (tested); sandbox level 1 and Hermes need Linux/WSL2.
+- Windows: native Windows works for Qwen Code and OpenCode (tested); sandbox level 1 needs Linux. Hermes also runs natively on Windows (0.23.0 verified; see `docs/adapters.md`) or in WSL2.
 
 ## Status
 

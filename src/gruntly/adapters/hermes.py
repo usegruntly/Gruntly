@@ -18,6 +18,7 @@ reported, and every request carries Hermes's own system prompt and tool list (ab
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -32,7 +33,11 @@ UTF8 = {"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PYTHONIOENCODING": "utf-8"}   #
 
 
 def home_for(workdir: Path) -> Path:
-    return Path(workdir).parents[1] / "child-state" / "hermes-home"
+    """Hermes' data folder. One per project by default. GRUNTLY_HERMES_HOME names a single shared folder instead: newer Hermes
+    builds prepare their own dependency environment for each data folder (slow, and it fails on Windows paths over 260
+    characters), so prepare one short-path folder once (`hermes pm repair`) and point every project at it."""
+    shared = os.environ.get("GRUNTLY_HERMES_HOME")
+    return Path(shared) if shared else Path(workdir).parents[1] / "child-state" / "hermes-home"
 
 
 def write_config(home: Path, endpoint: str, api_key: str, model: str) -> Path:
@@ -53,14 +58,28 @@ def write_config(home: Path, endpoint: str, api_key: str, model: str) -> Path:
     return p
 
 
+def find_hermes() -> str | None:
+    """`hermes` on PATH, else where the Windows installer puts it (%LOCALAPPDATA%/hermes/bin): that folder is not always on the PATH
+    a tool's own shell sees, for example the one Claude Code runs commands in."""
+    exe = which("hermes")
+    if exe:
+        return exe
+    base = os.environ.get("LOCALAPPDATA")
+    if base:
+        cand = Path(base) / "hermes" / "bin" / "hermes.exe"
+        if cand.is_file():
+            return str(cand)
+    return None
+
+
 class HermesAdapter:
     name = "hermes"
 
     def detect(self) -> Detection:
-        exe = which("hermes")
+        exe = find_hermes()
         if not exe:
-            return Detection(False, None, "hermes not on PATH (Linux, macOS or WSL2 only: `uv tool install hermes-agent`; "
-                                          "on Windows run gruntly inside WSL2 as well)")
+            return Detection(False, None, "hermes not found (`uv tool install hermes-agent` on Linux, macOS or WSL2; "
+                                          "on Windows the Hermes installer, which puts it in %LOCALAPPDATA%/hermes/bin)")
         try:
             out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=60).stdout
             m = re.search(r"v?(\d+\.\d+\.\d+)", out)
@@ -73,7 +92,7 @@ class HermesAdapter:
         home = home_for(workdir)
         write_config(home, task.endpoint, task.api_key, model)
         mode = permission_mode(task)
-        argv = [which("hermes") or "hermes", "chat", "-Q", "--ignore-rules", "--provider", f"custom:{PROVIDER}", "-m", model]
+        argv = [find_hermes() or "hermes", "chat", "-Q", "--ignore-rules", "--provider", f"custom:{PROVIDER}", "-m", model]
         argv += ["--yolo"] if mode == "bypass" else ["-t", "file"]
         if resume:
             argv += ["--resume", resume]

@@ -108,6 +108,28 @@ class Limiter:
             self.sleep(d)
 
 
+def dedupe_keys(body: bytes) -> bytes:
+    """Repair a JSON request body that repeats a key inside one object. Hermes can send `reasoning_content` twice when it replays
+    a reasoning model's earlier turn, and strict providers (Poolside's Laguna on NVIDIA) answer HTTP 400 "duplicate field".
+    The last value wins, as in every JSON parser. A body with no repeat is returned untouched, byte for byte."""
+    repeated = []
+
+    def pairs(items):
+        if len({k for k, _ in items}) != len(items):
+            repeated.append(1)
+        d = dict(items)
+        if "reasoning" in d and "reasoning_content" in d:      # the provider reads `reasoning` as an alias of `reasoning_content`
+            del d["reasoning"]
+            repeated.append(1)
+        return d
+
+    try:
+        obj = json.loads(body, object_pairs_hook=pairs)
+    except (ValueError, UnicodeDecodeError):
+        return body
+    return json.dumps(obj, ensure_ascii=False).encode("utf8") if repeated else body
+
+
 def retry_after(headers, body: bytes) -> float:
     """Seconds a 429 asks us to wait: Retry-After, else 'retry in 12.3s' / retryDelay '12s' in the body, else 20."""
     v = headers.get("Retry-After") if headers else None
@@ -137,7 +159,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _forward(self, method: str) -> None:
         n = int(self.headers.get("Content-Length") or 0)
-        body = self.rfile.read(n) if n else b""
+        body = dedupe_keys(self.rfile.read(n)) if n and method == "POST" else (self.rfile.read(n) if n else b"")
         srv = self.server
         path = self.path.split("?", 1)[0]
         if path.startswith("/v1"):

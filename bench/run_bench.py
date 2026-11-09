@@ -34,6 +34,9 @@ LARGE = {"bugs_batch", "rename_domain", "cli_json"}
 DO_TOML = {"gd": "\n[do]\ndiff = false\nhints = false\n", "gdA": "\n[do]\ndiff = true\nhints = false\n",
            "gdAB": "\n[do]\ndiff = true\nhints = true\n"}
 GD_ARMS = tuple(DO_TOML)
+LEAN_ALONE_PROMPT = ("You are a coding agent working in this repository. Do the task yourself with your tools, run the check "
+                     "to confirm it passes, then reply in one line.")
+LEAN_ALONE = "lean_alone"   # the same stripped-down Claude doing the task itself: the matched baseline for `lean`
 LEAN = "lean"   # a stripped-down Claude (one Bash tool, one-line system prompt) directing gruntly via `gruntly agent-run`
 
 
@@ -45,11 +48,12 @@ def bucket(task: str) -> str:
     return "L" if task in LARGE else "S"
 
 
-def prepare(task_dir: Path, work: Path, harness: str, model: str, extra: str = "") -> dict:
+def prepare(task_dir: Path, work: Path, harness: str, model: str, extra: str = "", provider: str = "") -> dict:
     spec = yaml.safe_load((task_dir / "task.yaml").read_text(encoding="utf8"))
     shutil.copytree(task_dir / "repo", work)
     (work / ".gruntly.toml").write_text(
-        f'harness = "{harness}"\nmodel = "{model}"\nbudget_s = 900\nno_progress_s = 300\nmax_attempts = 2\n' + extra, encoding="utf8")
+        f'harness = "{harness}"\nmodel = "{model}"\n' + (f'provider = "{provider}"\n' if provider else "")
+        + 'budget_s = 900\nno_progress_s = 300\nmax_attempts = 2\n' + extra, encoding="utf8")
     sh(["git", "init", "-q", "-b", "main"], work)
     sh(["git", "add", "-A"], work)
     sh(["git", "-c", "user.name=b", "-c", "user.email=b@b", "commit", "-qm", "start"], work)
@@ -63,6 +67,8 @@ def prompt_for(arm: str, spec: dict) -> str:
     base = spec["brief"] + f"\n\nThe check is `{cmd}`; edit only {paths}.{extra}"
     if arm == LEAN:
         return " ".join(spec["brief"].split())
+    if arm == LEAN_ALONE:
+        return base + "\nReply in one line."
     if arm in GD_ARMS:  # the one-request slash command: just the user's words, nothing else
         return "/gruntly:gd " + " ".join(spec["brief"].split())
     if arm == "alone":
@@ -125,7 +131,7 @@ def gruntly_runs(work: Path) -> list[dict]:
 def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
     with tempfile.TemporaryDirectory(prefix="bench-", ignore_cleanup_errors=True) as tmp:
         work = Path(tmp) / "repo"
-        spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else ""))
+        spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else ""), a.provider)
         cmd = [shutil.which("claude") or "claude", "-p", "--allowedTools", *TOOLS, "--output-format", "stream-json", "--verbose",
                "--max-turns", "40", "--max-budget-usd", str(a.budget_usd)]
         if a.parent_model:
@@ -135,6 +141,10 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
             cmd = [c for c in cmd if c not in TOOLS]
             cmd[cmd.index("--allowedTools") + 1:cmd.index("--allowedTools") + 1] = ["Bash(gruntly *)"]
             cmd += ["--system-prompt", LEAN_PROMPT, "--tools", "Bash", "--strict-mcp-config", "--disable-slash-commands"]
+        elif arm == LEAN_ALONE:
+            cmd = [c for c in cmd if c not in TOOLS]
+            cmd[cmd.index("--allowedTools") + 1:cmd.index("--allowedTools") + 1] = ["Bash", "Read", "Edit", "Write"]
+            cmd += ["--system-prompt", LEAN_ALONE_PROMPT, "--tools", "Bash,Read,Edit,Write", "--strict-mcp-config", "--disable-slash-commands"]
         elif arm != "alone":
             cmd += ["--plugin-dir", str(PLUGIN)]
         t0 = time.time()
@@ -165,7 +175,7 @@ def mean(xs):
 
 
 def report(rows: list[dict], meta: dict) -> str:
-    arms = [x for x in ("alone", "forced", "policy", "gd", "gdA", "gdAB", "lean") if any(r["arm"] == x for r in rows)]
+    arms = [x for x in ("alone", "forced", "policy", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "
@@ -211,6 +221,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--harness", default="opencode")
     ap.add_argument("--model", default="qwen/qwen3.5-9b")
+    ap.add_argument("--provider", default="", help="hosted provider for the child (e.g. nvidia); default: the local server")
     ap.add_argument("--parent-model", default="sonnet", help="Claude model for the parent (alias or id)")
     ap.add_argument("--tasks", default="")
     ap.add_argument("--arms", default="alone,forced,policy")

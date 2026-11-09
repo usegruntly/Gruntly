@@ -81,14 +81,33 @@ def test_odd_characters_in_values_stay_valid(tmp_path):
     assert cfg["custom_providers"][0]["api_key"] == "k:y #1" and cfg["model"]["default"] == "m/with: colon"
 
 
-def test_capabilities_and_missing_install_message():
+def test_capabilities_and_missing_install_message(tmp_path, monkeypatch):
     a = HermesAdapter()
     assert a.capabilities().resume and not a.capabilities().profiles
     import gruntly.adapters.hermes as h
-    orig = h.which
-    h.which = lambda n: None
-    try:
-        d = a.detect()
-    finally:
-        h.which = orig
-    assert not d.installed and "WSL2" in d.detail
+    monkeypatch.setattr(h, "which", lambda n: None)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))          # no installer folder here either
+    d = a.detect()
+    assert not d.installed and "not found" in d.detail and "WSL2" in d.detail
+
+
+def test_hermes_is_found_in_the_windows_installer_folder_when_path_does_not_have_it(tmp_path, monkeypatch):
+    import gruntly.adapters.hermes as h
+    monkeypatch.setattr(h, "which", lambda n: None)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    exe = tmp_path / "hermes" / "bin" / "hermes.exe"
+    exe.parent.mkdir(parents=True)
+    exe.write_text("", encoding="utf8")
+    assert h.find_hermes() == str(exe)
+    cmd = HermesAdapter().command(task(), workdir(tmp_path), "p", None)
+    assert cmd.argv[0] == str(exe)
+
+
+def test_a_shared_hermes_home_can_be_named_by_environment(tmp_path, monkeypatch):
+    w = workdir(tmp_path)
+    monkeypatch.setenv("GRUNTLY_HERMES_HOME", str(tmp_path / "shared"))
+    assert home_for(w) == tmp_path / "shared"
+    HermesAdapter().command(task(), w, "p", None)
+    assert (tmp_path / "shared" / "config.yaml").is_file()
+    monkeypatch.delenv("GRUNTLY_HERMES_HOME")
+    assert home_for(w).name == "hermes-home"

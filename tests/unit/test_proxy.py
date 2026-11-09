@@ -154,3 +154,15 @@ def test_the_nvidia_preset_is_known_and_has_its_own_key_variable():
     assert p.base_url == "https://integrate.api.nvidia.com/v1" and p.key_env == "NVIDIA_API_KEY"
     from gruntly.spec import build_spec
     assert build_spec({"brief": "x", "acceptance": ["true"], "provider": "nvidia"}).provider == "nvidia"
+
+
+def test_a_repeated_key_in_a_request_body_is_repaired_and_a_clean_body_is_untouched():
+    from gruntly.proxy import dedupe_keys
+    dup = b'{"messages":[{"role":"assistant","reasoning_content":"a","content":"x","reasoning_content":"b"}],"model":"m"}'
+    fixed = json.loads(dedupe_keys(dup))
+    assert fixed["messages"][0]["reasoning_content"] == "b" and fixed["model"] == "m"
+    alias = json.loads(dedupe_keys(b'{"messages":[{"role":"assistant","reasoning":"a","reasoning_content":"a"}]}'))
+    assert alias["messages"][0] == {"role": "assistant", "reasoning_content": "a"}   # `reasoning` is an alias upstream
+    clean = b'{"model": "m",  "messages": []}'
+    assert dedupe_keys(clean) is clean                      # same bytes, spacing included
+    assert dedupe_keys(b"not json") == b"not json"

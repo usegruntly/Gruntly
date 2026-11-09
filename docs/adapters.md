@@ -45,8 +45,9 @@ Install: `npm i -g opencode-ai`.
 **Verified live** on 2026-11-09: Linux (WSL2 Ubuntu 24.04), a hosted endpoint (NVIDIA `nemotron-3.5-bolt-e4b`) through gruntly's local proxy.
 Two one-line fixes through `gruntly run`: passed on attempt 1 in 30 s (9 model requests, default permissions) and in 18 s with the file-tools-only mode.
 
-Set-up (Hermes does not install natively on Windows: `pywinpty` needs a build toolchain; run gruntly inside WSL2 as well, so Hermes, gruntly and its
-rate-limit proxy share one loopback and a hosted provider just works):
+Windows: Hermes 0.23.0 also installs natively (`%LOCALAPPDATA%/hermes/bin/hermes.exe`; gruntly looks there when `hermes` is not on PATH). Verified 2026-11-10 with `poolside/laguna-xs-2.1` on NVIDIA through gruntly's proxy: a one-line fix passed on attempt 1 in 54 s, and 9 of 10 benchmark tasks delegated from Claude Code passed. Two things to know on native Windows: 0.23 prepares its own dependency environment for every new data folder, which fails on paths over 260 characters, so prepare one short folder once (`set HERMES_HOME=C:/hb`, `hermes pm repair`) and point gruntly at it with `GRUNTLY_HERMES_HOME=C:/hb`; and Laguna answers HTTP 400 "duplicate field `reasoning_content`" when Hermes replays a turn that carries both `reasoning` and `reasoning_content`, which gruntly's proxy now repairs. Hermes reports no token usage, so `child_tokens` is empty.
+
+Set-up on Linux or WSL2 (older 0.19.0 verified there; gruntly, Hermes and its rate-limit proxy share one loopback and a hosted provider just works):
 
 ```
 uv tool install hermes-agent
