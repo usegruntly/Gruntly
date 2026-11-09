@@ -46,6 +46,8 @@ DEFAULTS: dict[str, Any] = {
     "profile": "default",          # default = the child harness as shipped (all its tools); auto | typist | worker = slimmer (see profiles.py)
     "inline_files": "auto",        # embed the target files in the prompt: auto | true | false
     "followup": False,             # a follow-up on work already in the tree: the tests are expected to pass before the change
+    "provider": "local",           # local = the model server at `endpoint`; or a hosted preset from providers.py (e.g. gemini)
+    "rate_limits": {},             # override a provider preset: rpm, tpm, rpd
     "web": True,                   # slim profiles only: also offer the harness's page-fetch tool; fetched text is untrusted
     "permissions": "inherit",      # child permission mode: inherit (env GRUNTLY_PARENT_MODE, else bypass) | bypass | accept-edits | plan
     "self_check": False,           # True lets the child run the acceptance command itself; False = evaluate & fix
@@ -103,6 +105,8 @@ class Spec:
     self_check: bool = False
     followup: bool = False
     web: bool = True
+    provider: str = "local"
+    rate_limits: dict = field(default_factory=dict)
     permissions: str = "inherit"
 
     def to_dict(self) -> dict:
@@ -208,6 +212,14 @@ def _validate(s: Spec) -> None:
         raise SpecError("code tasks need at least one acceptance command")
     if s.profile not in ("auto", "typist", "worker", "default"):
         raise SpecError("profile must be auto, typist, worker or default")
+    if s.provider != "local":
+        from . import providers
+        try:
+            providers.get(s.provider)
+        except ValueError as e:
+            raise SpecError(str(e)) from None
+    if not isinstance(s.rate_limits, dict) or set(s.rate_limits) - {"rpm", "tpm", "rpd"}:
+        raise SpecError("rate_limits may only hold rpm, tpm and rpd")
     if s.permissions not in PERMISSION_MODES:
         raise SpecError("permissions must be one of " + ", ".join(PERMISSION_MODES))
     if s.inline_files not in ("auto", True, False):

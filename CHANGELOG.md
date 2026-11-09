@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Hosted child endpoints: `provider = "gemini"` runs the child on Gemma 4 through the Gemini API behind a local proxy that keeps the key out of the child, paces requests, retries 429s and counts a daily quota. See docs/providers.md.
 - `agent-run --ask` for research: the child answers with its own tools (web, shell, files); no tests or diff, the answer comes back fenced as untrusted. Plugin 0.4.1.
 - Fixes: `apply` no longer rewrites a whole LF file as CRLF under `core.autocrlf=true`; a context file missing from the run's snapshot stops the run instead of letting the child invent it; the same tool call repeated 6 times stops the run as a loop; shell commands with a non-zero exit or traceback count as failed in the trace.
 - The child now runs its harness as shipped (`profile = "default"`, all its tools, web on) unless a slim profile is asked for; its permission mode follows the parent (`GRUNTLY_PARENT_MODE`, or `permissions` in the spec).

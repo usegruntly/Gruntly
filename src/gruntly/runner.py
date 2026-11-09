@@ -287,6 +287,28 @@ def execute(root: Path, run_id: str, guidance: str | None = None, extra_attempts
 
 
 def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | None, t_start: float) -> dict:
+    """Runs the task; for a hosted provider, behind a local proxy that holds the key and paces the requests."""
+    if spec.provider == "local":
+        return _execute_inner(st, spec, root, run_id, guidance, t_start)
+    from . import providers, proxy as proxymod
+    prov = providers.get(spec.provider)
+    key = providers.api_key(prov)
+    if not key:
+        return _finish(st, spec, root, "error", 0, {}, {"files": 0, "insertions": 0, "deletions": 0, "paths": []}, "", None,
+                       t_start, 0, 0, {"available": False},
+                       error=f"provider {prov.name} needs an API key in the environment variable {prov.key_env}")
+    from .store import state_dir
+    srv = proxymod.start(prov.name, prov.base_url, key, {"rpm": prov.rpm, "tpm": prov.tpm, "rpd": prov.rpd, **spec.rate_limits},
+                         state_dir() / "providers" / f"{prov.name}.json")
+    spec.endpoint, spec.api_key = srv.url, "gruntly-proxy"      # the child never sees the real key
+    spec.model = spec.model or prov.default_model
+    try:
+        return _execute_inner(st, spec, root, run_id, guidance, t_start)
+    finally:
+        st.write_json("provider.json", {"provider": prov.name, "model": spec.model, **srv.stop()})
+
+
+def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | None, t_start: float) -> dict:
     empty = {"files": 0, "insertions": 0, "deletions": 0, "paths": []}
     cont = guidance is not None
     prior = st.read_json("state.json", {}) if cont else {}
@@ -309,7 +331,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         if not p["ok"]:
             return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
                            error=p["error"])
-        if spec.model and spec.model not in p["models"]:
+        if spec.model and spec.provider == "local" and spec.model not in p["models"]:
             return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
                            error=f"model {spec.model!r} not loaded on the server; available: {p['models']}")
         if not spec.model and p["ctx"]:
