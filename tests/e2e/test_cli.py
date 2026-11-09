@@ -9,7 +9,10 @@ from gruntly import cli, runner, store, worktree
 
 def call(capsys, *argv):
     rc = cli.main(list(argv))
-    return rc, capsys.readouterr().out
+    cap = capsys.readouterr()
+    if not cap.out.strip() and cap.err.strip():   # a handled error goes to stderr: do not lose it
+        return rc, cap.err
+    return rc, cap.out
 
 
 def test_async_run_status_and_result(repo, make_spec, capsys, monkeypatch, tmp_path):
@@ -157,3 +160,23 @@ def test_continue_via_cli(repo, make_spec, capsys, monkeypatch, tmp_path):
     assert any("continue" in n for n in res["next"])
     _, out = call(capsys, "continue", res["run_id"], "--guidance", "change the operator", "--attempts", "1")
     assert json.loads(out)["status"] == "passed"
+
+
+def test_a_worker_that_crashes_leaves_the_reason_not_a_mystery(repo, monkeypatch, capsys):
+    from gruntly import runner, store, worktree
+    from gruntly.spec import build_spec
+    import gruntly.cli as clim
+    root = worktree.preflight(repo)
+    rid = runner.prepare(build_spec({"brief": "x", "harness": "generic", "child_cmd": ["true"], "acceptance": ["true"]}, root), root)
+    monkeypatch.chdir(repo)
+
+    def boom(*a, **k):
+        raise PermissionError("[WinError 5] Access is denied: 'somefile'")
+
+    monkeypatch.setattr(runner, "execute", boom)
+    assert clim.main(["_worker", rid]) == 1
+    st = store.Store.existing(root, rid)
+    res = st.read_json("result.json")
+    assert res["status"] == "error" and "PermissionError" in res["error"] and "Access is denied" in res["error"]
+    assert "PermissionError" in (st.dir / "worker-crash.txt").read_text(encoding="utf8")
+    assert clim._wait(root, rid, 5)["status"] == "error"

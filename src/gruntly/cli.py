@@ -83,6 +83,10 @@ def _wait(root: Path, rid: str, timeout_s: float) -> dict:
             return st.read_json("result.json")
         pid, age = s.get("pid"), time.time() - s.get("updated", t0)
         if (pid and age > 3 and not runner._pid_alive(pid)) or (not pid and s.get("state") == "queued" and age > 60):
+            time.sleep(0.3)                       # the worker may have finished between the read above and this check
+            s = st.read_json("status.json", {})
+            if s.get("state") == "done" and (st.dir / "result.json").exists():
+                return st.read_json("result.json")
             return {"run_id": rid, "status": "error",
                     "error": "the worker process ended without a result; see `gruntly log " + rid + "`", "next": ["gruntly doctor"]}
         if time.time() - t0 >= timeout_s:
@@ -277,7 +281,16 @@ def cmd_worker(a) -> int:
     root = _root()
     st = store.Store.existing(root, a.run)
     cont = st.read_json("continue.json", {}) if (st.dir / "continue.json").exists() else {}
-    runner.execute(root, a.run, guidance=cont.get("guidance"), extra_attempts=cont.get("attempts"))
+    try:
+        runner.execute(root, a.run, guidance=cont.get("guidance"), extra_attempts=cont.get("attempts"))
+    except BaseException as e:  # noqa: BLE001 - a worker has no terminal (stderr is discarded): never die without saying why
+        import traceback
+        st.write_text("worker-crash.txt", traceback.format_exc())
+        if not (st.dir / "result.json").exists():
+            st.save_result({"run_id": a.run, "status": "error", "attempts": 0,
+                            "error": f"the worker crashed: {type(e).__name__}: {e} (traceback: .gruntly/runs/{a.run}/worker-crash.txt)",
+                            "next": ["gruntly doctor"]}, meta={})
+        return 1
     return 0
 
 

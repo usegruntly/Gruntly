@@ -10,7 +10,11 @@ from gruntly import cli, runner, store, worktree
 
 def call(capsys, *argv):
     rc = cli.main(list(argv))
-    return rc, json.loads(capsys.readouterr().out)
+    cap = capsys.readouterr()
+    try:
+        return rc, json.loads(cap.out)
+    except json.JSONDecodeError:   # a handled error goes to stderr: show it instead of an unreadable decode error
+        raise AssertionError(f"gruntly {' '.join(argv[:2])} printed no JSON (exit {rc}); stdout={cap.out!r} stderr={cap.err!r}") from None
 
 
 def write_spec(tmp_path, make_spec, scenario, **over):
