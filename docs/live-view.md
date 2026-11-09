@@ -13,6 +13,6 @@ added to the result block the parent reads, so it costs the parent nothing.
 **In any terminal:** `gruntly watch` (latest run) or `gruntly watch RUN_ID`, coloured (cyan child, yellow gruntly); `--no-follow` prints what exists.
 
 **In Claude Code:** plugin 0.5.0 ships a small mod that polls the feed once a second while a `gruntly ...` Bash command runs and draws
-the last few events under that command's row (cyan `child`, yellow `gruntly`), plus the latest event on the status line. Install or update
+the last few events under that command's row (`child` and `gruntly` in muted colours taken from your Claude Code theme, so they follow it), then the diff. There is no separate status-line entry. Install or update
 the plugin and run `/reload-plugins`. The mod hooks `tool.call` for Bash only when the command is a gruntly command, and its hook is
 guarded so a bug in it can never block the command.

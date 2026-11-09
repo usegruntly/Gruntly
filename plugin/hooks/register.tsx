@@ -49,6 +49,9 @@ async function readMode($: any): Promise<{ mode: Mode; source: string }> {
 
 // `gruntly agent-run ...`, `gruntly run ...`, also through a path or gruntly.exe
 const GRUNTLY = /(?:^|[\s;&|(])(?:[\w.:\\/~-]*[\\/])?gruntly(?:\.exe)?\s+(agent-run|run|do|continue|wait)\b/
+// Theme keys, so the colours follow the person's Claude Code theme (and stay quiet) instead of fixed cyan and yellow.
+const CHILD_COLOR = 'suggestion'
+const GRUNTLY_COLOR = 'subtle'
 const SHOWN_RUNNING = 8
 const SHOWN_DONE_CHILD = 3 // when finished: the last few things the child did ...
 const SHOWN_DONE_GRUNTLY = 2 // ... and gruntly's last steps, so both colours are visible
@@ -144,7 +147,7 @@ export const register: Register = on => {
     const { Box, Text } = $.ui.resolve(e)
     return (
       <Box>
-        <Text color={m.mode === 'on' ? 'cyan' : 'yellow'}>
+        <Text color={m.mode === 'on' ? 'success' : 'warning'}>
           {`◆ gruntly ${m.mode.toUpperCase()}`}
         </Text>
         <Text dimColor>{` (${m.source}) · /gruntly auto to let Claude decide`}</Text>
@@ -205,8 +208,6 @@ export const register: Register = on => {
             ...all,
             [id]: [...(all[id] ?? []), ...rows].slice(-KEEP),
           }))
-          const last = rows[rows.length - 1]
-          $.ui.status(last.k === 'done' ? undefined : `${last.who}: ${body(last)}`.slice(0, 70))
         }
       } catch {
         // the run folder or file is not there yet
@@ -221,7 +222,6 @@ export const register: Register = on => {
     } finally {
       timer.cancel()
       await poll()
-      $.ui.status(undefined)
     }
   }).catch(($, e, next) => next(e)) // a bug here must never block the gruntly command itself
 
@@ -289,17 +289,17 @@ function view($: any, e: any, rows: Row[], running: boolean) {
       </Text>
       {shown.map((r, i) => (
         <Box key={`${r.t}-${i}`}>
-          <Text color={r.who === 'child' ? 'cyan' : 'yellow'}>{r.who === 'child' ? '  ⟡ child   ' : '  ◆ gruntly '}</Text>
+          <Text color={r.who === 'child' ? CHILD_COLOR : GRUNTLY_COLOR}>{r.who === 'child' ? '  ⟡ child   ' : '  ◆ gruntly '}</Text>
           <Text dimColor={r.k === 'say' || r.k === 'step'}>{body(r)}</Text>
         </Box>
       ))}
       {diff ? (
         <Box flexDirection="column">
-          <Text color="cyan">
+          <Text color={CHILD_COLOR}>
             {`  ⟡ changes${diff.final ? ` (attempt ${diff.n}${diff.ok === false ? ', failed the checks' : ''})` : ' so far'}: ${diff.files ?? 0} file(s), `}
-            <Text color="green">{`+${diff.ins ?? 0}`}</Text>
+            <Text color="success">{`+${diff.ins ?? 0}`}</Text>
             {' '}
-            <Text color="red">{`-${diff.dele ?? 0}`}</Text>
+            <Text color="error">{`-${diff.dele ?? 0}`}</Text>
           </Text>
           {parts.map((p, i) => (
             <Box key={`${p.path}-${i}`} flexDirection="column">
