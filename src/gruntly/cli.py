@@ -575,7 +575,11 @@ def cmd_auth(a) -> int:
     if not key:
         print("no key given", file=sys.stderr)
         return 2
-    locked = keys.set_key(a.provider, key)
+    try:
+        locked = keys.set_key(a.provider, key)
+    except ValueError as e:
+        print(f"not saved: {e}", file=sys.stderr)
+        return 2
     print(f"saved the {a.provider} key to {keys.keys_path()}" + (" (readable by you only)" if locked else
           " (could NOT restrict the file to your user: it is plain text, keep it private)"))
     onboard.print_docs(a.provider)

@@ -53,19 +53,33 @@ def _save(keys: dict) -> bool:
     return locked
 
 
+INVISIBLE = "﻿​‌‍⁠ "     # BOM, zero-width and non-breaking spaces: pasting or piping on Windows adds them
+
+
+def clean(key: str) -> str:
+    """A key as the provider issued it: without whitespace and without the invisible characters that come along with a paste
+    or a Windows pipe (a leading BOM made every request fail with a header or auth error)."""
+    return (key or "").replace("\r", "").replace("\n", "").translate({ord(c): None for c in INVISIBLE}).strip()
+
+
 def lookup(provider: str, env_var: str) -> tuple[str | None, str | None]:
     """(key, where it came from): 'environment' or 'keys file'."""
-    v = os.environ.get(env_var)
+    v = clean(os.environ.get(env_var, ""))
     if v:
         return v, "environment"
-    v = _load().get(provider)
+    v = clean(_load().get(provider, ""))
     return (v, "keys file") if v else (None, None)
 
 
 def set_key(provider: str, key: str) -> bool:
-    """Returns whether the file could be restricted to its owner."""
+    """Returns whether the file could be restricted to its owner. Raises ValueError for a key that cannot be one."""
+    key = clean(key)
+    if not key:
+        raise ValueError("the key is empty")
+    if not key.isascii() or any(c.isspace() for c in key):
+        raise ValueError("the key contains spaces or characters that are not plain ASCII: copy it again from the provider's page")
     keys = _load()
-    keys[provider] = key.strip()
+    keys[provider] = key
     return _save(keys)
 
 

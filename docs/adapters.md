@@ -42,11 +42,31 @@ Install: `npm i -g opencode-ai`.
 
 ## Hermes Agent 0.19.0
 
-Not verified end to end.
-- Native Windows install fails: `pywinpty` needs a build toolchain. It installs with pip in WSL2 Ubuntu.
-- Flags confirmed from `hermes chat --help`: `-q` single query, `-Q` quiet, `--yolo`, `-m`, `--provider`, `--resume ID`, `--continue`, `--ignore-rules`, `--ignore-user-config`, `--safe-mode`, `--max-turns`, `-w` (own worktree; gruntly stays the only worktree owner).
-- A live run was not possible: WSL2 cannot reach LM Studio, which listens on Windows loopback only. To finish this, enable "Serve on Local Network" in LM Studio (or use WSL mirrored networking), then point a Hermes provider at it and record a fixture.
-- The adapter therefore returns the raw quiet-mode stdout as the summary, reports no usage and no resume support.
+**Verified live** on 2026-11-09: Linux (WSL2 Ubuntu 24.04), a hosted endpoint (NVIDIA `nemotron-3.5-bolt-e4b`) through gruntly's local proxy.
+Two one-line fixes through `gruntly run`: passed on attempt 1 in 30 s (9 model requests, default permissions) and in 18 s with the file-tools-only mode.
+
+Set-up (Hermes does not install natively on Windows: `pywinpty` needs a build toolchain; run gruntly inside WSL2 as well, so Hermes, gruntly and its
+rate-limit proxy share one loopback and a hosted provider just works):
+
+```
+uv tool install hermes-agent
+uv tool install "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly"   # inside WSL2 too
+gruntly auth set nvidia            # or gemini; a local server on the Windows host needs "Serve on Local Network" in LM Studio
+gruntly use nvidia nvidia/nemotron-3.5-bolt-e4b --project
+```
+
+How gruntly drives it (`adapters/hermes.py`):
+- Headless mode is `hermes chat -Q -q PROMPT`: the final answer on stdout, `session_id: ID` on stderr, and `--resume ID` continues that session (checked: the second call remembered the edit).
+- Hermes reads its endpoint from `$HERMES_HOME/config.yaml`. gruntly keeps one home per project (`.gruntly/child-state/hermes-home`) and rewrites `custom_providers` and `model` there before each attempt, because the proxy port changes per run. A config without a `model:` section is ignored with a warning.
+- `--ignore-rules` keeps Hermes from injecting AGENTS.md, SOUL.md and memory. Permission mode `bypass` passes `--yolo`; `accept-edits` and `plan` pass `-t file` (read, search, patch, write; no shell). Hermes cannot make edits read-only, so plan equals accept-edits.
+- `LANG=C.UTF-8` is set for the child: under an ASCII locale Hermes silently strips non-ASCII characters from the request.
+
+Limits:
+- Quiet mode prints no tool trace, so a Hermes run has no `child_trace` line and nothing from the child in the live feed (gruntly's own steps still appear). Non-quiet mode prints `┊` tool previews that could be parsed; not done.
+- No token usage is reported. Every request carries Hermes's own system prompt and about 18 tool schemas (the `default`-profile cost; there are no slim profiles for it).
+- `-v` (verbose) prints a masked fragment of the API key: gruntly never uses it.
+- Context length for a custom endpoint defaults to 131072 in Hermes; for a local model with a smaller window, set it in the model's entry (not wired yet).
+- One run measured per permission mode. No long-task or repeated benchmark has been done for Hermes.
 
 ## Environment notes
 

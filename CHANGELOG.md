@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Hermes Agent is a working child: gruntly writes its per-project `config.yaml` (custom endpoint and model), runs `hermes chat -Q`, reads the session id for `--resume`, maps the permission mode (`--yolo` or file tools only) and sets a UTF-8 locale. Verified live on WSL2 with NVIDIA through gruntly's proxy. Run gruntly inside WSL2 on Windows. No tool trace in quiet mode.
+- API keys are cleaned of BOM, zero-width characters and line breaks when saved or read, and refused if they are not plain ASCII (a piped key from Windows PowerShell started with a BOM and every request failed).
 - Fixes: the changed-file check used for non-Python requests compared against the staging area and reported a real edit as "not changed"; it now compares against the run's starting commit. Run worktrees are checked out exactly as stored (no LF to CRLF conversion under `core.autocrlf=true`), so the child's edits can find their text.
 - `agent-run` now works on projects with no Python files: when the request names tracked non-Python files (a website, docs, config) it targets exactly those, checks that they changed, and tells the child to make real tool calls (a small model narrated its steps instead of running them). `gruntly doctor` checks the project's hosted provider instead of the local server. Plugin 0.6.2.
 - Switch: `gruntly mode on|off|auto` and `/gruntly on|off|auto [session]` in Claude Code (project by default, or this session only). Off makes the CLI refuse new work in one line; on tells Claude to delegate eligible changes without asking. Plugin 0.6.0. See docs/mode.md.

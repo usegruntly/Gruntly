@@ -1,0 +1,7 @@
+  ┊ review diff
+a//home/aaryan/hs_test/calc.py → b//home/aaryan/hs_test/calc.py
+@@ -1,2 +1,2 @@
+ def add(a, b):
+-    return a - b
++    return a + b
+Ad-hoc verification successful: add(a, b) now correctly returns a + b.

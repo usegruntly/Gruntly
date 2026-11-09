@@ -107,4 +107,4 @@ Level 0 (default) is a worktree, a scrubbed environment (no `ANTHROPIC_*`, `OPEN
 
 ## Status
 
-v0.3.0. Verified adapters: OpenCode 1.19.5 (benchmarked), Qwen Code 0.26.9 (one slim run measured). Hermes Agent: flags checked, live run not yet (see `docs/adapters.md`). Benchmarks: `docs/benchmarks/benchmark.md`, `docs/benchmarks/benchmark-v2.md`, `docs/benchmarks/benchmark-v2-sonnet.md`, `docs/benchmarks/child-bench.md`. Design notes: `docs/decisions.md`.
+v0.3.0. Verified adapters: OpenCode 1.19.5 (benchmarked), Qwen Code 0.26.9 (one slim run measured). Hermes Agent 0.19.0: verified live on Linux/WSL2 with a hosted endpoint, two one-line fixes (see `docs/adapters.md`; no benchmark yet). Benchmarks: `docs/benchmarks/benchmark.md`, `docs/benchmarks/benchmark-v2.md`, `docs/benchmarks/benchmark-v2-sonnet.md`, `docs/benchmarks/child-bench.md`. Design notes: `docs/decisions.md`.

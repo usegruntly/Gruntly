@@ -98,7 +98,11 @@ def ensure_key(name: str) -> bool:
     entered = getpass.getpass(f"  Paste your {name} API key (hidden, Enter to skip): ").strip()
     if not entered:
         return False
-    locked = keys.set_key(name, entered)
+    try:
+        locked = keys.set_key(name, entered)
+    except ValueError as e:
+        say(f"  Not saved: {e}")
+        return False
     say(f"  Saved to {keys.keys_path()}" + (" (readable by you only)." if locked else " (plain text: keep that file private)."))
     try:
         n = len(modelsmod.fetch(name))

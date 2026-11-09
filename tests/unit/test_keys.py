@@ -54,3 +54,27 @@ def test_a_stored_key_reaches_a_run_but_not_its_spec(repo, make_spec, monkeypatc
     for f in run_dir.rglob("*"):
         if f.is_file():
             assert "STORED-KEY-XYZ" not in f.read_text(encoding="utf8", errors="replace"), f
+
+
+def test_a_key_with_a_bom_or_invisible_characters_is_cleaned(cfg):
+    keys.set_key("gemini", "\ufeffAIza-abc123 \u200b\r\n")
+    assert keys.lookup("gemini", "GEMINI_API_KEY") == ("AIza-abc123", "keys file")
+    assert "\ufeff" not in (cfg / "keys.toml").read_text(encoding="utf8")
+
+
+def test_a_key_that_cannot_be_one_is_refused(cfg):
+    with pytest.raises(ValueError, match="empty"):
+        keys.set_key("gemini", " \ufeff\n")
+    with pytest.raises(ValueError, match="ASCII"):
+        keys.set_key("gemini", "clé-secrète")
+    with pytest.raises(ValueError, match="ASCII"):
+        keys.set_key("gemini", "two words")
+    assert keys.lookup("gemini", "GEMINI_API_KEY") == (None, None)
+
+
+def test_an_existing_file_with_a_bom_in_the_key_still_works(cfg, monkeypatch):
+    (cfg).mkdir(parents=True, exist_ok=True)
+    (cfg / "keys.toml").write_text('[keys]\ngemini = "\ufeffAIza-old"\n', encoding="utf8")
+    assert keys.lookup("gemini", "GEMINI_API_KEY") == ("AIza-old", "keys file")
+    monkeypatch.setenv("GEMINI_API_KEY", "\ufeffAIza-env\n")
+    assert keys.lookup("gemini", "GEMINI_API_KEY") == ("AIza-env", "environment")
