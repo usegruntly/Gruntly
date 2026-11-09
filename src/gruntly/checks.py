@@ -13,7 +13,9 @@ import sys
 def changed(paths: list[str]) -> int:
     missing = []
     for p in paths:
-        tracked_diff = subprocess.run(["git", "diff", "--quiet", "--", p]).returncode == 1
+        # Against HEAD (the run's starting commit), not the index: gruntly stages the child's edits before it runs the checks,
+        # and an edit that is already staged would read as "no change" against the index.
+        tracked_diff = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", p]).returncode == 1
         new_file = subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "--", p],
                                   capture_output=True, text=True).stdout.strip() != ""
         if not (tracked_diff or new_file):

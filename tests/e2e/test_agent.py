@@ -164,8 +164,9 @@ def test_a_request_about_a_non_python_file_runs_with_a_changed_file_check(repo, 
     sh(repo, "git", "commit", "-qm", "site only")
     write_config(repo, "edit_page")
     out = say(capsys, monkeypatch, repo, 'In "my page.html" replace [placeholder] with hello. Change nothing else.')
-    assert "status: refused" not in out, out
+    assert "status: passed" in out, out                       # the changed-file check must see the child's edit
     assert "no tests apply to this kind of file" in out
+    assert "hello" in (web / "my page.html").read_text()
 
 
 def test_a_non_python_request_that_changes_nothing_fails_the_check(repo, capsys, monkeypatch):

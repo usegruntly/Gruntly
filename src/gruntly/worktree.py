@@ -108,7 +108,9 @@ def create(root: Path, run_id: str, base: str, exclude: list[str] | None = None)
     path = root / ".gruntly" / "worktrees" / run_id
     path.parent.mkdir(parents=True, exist_ok=True)
     branch = f"gruntly/{run_id}"
-    git(["worktree", "add", "-q", "-b", branch, str(path), commit], root)
+    # Check files out exactly as stored: with core.autocrlf=true a plain checkout would turn an LF file into CRLF, and the child's
+    # edits (which quote LF text) would then fail to find their target.
+    git(["-c", "core.autocrlf=false", "worktree", "add", "-q", "-b", branch, str(path), commit], root)
     return Worktree(path, branch, commit)
 
 

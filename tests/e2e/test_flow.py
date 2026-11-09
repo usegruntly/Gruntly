@@ -201,3 +201,27 @@ def test_context_file_missing_from_the_snapshot_stops_the_run(repo, run_task, ma
     (repo / "notes.txt").write_text("the facts\n")
     res, _ = run_task(make_spec("pass", context_files=["notes.txt"]))
     assert res["status"] == "error" and "notes.txt" in res["error"] and "make up" in res["error"]
+
+
+def test_the_worktree_keeps_lf_files_lf_under_autocrlf(repo, run_task, make_spec):
+    from conftest import sh
+    sh(repo, "git", "config", "core.autocrlf", "true")
+    (repo / "calc.py").write_bytes(b"def add(a, b):\n    return a - b\n")
+    seen = {}
+
+    from gruntly import worktree
+    real = worktree.create
+
+    def spy(*a, **k):
+        w = real(*a, **k)
+        seen["bytes"] = (w.path / "calc.py").read_bytes()
+        return w
+
+    import pytest
+    mp = pytest.MonkeyPatch()
+    mp.setattr(worktree, "create", spy)
+    try:
+        run_task(make_spec("pass"))
+    finally:
+        mp.undo()
+    assert b"\r" not in seen["bytes"]
