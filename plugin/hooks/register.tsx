@@ -227,62 +227,96 @@ export const register: Register = on => {
     }
   }).catch(($, e, next) => next(e)) // a bug here must never block the gruntly command itself
 
-  on('ui.render', { component: 'ToolUse', tool: 'Bash' }, async ($, e, next) => {
-    const rows = (await read($, feeds))[e.tool_use_id]
+  // The block drawn under a gruntly command: the row where the engine draws the call (ToolUse), or under the one-line
+  // summary it draws for consecutive tool calls (ToolGroup, "Ran 5 shell commands"). Props arrive under e.props.
+  on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    if (e.props.tool !== 'Bash') {
+      return next(e)
+    }
+    const rows = (await read($, feeds))[e.props.tool_use_id]
     if (!rows || rows.length === 0) {
       return next(e)
     }
-    const { Box, Text } = $.ui.resolve(e)
-    const start = rows.find(r => r.k === 'start')
-    const toolCalls = rows.filter(r => r.who === 'child' && r.k === 'tool').length
-    const plain = rows.filter(r => r.k !== 'diff')
-    const shown = e.isRunning
-      ? plain.slice(-SHOWN_RUNNING)
-      : [
-          ...plain.filter(r => r.who === 'child').slice(-SHOWN_DONE_CHILD),
-          ...plain.filter(r => r.who !== 'child').slice(-SHOWN_DONE_GRUNTLY),
-        ].sort((a, b) => a.t - b.t)
-    const diff = [...rows].reverse().find(r => r.k === 'diff')
-    const diffLines = (diff?.lines ?? []).slice(0, e.isRunning ? DIFF_RUNNING : DIFF_DONE)
-    const hidden = (diff?.lines?.length ?? 0) - diffLines.length + (diff?.more ?? 0)
-
+    const { Box } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">
         {await next(e)}
-        <Text dimColor>
-          {e.isRunning ? '  child (local model) working' : '  child (local model) finished'}
-          {start?.model ? ` · ${start.model}` : ''} · {toolCalls} tool calls
-        </Text>
-        {shown.map((r, i) => (
-          <Box key={`${r.t}-${i}`}>
-            <Text color={r.who === 'child' ? 'cyan' : 'yellow'}>
-              {r.who === 'child' ? '  ⟡ child   ' : '  ◆ gruntly '}
-            </Text>
-            <Text dimColor={r.k === 'say' || r.k === 'step'}>{body(r)}</Text>
-          </Box>
-        ))}
-        {diff ? (
-          <Box flexDirection="column">
-            <Text color="cyan">
-              {`  ⟡ changes${diff.final ? ` (attempt ${diff.n}${diff.ok === false ? ', failed the checks' : ''})` : ' so far'}: ${diff.files ?? 0} file(s), `}
-              <Text color="green">{`+${diff.ins ?? 0}`}</Text>
-              {' '}
-              <Text color="red">{`-${diff.dele ?? 0}`}</Text>
-            </Text>
-            {diffLines.map((ln, i) => (
-              <Text
-                key={i}
-                color={ln.startsWith('+') ? 'green' : ln.startsWith('-') ? 'red' : undefined}
-                bold={ln.startsWith('F ')}
-                dimColor={!ln.startsWith('+') && !ln.startsWith('-') && !ln.startsWith('F ')}
-              >
-                {`    ${ln.startsWith('F ') ? ln.slice(2) : ln}`}
-              </Text>
-            ))}
-            {hidden > 0 ? <Text dimColor>{`    … ${hidden} more lines (gruntly diff shows all)`}</Text> : null}
-          </Box>
-        ) : null}
+        {view($, e, rows, e.props.isRunning)}
       </Box>
     )
   })
+
+  on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
+    if (e.props.isExpanded) {
+      return next(e) // each call draws as its own ToolUse row, handled above
+    }
+    const all = await read($, feeds)
+    const ids = e.props.calls.map(c => c.tool_use_id).filter((x): x is string => !!x && (all[x]?.length ?? 0) > 0)
+    if (ids.length === 0) {
+      return next(e)
+    }
+    const { Box } = $.ui.resolve(e)
+    const running = e.props.calls.some(c => c.isRunning)
+    return (
+      <Box flexDirection="column">
+        {await next(e)}
+        {ids.slice(-1).map(id => (
+          <Box key={id} flexDirection="column">
+            {view($, e, all[id], running)}
+          </Box>
+        ))}
+      </Box>
+    )
+  })
+}
+
+function view($: any, e: any, rows: Row[], running: boolean) {
+  const { Box, Text } = $.ui.resolve(e)
+  const start = rows.find(r => r.k === 'start')
+  const toolCalls = rows.filter(r => r.who === 'child' && r.k === 'tool').length
+  const plain = rows.filter(r => r.k !== 'diff')
+  const shown = running
+    ? plain.slice(-SHOWN_RUNNING)
+    : [
+        ...plain.filter(r => r.who === 'child').slice(-SHOWN_DONE_CHILD),
+        ...plain.filter(r => r.who !== 'child').slice(-SHOWN_DONE_GRUNTLY),
+      ].sort((a, b) => a.t - b.t)
+  const diff = [...rows].reverse().find(r => r.k === 'diff')
+  const diffLines = (diff?.lines ?? []).slice(0, running ? DIFF_RUNNING : DIFF_DONE)
+  const hidden = (diff?.lines?.length ?? 0) - diffLines.length + (diff?.more ?? 0)
+  return (
+    <Box flexDirection="column">
+      <Text dimColor>
+        {running ? '  child (local model) working' : '  child (local model) finished'}
+        {start?.model ? ` · ${start.model}` : ''} · {toolCalls} tool calls
+      </Text>
+      {shown.map((r, i) => (
+        <Box key={`${r.t}-${i}`}>
+          <Text color={r.who === 'child' ? 'cyan' : 'yellow'}>{r.who === 'child' ? '  ⟡ child   ' : '  ◆ gruntly '}</Text>
+          <Text dimColor={r.k === 'say' || r.k === 'step'}>{body(r)}</Text>
+        </Box>
+      ))}
+      {diff ? (
+        <Box flexDirection="column">
+          <Text color="cyan">
+            {`  ⟡ changes${diff.final ? ` (attempt ${diff.n}${diff.ok === false ? ', failed the checks' : ''})` : ' so far'}: ${diff.files ?? 0} file(s), `}
+            <Text color="green">{`+${diff.ins ?? 0}`}</Text>
+            {' '}
+            <Text color="red">{`-${diff.dele ?? 0}`}</Text>
+          </Text>
+          {diffLines.map((ln, i) => (
+            <Text
+              key={i}
+              color={ln.startsWith('+') ? 'green' : ln.startsWith('-') ? 'red' : undefined}
+              bold={ln.startsWith('F ')}
+              dimColor={!ln.startsWith('+') && !ln.startsWith('-') && !ln.startsWith('F ')}
+            >
+              {`    ${ln.startsWith('F ') ? ln.slice(2) : ln}`}
+            </Text>
+          ))}
+          {hidden > 0 ? <Text dimColor>{`    … ${hidden} more lines (gruntly diff shows all)`}</Text> : null}
+        </Box>
+      ) : null}
+    </Box>
+  )
 }
