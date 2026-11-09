@@ -9,7 +9,7 @@ import type { Row } from '../types'
 const feeds = atom({ plugin: 'gruntly', key: 'feed' } as const, {}, { shape: 'feed-1' })
 
 // `gruntly agent-run ...`, `gruntly run ...`, also through a path or gruntly.exe
-const GRUNTLY = /^\s*(?:[\w.:\\/~-]*[\\/])?gruntly(?:\.exe)?\s+(agent-run|run|do|continue|wait)\b/
+const GRUNTLY = /(?:^|[\s;&|(])(?:[\w.:\\/~-]*[\\/])?gruntly(?:\.exe)?\s+(agent-run|run|do|continue|wait)\b/
 const SHOWN_RUNNING = 8
 const SHOWN_DONE = 3
 const KEEP = 300
