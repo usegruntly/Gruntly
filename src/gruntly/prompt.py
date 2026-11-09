@@ -52,7 +52,16 @@ def _slim(spec, ctx: Ctx) -> str:
     return "\n".join(lines)
 
 
+def research(spec) -> str:
+    return ("You are working in a temporary git worktree that is only for reading. Answer the question below with your tools: "
+            "read files, run commands, search or fetch the web. Do not change any file. Reply with the answer only, as short "
+            "facts, and give the source (file path or URL) for each. If you cannot find or reach something, say so; never guess.\n\n"
+            f"QUESTION:\n{spec.brief}")
+
+
 def first(spec, ctx: Ctx | None = None) -> str:
+    if getattr(spec, "kind", "code") == "research":
+        return research(spec)
     if ctx is None or ctx.profile is None or ctx.profile.name == "default":
         c = f"\nStart with: {', '.join(spec.context_files)}" if spec.context_files else ""
         return f"{preamble(spec)}\n\nTASK:\n{spec.brief}{c}"

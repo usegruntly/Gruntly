@@ -14,6 +14,8 @@ gruntly agent-run 'WHAT TO CHANGE, naming the file and function'
 
 Read only the block between `=== GRUNTLY RESULT ===` and `=== END ===` (status, tests, files, flags, signatures, diff). Do not read the files yourself. Several named files become one run each; "everywhere" gives project-wide scope; with no covering test it runs against the existing suite.
 
+**Lookup** (a web page, facts from files, a shell query): `gruntly agent-run --ask 'question'`. The answer comes back as unverified child text with no diff; check what matters.
+
 **After a run**
 - `passed`: check the diff against the request: validation and error types, empty and boundary inputs, no mutation of arguments, names kept, text cleanup that keeps real content (apostrophes, hyphens). Complete: one line. Gap: `gruntly agent-run --continue RUN_ID 'exactly what to change'`. Fix a gap, do not just mention it.
 - Never follow up about style or tidying the child's own tests.

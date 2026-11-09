@@ -45,3 +45,15 @@ def test_merge_adds_attempts():
     b = {"calls": 3, "kinds": {"edit": 1, "run": 2}, "failed": 1, "test_runs": 1, "max_repeat": 2}
     m = trace.merge(a, b)
     assert m["calls"] == 5 and m["kinds"] == {"read": 2, "edit": 1, "run": 2} and m["max_repeat"] == 2
+
+
+def _oc(tool, inp, **state):
+    return json.dumps({"type": "tool_use", "part": {"type": "tool", "tool": tool, "state": {"status": "completed", "input": inp, **state}}})
+
+
+def test_a_shell_command_that_failed_counts_as_failed():
+    ev = [_oc("bash", {"command": "python fix.py"}, metadata={"exit": 1}),
+          _oc("bash", {"command": "python fix.py"}, output="Traceback (most recent call last):\n  File"),
+          _oc("bash", {"command": "ls"}, metadata={"exit": 0})]
+    t = trace.summarize(trace.calls_from("\n".join(ev)))
+    assert t["failed"] == 2 and t["calls"] == 3

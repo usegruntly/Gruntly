@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- `agent-run --ask` for research: the child answers with its own tools (web, shell, files); no tests or diff, the answer comes back fenced as untrusted. Plugin 0.4.1.
+- Fixes: `apply` no longer rewrites a whole LF file as CRLF under `core.autocrlf=true`; a context file missing from the run's snapshot stops the run instead of letting the child invent it; the same tool call repeated 6 times stops the run as a loop; shell commands with a non-zero exit or traceback count as failed in the trace.
 - The child now runs its harness as shipped (`profile = "default"`, all its tools, web on) unless a slim profile is asked for; its permission mode follows the parent (`GRUNTLY_PARENT_MODE`, or `permissions` in the spec).
 
 - `harness` now defaults to `auto`: the first of opencode, qwen, hermes found on the machine, and the model defaults to the one loaded on the server. Name either in `.gruntly.toml` to override.

@@ -33,7 +33,12 @@ def apply_run(root: Path, st: Store, spec, base: str, main_fp: str, branch: str 
         wtmod.git(["switch", "-c", branch], root)
     pf = st.dir / "apply.patch"
     pf.write_bytes(patch.encode("utf8"))
-    p = wtmod.git(["apply", "--whitespace=nowarn", str(pf)], root, check=False)
+    # With core.autocrlf=true, a plain `git apply` rewrites the whole touched file with CRLF endings. The patch is
+    # built from LF blobs, so apply it as-is first (the file keeps the endings it has) and fall back to git's
+    # own conversion only for files that really are CRLF in the working tree.
+    p = wtmod.git(["-c", "core.autocrlf=false", "apply", "--whitespace=nowarn", str(pf)], root, check=False)
+    if p.returncode != 0:
+        p = wtmod.git(["apply", "--whitespace=nowarn", str(pf)], root, check=False)
     three_way = False
     if p.returncode != 0:
         three_way = True

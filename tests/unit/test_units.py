@@ -161,3 +161,14 @@ def test_auto_harness_picks_the_first_installed_child(monkeypatch):
     seen["qwen"] = False
     seen["hermes"] = False
     assert base.pick_installed() is None
+
+
+def test_a_child_that_repeats_one_tool_call_is_stopped_as_a_loop(tmp_path):
+    import sys
+    from gruntly.adapters.generic import GenericAdapter
+    from gruntly.runner import run_child
+    code = ("import json, time\nfor i in range(100):\n"
+            " print(json.dumps({'type': 'tool_use', 'id': i, 'part': {'type': 'tool', 'tool': 'bash', "
+            "'state': {'status': 'error', 'input': {'command': 'x'}}}}), flush=True)\n time.sleep(0.05)\n")
+    cr = run_child(GenericAdapter(), [sys.executable, "-c", code], {}, None, tmp_path, 30, 30)
+    assert cr.breach == "loop"

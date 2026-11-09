@@ -134,3 +134,19 @@ def test_an_everywhere_request_may_change_every_python_file(proj):
     plan, raw = agent.loose_plan(req, proj, do.Refusal("the request matches 9 files"))
     assert "**/*.py" in raw["allowed_paths"] and raw["tests_writable"]
     assert agent.loose_plan("fix add()", proj, do.Refusal("the request matches 9 files")) is None
+
+
+def test_ask_returns_the_childs_answer_without_a_diff_or_tests(repo, capsys, monkeypatch):
+    write_config(repo, "answer")
+    (repo / "README.md").write_text("not python\n")
+    out = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")
+    assert out.startswith(agent.OPEN) and out.endswith(agent.CLOSE), out
+    assert "status: passed (research" in out and "Aaryan Beniwal" in out and "[untrusted answer" in out
+    assert "tests:" not in out and "[untrusted diff" not in out
+
+
+def test_ask_fails_if_the_child_changes_a_file(repo, capsys, monkeypatch):
+    write_config(repo, "pass")           # the "pass" child edits calc.py, which a research run must not do
+    out = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")
+    assert "status: failed" in out or "status: error" in out
+    assert "[untrusted answer" not in out

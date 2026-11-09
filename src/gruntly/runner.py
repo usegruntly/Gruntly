@@ -57,6 +57,7 @@ def _tree_mtime(path: Path, limit: int = 20000) -> float:
 
 
 LOOP_LINE_MIN, LOOP_REPEATS, LOOP_WINDOW = 60, 6, 24   # a long identical line seen 6 times in the last 24 lines = a loop
+TOOL_REPEATS, TOOL_WINDOW = 6, 12                       # the same tool call (same input) 6 times in the last 12 calls = a loop
 
 
 def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None) -> ChildRun:
@@ -71,6 +72,7 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
     bufs = {"out": [], "err": []}
     state = {"last": time.monotonic(), "size": 0, "loop": False}
     recent: list[int] = []
+    tools: list[int] = []
 
     def pump(stream, key):
         for chunk in iter(lambda: stream.read1(65536), b""):
@@ -79,6 +81,12 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
             state["last"] = time.monotonic()
             if key == "out":
                 for line in chunk.decode("utf8", "replace").splitlines():
+                    if line.startswith("{"):          # structured events: the same call over and over, even with new ids
+                        for c in tracemod.calls_from(line):
+                            tools.append(hash(c.sig))
+                            del tools[:-TOOL_WINDOW]
+                            if tools.count(tools[-1]) >= TOOL_REPEATS:
+                                state["loop"] = True
                     if len(line) >= LOOP_LINE_MIN:
                         recent.append(hash(line))
                         del recent[:-LOOP_WINDOW]
@@ -194,7 +202,7 @@ def run_gates(spec: Spec, wt: Path, base: str, root: Path, main_fp: str, secrets
     g["diff_size"] = diff_size.check(spec, wt, base)
     g["test_weakening"] = test_weakening.check(spec, wt, base) if on.get("no_test_weakening", True) else {"ok": True, "skipped": True}
     g["new_deps"] = deps.check(spec, wt, base) if on.get("no_new_deps", True) else {"ok": True, "skipped": True}
-    a = acceptance.check(spec, wt)
+    a = {"ok": True, "cmd": "", "output": ""} if spec.kind == "research" else acceptance.check(spec, wt)
     g["acceptance"] = {"ok": a["ok"], "cmd": a["cmd"], "tail": "" if a["ok"] else
                        resmod.tail_lines(redact(a["output"], secrets), resmod.GATE_TAIL_LINES)}
     for extra in ("regression", "lint", "typecheck"):
@@ -325,6 +333,14 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         main_fp = wtmod.fingerprint(root)
         w = wtmod.create(root, run_id, spec.base, exclude=(spec.holdout or {}).get("files"))
         base, wt = w.base, w.path
+        # A file the task is told to read but the snapshot lacks (git-ignored, excluded): the child would invent its content.
+        missing = [f for f in spec.context_files if (root / f).is_file() and not (wt / f).is_file()]
+        if missing:
+            wtmod.remove(root, run_id)
+            return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
+                           error=f"context file(s) exist in your tree but not in the run's snapshot (git-ignored or "
+                                 f"excluded?): {', '.join(missing)}. The child could not read them and would make up "
+                                 f"their content. Track them with git (or remove them from context_files).")
     attempt_no = prior.get("attempts", 0)
     session = prior.get("session")
     handoff_path = wt / prompt.HANDOFF_FILE
@@ -382,6 +398,8 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         out = adapter.parse(cr.stdout, cr.stderr, cr.exit_code if cr.exit_code is not None else -1)
         st.write_json("trace.json", tracemod.merge(st.read_json("trace.json", {}), tracemod.summarize(tracemod.calls_from(cr.stdout))))
         summary = redact(out.final_message, secrets)
+        if spec.kind == "research":
+            st.write_text("answer.txt", summary)
         session = out.session_id or session
         if out.usage.get("available"):
             usage = out.usage

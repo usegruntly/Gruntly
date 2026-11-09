@@ -38,6 +38,15 @@ def kind_of(tool: str) -> str:
     return "read" if t in READ else "edit" if t in EDIT else "run" if t in RUN else "other"
 
 
+def _shell_failed(state: dict) -> bool:
+    """A shell command that ran but failed (non-zero exit, or a Python traceback) is not a success."""
+    meta = state.get("metadata") if isinstance(state.get("metadata"), dict) else {}
+    code = meta.get("exit")
+    if isinstance(code, int) and code != 0:
+        return True
+    return "Traceback (most recent call last)" in str(state.get("output") or meta.get("output") or "")[:20000]
+
+
 def _call(tool: str, args, ok: bool) -> Call:
     try:
         sig = tool + json.dumps(args, sort_keys=True, default=str)[:400]
@@ -78,7 +87,8 @@ def calls_from(stdout: str) -> list[Call]:
         part = e.get("part")
         if e.get("type") == "tool_use" and isinstance(part, dict) and part.get("type") == "tool":      # OpenCode
             state = part.get("state") or {}
-            calls.append(_call(str(part.get("tool", "")), state.get("input"), state.get("status") != "error"))
+            ok = state.get("status") != "error" and not _shell_failed(state)
+            calls.append(_call(str(part.get("tool", "")), state.get("input"), ok))
             continue
         msg = e.get("message")
         blocks = msg.get("content") if isinstance(msg, dict) else None

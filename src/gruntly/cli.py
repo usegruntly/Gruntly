@@ -182,6 +182,23 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
     return out
 
 
+def _ask_one(root: Path, question: str, budget_s: int) -> dict:
+    """A research run: the child answers with its harness's own tools; the worktree only guards the main tree."""
+    out: dict = {"res": None, "error": None, "answer": None}
+    try:
+        raw = {"kind": "research", "brief": question, "allowed_paths": [], "acceptance": [], "apply_on_pass": False,
+               "max_attempts": 1, "profile": "default", "budget_s": max(budget_s - 20, 60)}
+        rid = runner.prepare(build_spec(raw, root), root)
+        _spawn_worker(root, rid)
+        out["res"] = _wait(root, rid, budget_s)
+        f = root / ".gruntly" / "runs" / rid / "answer.txt"
+        if (out["res"] or {}).get("status") == "passed":
+            out["answer"] = f.read_text(encoding="utf8", errors="replace") if f.is_file() else ""
+    except Exception as e:  # noqa: BLE001
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 def cmd_agent_run(a) -> int:
     """One prompt in, one marked result block out (see agent.py). Always exits 0."""
     import time
@@ -190,6 +207,10 @@ def cmd_agent_run(a) -> int:
     try:
         request = " ".join(a.request) if a.request and a.request != ["-"] else (sys.stdin.read() if not sys.stdin.isatty() else "")
         root = wtmod.preflight(Path.cwd())
+        if a.ask and not a.cont:
+            o = _ask_one(root, request, max(int(a.max_block), 30))
+            print(agent.block(o["res"], None, error=o["error"], answer=o["answer"]))
+            return 0
         parts = [(request, a.cont)] if a.cont else [(r, None) for r in agent.split_request(request, root)]
         t0 = time.time()
         for i, (req, cont) in enumerate(parts):
@@ -443,6 +464,8 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("request", nargs="*", help="what to change (or the follow-up when --continue is given)")
     g.add_argument("--continue", dest="cont", metavar="RUN", help="send a follow-up to the same run (the child keeps its context)")
     g.add_argument("--attempts", type=int)
+    g.add_argument("--ask", action="store_true", help="research: the local agent answers a question with its own tools "
+                   "(web, shell, files); no tests, no diff, nothing applied")
     g.add_argument("--max-block", type=int, default=540, help="seconds to wait in this one call (the caller's Bash timeout must be longer)")
     g = add("agent", cmd_agent)
     g.add_argument("task", nargs="*", help="the task for a lean Claude to direct through gruntly")

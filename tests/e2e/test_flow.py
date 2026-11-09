@@ -164,7 +164,7 @@ def test_guide_prints_the_manual(capsys):
 def test_skill_stays_short():
     from pathlib import Path
     words = len((Path(__file__).parents[2] / "plugin" / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").split())
-    assert words < 330, words  # it is loaded into context; the full manual is `gruntly guide`
+    assert words < 360, words  # it is loaded into context; the full manual is `gruntly guide`
 
 
 def test_holdout_outside_the_repo_fails_fast_with_a_clear_message(repo, make_spec, tmp_path):
@@ -185,3 +185,19 @@ def test_missing_holdout_file_fails_before_the_child_runs(repo, make_spec):
     root = worktree.preflight(repo)
     with pytest.raises(SpecError, match="does not exist"):
         build_spec(make_spec("pass", holdout={"files": ["nope.py"], "cmd": "pytest -q"}), root)
+
+
+def test_apply_keeps_lf_files_lf_when_autocrlf_is_on(repo, run_task, make_spec):
+    from conftest import sh
+    sh(repo, "git", "config", "core.autocrlf", "true")
+    (repo / "calc.py").write_bytes(b"def add(a, b):\n    return a - b\n")   # LF on disk, as in a repo made on Linux
+    res, _ = run_task(make_spec("pass", apply_on_pass=True))
+    assert res["status"] == "passed" and res["applied"]
+    assert b"\r" not in (repo / "calc.py").read_bytes()
+
+
+def test_context_file_missing_from_the_snapshot_stops_the_run(repo, run_task, make_spec):
+    (repo / ".gitignore").write_text("notes.txt\n")
+    (repo / "notes.txt").write_text("the facts\n")
+    res, _ = run_task(make_spec("pass", context_files=["notes.txt"]))
+    assert res["status"] == "error" and "notes.txt" in res["error"] and "make up" in res["error"]
