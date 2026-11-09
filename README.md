@@ -10,6 +10,8 @@ parent -- brief --> gruntly -- worktree --> child (local model)
 
 ## Ten-minute quickstart
 
+Prefer a guided version? Install gruntly (step 3), then run `gruntly setup`: it checks what is installed, lets you pick a provider (your local server or a hosted endpoint with your own API key), shows every model your account offers, saves your choice, and explains the main commands. `gruntly use` changes provider or model later; `gruntly models` lists what an account offers.
+
 You need: git, Python 3.11+, [uv](https://docs.astral.sh/uv/), a local model server with an OpenAI-compatible API (LM Studio, llama.cpp, Ollama) and one child CLI.
 
 1. **Local model.** In LM Studio load a coder model, set its context to **16k or more** (8k is enough for small tasks with the default `auto` profile; the stock harness wants 32k), start the server (default `http://127.0.0.1:1234`).

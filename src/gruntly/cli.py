@@ -397,6 +397,90 @@ def cmd_watch(a) -> int:
         time.sleep(0.5)
 
 
+def _local_endpoint() -> str:
+    endpoint = "http://127.0.0.1:1234/v1"
+    try:
+        endpoint = build_spec({"brief": "x", "acceptance": ["true"]}, wtmod.repo_root(Path.cwd())).endpoint
+    except Exception:  # noqa: BLE001 - works outside a repository too
+        pass
+    return endpoint
+
+
+def cmd_models(a) -> int:
+    """gruntly models [provider]: every model the account (or local server) offers, as the endpoint reports them."""
+    from . import keys, models as mm, onboard, providers
+    names = [a.provider] if a.provider else ["local"] + [n for n, p in providers.PROVIDERS.items() if keys.lookup(n, p.key_env)[1]]
+    rc, dump = 0, {}
+    for n in names:
+        if n != "local" and n not in providers.PROVIDERS:
+            print(f"unknown provider {n!r}; known: local, {', '.join(providers.PROVIDERS)}", file=sys.stderr)
+            return 2
+        try:
+            ms = mm.fetch(n, _local_endpoint())
+        except mm.ModelsError as e:
+            print(f"{n}: {e}", file=sys.stderr)
+            rc = 1
+            continue
+        if a.filter:
+            ms = [m for m in ms if a.filter.lower() in (m.id + json.dumps(m.info)).lower()]
+        if a.json:
+            dump[n] = [m.raw for m in ms]
+            continue
+        print(f"{n}: {len(ms)} model(s), as the endpoint lists them (a listing does not say which are free or usable on your account)")
+        onboard.show_models(n, ms)
+        onboard.print_docs(n)
+        print()
+    if a.json:
+        print(json.dumps(dump, indent=2, ensure_ascii=False))
+    return rc
+
+
+def cmd_use(a) -> int:
+    """gruntly use [provider] [model]: choose the provider and model, saved to this project or to your global settings."""
+    from . import models as mm, onboard, providers
+    live = onboard.interactive()
+    cur_prov, cur_model, where = onboard.current_choice()
+    provider = a.provider
+    if not provider:
+        print(f"Current: provider = {cur_prov}, model = {cur_model or 'default'} (from {where})")
+        if not live:
+            print("usage: gruntly use PROVIDER [MODEL]  (run it in a terminal for the picker)", file=sys.stderr)
+            return 2
+        provider = onboard.choose_provider(cur_prov)
+        if provider is None:
+            return 0
+    if provider != "local":
+        try:
+            providers.get(provider)
+        except ValueError as e:
+            print(e, file=sys.stderr)
+            return 2
+        if not onboard.ensure_key(provider):
+            return 2
+    model = a.model
+    if model is None and live:
+        model = onboard.choose_model(provider, _local_endpoint(), cur_model if provider == cur_prov else None)
+    elif model is not None:
+        try:
+            if model not in [m.id for m in mm.fetch(provider, _local_endpoint())]:
+                print(f"note: {model!r} is not in the list this {provider} endpoint reports for your account; saving it anyway.")
+        except mm.ModelsError:
+            pass
+    if model is None and provider != "local":
+        model = providers.PROVIDERS[provider].default_model
+        print(f"No model chosen: using {provider}'s default, {model}.")
+    scope = "global" if a.global_ else "project" if a.project else (onboard.choose_scope() if live else "project")
+    path = onboard.save_choice(provider, model, scope)
+    print(f"Saved to {path}: provider = {provider}, model = {model or 'whatever is loaded'}")
+    onboard.print_docs(provider)
+    return 0
+
+
+def cmd_setup(a) -> int:
+    from . import onboard
+    return onboard.setup()
+
+
 def cmd_auth(a) -> int:
     """gruntly auth set|list|remove [provider]: API keys for hosted providers. Never prints a key."""
     from . import keys, providers
@@ -417,8 +501,11 @@ def cmd_auth(a) -> int:
     if a.action == "remove":
         print(f"removed the stored key for {a.provider}" if keys.remove(a.provider) else f"no stored key for {a.provider}")
         return 0
+    from . import onboard
     key = a.key
     if not key:
+        if sys.stdin.isatty():
+            onboard.print_docs(a.provider)
         import getpass
         key = sys.stdin.readline().strip() if not sys.stdin.isatty() else getpass.getpass(f"{a.provider} API key (hidden): ")
     if not key:
@@ -427,6 +514,8 @@ def cmd_auth(a) -> int:
     locked = keys.set_key(a.provider, key)
     print(f"saved the {a.provider} key to {keys.keys_path()}" + (" (readable by you only)" if locked else
           " (could NOT restrict the file to your user: it is plain text, keep it private)"))
+    onboard.print_docs(a.provider)
+    print(f"Next: gruntly models {a.provider}   (see what the account offers)   then   gruntly use {a.provider}")
     return 0
 
 
@@ -525,6 +614,16 @@ def build_parser() -> argparse.ArgumentParser:
     wt = add("watch", cmd_watch)
     wt.add_argument("run", nargs="?", help="run id (default: the run with the latest activity)")
     wt.add_argument("--no-follow", dest="follow", action="store_false", help="print what exists and exit")
+    mo = add("models", cmd_models)
+    mo.add_argument("provider", nargs="?", help="local or a provider name (default: local and every provider with a key)")
+    mo.add_argument("--json", action="store_true", help="the endpoint's own data for each model")
+    mo.add_argument("--filter", help="only models whose id or info contains this text")
+    us = add("use", cmd_use)
+    us.add_argument("provider", nargs="?")
+    us.add_argument("model", nargs="?")
+    us.add_argument("--global", dest="global_", action="store_true", help="save to your global settings")
+    us.add_argument("--project", action="store_true", help="save to this project's .gruntly.toml")
+    add("setup", cmd_setup)
     au = add("auth", cmd_auth, "action")
     au.add_argument("provider", nargs="?")
     au.add_argument("--key", help="the key (prefer the hidden prompt or stdin: a flag stays in shell history)")
@@ -556,6 +655,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf8")
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        from . import onboard
+        if onboard.first_run_offer():
+            return 0
+        if onboard.interactive():
+            build_parser().print_help()
+            return 0
     a = build_parser().parse_args(argv)
     a.human = getattr(a, "human", False) or False
     try:

@@ -1,5 +1,24 @@
 # Hosted providers for the child agent
 
+## Choosing a provider and a model
+
+```
+gruntly setup               # first-time guide: what is installed, provider, key, model, and a tour of the commands
+gruntly use                 # picker: choose provider, then a model from the live list; saved to this project or globally
+gruntly use gemini gemma-4-26b-a4b-it --project      # or in one line (--global for all projects)
+gruntly models gemini       # every model the account offers, with what the endpoint reports (--filter TEXT, --json)
+gruntly models local        # the local server's models (size, quantization, loaded context for LM Studio)
+```
+
+gruntly does not rank or hide models and does not say which are free: the list is whatever the endpoint reports for your key, and a
+listing does not mean the account can call a model (NVIDIA's list includes models that answer 404). Check the provider's docs
+(gruntly prints the links whenever you set a key or choose a model) for what is free. Running `gruntly` with no arguments in a terminal
+offers the setup guide the first time; it never interrupts Claude calling gruntly.
+
+What each endpoint tells us differs: Gemini's native listing has descriptions and token limits, NVIDIA's has only an id, an owner and
+a (sometimes wrong) date, LM Studio has size, quantization and context. `--json` shows everything an endpoint sent.
+
+
 Develop and iterate against a hosted OpenAI-compatible endpoint instead of the local model server, then confirm on the local
 models at the end. Set `provider` in a spec or `.gruntly.toml`:
 

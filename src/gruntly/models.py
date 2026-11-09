@@ -1,0 +1,125 @@
+"""The models an account (or the local server) offers, as the endpoint itself reports them.
+
+Nothing here is a curated list: it is fetched live with the person's key, and every field the endpoint gives is kept in `raw`.
+What an endpoint says about a model differs a lot (Gemini's native listing has descriptions and token limits; NVIDIA's has an
+id, a creation date and an owner; LM Studio has size, quantization and loaded context), so `info` holds whatever is available
+and a missing field is simply absent. A model being listed does not mean the account can call it, or that it is free: that is
+for the person to check in the provider's docs (gruntly prints the links).
+"""
+from __future__ import annotations
+
+import json
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
+from urllib.parse import urlparse
+
+from . import keys, providers
+
+TIMEOUT = 20
+
+
+class ModelsError(RuntimeError):
+    pass
+
+
+@dataclass
+class Model:
+    id: str
+    context: int | None = None
+    info: dict = field(default_factory=dict)     # human-readable facts, in display order
+    raw: dict = field(default_factory=dict)      # everything the endpoint sent
+
+
+def _get(url: str, headers: dict) -> dict:
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        raise ModelsError(f"{urlparse(url).netloc} answered HTTP {e.code}" +
+                          (" (is the API key right?)" if e.code in (400, 401, 403) else "")) from None
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        raise ModelsError(f"could not reach {urlparse(url).netloc}: {getattr(e, 'reason', e)}") from None
+
+
+def _strip(model_id: str) -> str:
+    return model_id[len("models/"):] if model_id.startswith("models/") else model_id
+
+
+def _openai(data: dict) -> list[Model]:
+    out = []
+    for m in data.get("data", []):
+        info = {}
+        if m.get("owned_by"):
+            info["owner"] = m["owned_by"]
+        if m.get("display_name"):
+            info["name"] = m["display_name"]
+        # NVIDIA sends 1993 for models that are not that old: a wrong date is worse than none (it stays in `raw`)
+        if isinstance(m.get("created"), (int, float)) and m["created"] > 1_420_070_400:
+            info["created"] = _date(m["created"])
+        out.append(Model(_strip(str(m.get("id", "?"))), None, info, m))
+    return out
+
+
+def _gemini(data: dict) -> list[Model]:
+    out = []
+    for m in data.get("models", []):
+        info = {}
+        if m.get("displayName"):
+            info["name"] = m["displayName"]
+        if m.get("description") and m.get("description") != m.get("displayName"):
+            info["about"] = m["description"]
+        if m.get("outputTokenLimit"):
+            info["max output"] = m["outputTokenLimit"]
+        if m.get("thinking"):
+            info["thinking"] = True
+        if m.get("supportedGenerationMethods"):
+            info["methods"] = ", ".join(m["supportedGenerationMethods"])
+        out.append(Model(_strip(str(m.get("name", "?"))), m.get("inputTokenLimit"), info, m))
+    return out
+
+
+def _lmstudio(data: dict) -> list[Model]:
+    out = []
+    for m in data.get("data", []):
+        info = {k: m[k] for k in ("publisher", "arch", "quantization", "type", "state") if m.get(k)}
+        ctx = m.get("loaded_context_length") or m.get("max_context_length")
+        if m.get("loaded_context_length") and m.get("max_context_length"):
+            info["max context"] = m["max_context_length"]
+        out.append(Model(str(m.get("id", "?")), ctx, info, m))
+    return out
+
+
+def _date(ts) -> str:
+    import time
+    try:
+        return time.strftime("%Y-%m-%d", time.gmtime(int(ts)))
+    except (ValueError, OverflowError, OSError):
+        return str(ts)
+
+
+def fetch(name: str, endpoint: str = "http://127.0.0.1:1234/v1") -> list[Model]:
+    """Live model list for a provider name, or for `local` (the server at `endpoint`)."""
+    if name == "local":
+        base = endpoint.rstrip("/")
+        u = urlparse(base)
+        try:                                        # LM Studio's own listing has size, quantization and context
+            return _lmstudio(_get(f"{u.scheme}://{u.netloc}/api/v0/models", {}))
+        except ModelsError:
+            return _openai(_get(base + "/models", {}))
+    p = providers.get(name)
+    key, _ = keys.lookup(name, p.key_env)
+    if not key:
+        raise ModelsError(f"no API key for {name}: run `gruntly auth set {name}` (or set {p.key_env})")
+    if p.models_api == "gemini":
+        root = p.base_url.split("/v1beta")[0]
+        return _gemini(_get(f"{root}/v1beta/models?pageSize=1000", {"x-goog-api-key": key}))
+    return _openai(_get(p.base_url.rstrip("/") + "/models", {"Authorization": f"Bearer {key}"}))
+
+
+def line(m: Model, width: int = 100) -> str:
+    """One display line: id, context, then the facts the endpoint gave."""
+    ctx = f"{m.context:,} ctx" if m.context else ""
+    facts = " · ".join(f"{k}: {v}" if not isinstance(v, bool) else k for k, v in m.info.items())
+    return f"{m.id}" + (f"  [{ctx}]" if ctx else "") + (f"  {facts}" if facts else "")[:width + 60]
