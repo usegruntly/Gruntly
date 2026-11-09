@@ -12,6 +12,7 @@ Three modes, so nobody has to say "use gruntly" or "don't use gruntly" in every 
 Project is the default scope. Both are plain files under `.gruntly/`, which git ignores, so a mode is personal and never ends up in a commit.
 
 ```
+/gruntly:mode on            # works everywhere the plugin is installed; /gruntly:gruntly on does the same
 /gruntly                    # in Claude Code: show the mode
 /gruntly on                 # this project
 /gruntly off session        # only this chat
@@ -19,6 +20,10 @@ Project is the default scope. Both are plain files under `.gruntly/`, which git 
 gruntly mode                # the same from a terminal (show)
 gruntly mode on|off|auto [--session]
 ```
+
+Two ways to type it in Claude Code: `/gruntly on` is the mod's own command (needs plugin 0.6+ loaded; try `/reload-plugins`), and
+`/gruntly:mode on` or `/gruntly:gruntly on` run the CLI directly (`gruntly mode ...`), so they work even if the mod is not loaded.
+Both need the updated CLI (`uv tool install --reinstall "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly"`).
 
 **How it is enforced.** The CLI refuses `agent-run`, `run` and `do` (including `--ask` and `--continue`) while the mode is `off`, whichever
 agent calls it. In Claude Code the plugin also adds a short line to the system prompt when the mode is `on` or `off`

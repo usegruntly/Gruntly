@@ -501,6 +501,7 @@ def cmd_mode(a) -> int:
         print("  auto = the skill decides; on = delegate every eligible change without asking; off = never use gruntly")
         print("  change it:  gruntly mode on|off|auto   (this project; add --session to change only this Claude Code chat)")
         return 0
+    a.session = a.session or a.scope == "session"
     try:
         path = modemod.set_mode(root, a.value, "session" if a.session else "project")
     except ValueError as e:
@@ -663,6 +664,7 @@ def build_parser() -> argparse.ArgumentParser:
     add("setup", cmd_setup)
     md = add("mode", cmd_mode)
     md.add_argument("value", nargs="?", choices=["auto", "on", "off"], help="omit to show the current mode")
+    md.add_argument("scope", nargs="?", choices=["session", "project"], help="same as --session / --project")
     md.add_argument("--session", action="store_true", help="only this Claude Code session (default: this project)")
     md.add_argument("--project", action="store_true", help="this project (the default)")
     au = add("auth", cmd_auth, "action")

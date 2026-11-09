@@ -104,3 +104,13 @@ def test_the_mode_command_sets_shows_and_rejects(repo, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "for this session" in out and "note" not in out
     assert cli.main(["mode"]) == 0 and "off (from session)" in capsys.readouterr().out
+
+
+def test_the_session_word_works_like_the_flag(repo, capsys, monkeypatch):
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s1")
+    assert cli.main(["mode", "off", "session"]) == 0
+    assert "for this session" in capsys.readouterr().out
+    assert cli.main(["mode", "on", "project"]) == 0
+    assert "for this project" in capsys.readouterr().out
+    assert cli.main(["mode"]) == 0 and "off (from session)" in capsys.readouterr().out
