@@ -66,7 +66,8 @@ def test_the_openai_style_listing_hides_a_bogus_date_but_keeps_it_in_raw(api):
     assert b.info["created"].startswith("2025") and a.info["owner"] == "vendor"
 
 
-def test_a_missing_key_or_server_is_a_clear_error(api):
+def test_a_missing_key_or_server_is_a_clear_error(api, monkeypatch):
+    monkeypatch.setattr(models, "_lms_exe", lambda: None)           # a real LM Studio on the machine would answer
     keys.remove("fakeo")
     with pytest.raises(models.ModelsError, match="gruntly auth set fakeo"):
         models.fetch("fakeo")
@@ -167,3 +168,36 @@ def test_auth_set_prints_where_to_get_a_key_and_what_next(api, capsys, monkeypat
     assert cli.main(["auth", "set", "fakeg"]) == 0
     out = capsys.readouterr().out
     assert "https://example.test/key" in out and "gruntly models fakeg" in out and "some-key" not in out
+
+
+LMS_JSON = json.dumps([
+    {"type": "llm", "modelKey": "qwen/qwen3.5-9b", "displayName": "Qwen3.5 9B", "paramsString": "9B", "architecture": "qwen35",
+     "quantization": {"name": "Q4_K_M", "bits": 4}, "sizeBytes": 6_550_000_000, "trainedForToolUse": True, "maxContextLength": 262144},
+    {"type": "embedding", "modelKey": "nomic", "displayName": "Nomic", "sizeBytes": 84_000_000, "maxContextLength": 2048}])
+
+
+def test_downloaded_local_models_are_listed_without_the_server_running(monkeypatch):
+    import subprocess
+    monkeypatch.setattr(models, "_lms_exe", lambda: "lms")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=LMS_JSON, stderr=""))
+    ms = models.fetch("local", "http://127.0.0.1:9/v1")              # nothing listens there: the server is off
+    assert [m.id for m in ms] == ["qwen/qwen3.5-9b", "nomic"]
+    q = ms[0]
+    assert q.info["params"] == "9B" and q.info["quant"] == "Q4_K_M" and q.info["size"] == "6.5 GB" and q.info["tool use"]
+    assert q.context == 262144 and ms[1].info["type"] == "embedding" and "state" not in q.info
+
+
+def test_the_running_server_adds_which_model_is_loaded(monkeypatch):
+    import subprocess
+    monkeypatch.setattr(models, "_lms_exe", lambda: "lms")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=LMS_JSON, stderr=""))
+    served = {"data": [{"id": "qwen/qwen3.5-9b", "state": "loaded", "loaded_context_length": 32768, "max_context_length": 262144}]}
+    monkeypatch.setattr(models, "_get", lambda url, headers: served)
+    q = models.fetch("local")[0]
+    assert q.info["state"] == "loaded" and q.context == 32768
+
+
+def test_without_lms_and_without_a_server_the_error_says_both(monkeypatch):
+    monkeypatch.setattr(models, "_lms_exe", lambda: None)
+    with pytest.raises(models.ModelsError, match="`lms` command was not found"):
+        models.fetch("local", "http://127.0.0.1:9/v1")

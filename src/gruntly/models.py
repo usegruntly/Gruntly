@@ -9,6 +9,9 @@ for the person to check in the provider's docs (gruntly prints the links).
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -91,6 +94,52 @@ def _lmstudio(data: dict) -> list[Model]:
     return out
 
 
+def _lms_exe() -> str | None:
+    exe = shutil.which("lms")
+    if exe:
+        return exe
+    for name in ("lms.exe", "lms"):                       # LM Studio's installer puts it here without touching PATH
+        p = os.path.join(os.path.expanduser("~"), ".lmstudio", "bin", name)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def _lms_downloaded() -> list[Model] | None:
+    """Every model LM Studio has downloaded, loaded or not, from its own CLI (`lms ls --json`). It reads the local model
+    folder, so it works with the server off and without loading anything. None when `lms` is missing or fails."""
+    exe = _lms_exe()
+    if not exe:
+        return None
+    try:
+        r = subprocess.run([exe, "ls", "--json"], capture_output=True, text=True, encoding="utf8", errors="replace", timeout=30)
+        data = json.loads(r.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    out = []
+    for m in data if isinstance(data, list) else []:
+        info = {}
+        if m.get("displayName"):
+            info["name"] = m["displayName"]
+        if m.get("type") and m["type"] != "llm":
+            info["type"] = m["type"]
+        if m.get("paramsString"):
+            info["params"] = m["paramsString"]
+        if m.get("architecture"):
+            info["arch"] = m["architecture"]
+        q = m.get("quantization")
+        if isinstance(q, dict) and q.get("name"):
+            info["quant"] = q["name"]
+        if m.get("sizeBytes"):
+            info["size"] = f"{m['sizeBytes'] / 1e9:.1f} GB"
+        if m.get("trainedForToolUse"):
+            info["tool use"] = True
+        if m.get("vision"):
+            info["vision"] = True
+        out.append(Model(str(m.get("modelKey") or m.get("path") or "?"), m.get("maxContextLength"), info, m))
+    return out
+
+
 def _date(ts) -> str:
     import time
     try:
@@ -104,10 +153,25 @@ def fetch(name: str, endpoint: str = "http://127.0.0.1:1234/v1") -> list[Model]:
     if name == "local":
         base = endpoint.rstrip("/")
         u = urlparse(base)
-        try:                                        # LM Studio's own listing has size, quantization and context
-            return _lmstudio(_get(f"{u.scheme}://{u.netloc}/api/v0/models", {}))
+        downloaded = _lms_downloaded()              # everything on disk, without loading or even starting the server
+        try:                                        # LM Studio's server listing adds what is loaded now, and the loaded context
+            served = _lmstudio(_get(f"{u.scheme}://{u.netloc}/api/v0/models", {}))
         except ModelsError:
-            return _openai(_get(base + "/models", {}))
+            try:
+                served = _openai(_get(base + "/models", {}))
+            except ModelsError as e:
+                if downloaded is None:
+                    raise ModelsError(f"{e}; and LM Studio's `lms` command was not found, so the downloaded models cannot be listed either") from None
+                return downloaded
+        if downloaded is None:
+            return served
+        live = {m.id: m for m in served}
+        for m in downloaded:
+            if m.id in live and live[m.id].info.get("state") == "loaded":
+                m.info["state"] = "loaded"
+                if live[m.id].context:
+                    m.context = live[m.id].context
+        return downloaded
     p = providers.get(name)
     key, _ = keys.lookup(name, p.key_env)
     if not key:

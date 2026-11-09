@@ -72,11 +72,13 @@ def current_choice() -> tuple[str, str | None, str]:
 # ------------------------------------------------------------------------------------------------------ providers
 def provider_status(name: str) -> str:
     if name == "local":
+        from . import doctor
+        up = doctor.probe_endpoint(LOCAL_DEFAULT_ENDPOINT, timeout=1.5)["ok"]
         try:
-            ms = modelsmod.fetch("local", LOCAL_DEFAULT_ENDPOINT)
-            return f"LM Studio / local server at {LOCAL_DEFAULT_ENDPOINT}: reachable, {len(ms)} model(s)"
+            n = f"{len(modelsmod.fetch('local', LOCAL_DEFAULT_ENDPOINT))} downloaded model(s)"
         except modelsmod.ModelsError:
-            return f"local server at {LOCAL_DEFAULT_ENDPOINT}: not reachable right now"
+            n = "no models found"
+        return f"LM Studio: {n}; server at {LOCAL_DEFAULT_ENDPOINT} " + ("running" if up else "not running (start it in LM Studio)")
     p = providers.get(name)
     _, src = keys.lookup(name, p.key_env)
     return f"{p.note or name}: " + (f"key found ({src})" if src else "no key yet")
@@ -140,8 +142,11 @@ def choose_model(name: str, endpoint: str, current: str | None = None) -> str | 
     if name != "local" and name in providers.PROVIDERS:
         default = providers.PROVIDERS[name].default_model
     default = current if current and any(m.id == current for m in ms) else default
-    say(f"\n{name}: {len(ms)} model(s), exactly as the endpoint lists them.")
-    say("A listing does not say which models are free or usable on your account: check the docs below.")
+    if name == "local":
+        say(f"\nlocal: {len(ms)} model(s) downloaded in LM Studio, whether loaded or not. Pick one; load it in LM Studio (or with `lms load`).")
+    else:
+        say(f"\n{name}: {len(ms)} model(s), exactly as the endpoint lists them.")
+        say("A listing does not say which models are free or usable on your account: check the docs below.")
     print_docs(name)
     shown = ms
     while True:

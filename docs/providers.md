@@ -7,7 +7,8 @@ gruntly setup               # first-time guide: what is installed, provider, key
 gruntly use                 # picker: choose provider, then a model from the live list; saved to this project or globally
 gruntly use gemini gemma-4-26b-a4b-it --project      # or in one line (--global for all projects)
 gruntly models gemini       # every model the account offers, with what the endpoint reports (--filter TEXT, --json)
-gruntly models local        # the local server's models (size, quantization, loaded context for LM Studio)
+gruntly models local        # every model LM Studio has downloaded, loaded or not, even with its server off (via `lms ls`);
+                            # size, parameters, quantization, tool-use support, and which one is loaded when the server runs
 ```
 
 gruntly does not rank or hide models and does not say which are free: the list is whatever the endpoint reports for your key, and a

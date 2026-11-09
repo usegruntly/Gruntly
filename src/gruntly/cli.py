@@ -426,7 +426,8 @@ def cmd_models(a) -> int:
         if a.json:
             dump[n] = [m.raw for m in ms]
             continue
-        print(f"{n}: {len(ms)} model(s), as the endpoint lists them (a listing does not say which are free or usable on your account)")
+        print(f"{n}: {len(ms)} model(s) downloaded in LM Studio, whether loaded or not" if n == "local" else
+              f"{n}: {len(ms)} model(s), as the endpoint lists them (a listing does not say which are free or usable on your account)")
         onboard.show_models(n, ms)
         onboard.print_docs(n)
         print()
@@ -472,6 +473,8 @@ def cmd_use(a) -> int:
     scope = "global" if a.global_ else "project" if a.project else (onboard.choose_scope() if live else "project")
     path = onboard.save_choice(provider, model, scope)
     print(f"Saved to {path}: provider = {provider}, model = {model or 'whatever is loaded'}")
+    if provider == "local" and model:
+        print(f"  gruntly cannot load a local model for you. Load it with a context of 32k or more:  lms load {model} -c 32768 --yes")
     onboard.print_docs(provider)
     return 0
 
