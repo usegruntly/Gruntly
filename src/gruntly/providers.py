@@ -7,7 +7,6 @@ overrides them (keys: rpm, tpm, rpd).
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
 
@@ -41,4 +40,6 @@ def get(name: str) -> Provider:
 
 
 def api_key(p: Provider) -> str | None:
-    return os.environ.get(p.key_env) or None
+    """The environment variable first, then the user's keys file (see keys.py)."""
+    from . import keys
+    return keys.lookup(p.name, p.key_env)[0]

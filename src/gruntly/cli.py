@@ -356,7 +356,46 @@ def cmd_doctor(a) -> int:
         endpoint, model = s.endpoint, s.model
     except Exception:  # noqa: BLE001 - doctor must work outside a repo too
         pass
-    out(doctormod.run(endpoint, model), a.human)
+    rep = doctormod.run(endpoint, model)
+    from . import keys, providers
+    for name, p in providers.PROVIDERS.items():
+        _, src = keys.lookup(name, p.key_env)
+        rep["checks"].append({"check": f"provider:{name}", "ok": bool(src), "warn": not src,
+                              "detail": f"key found ({src})" if src else f"no key; set {p.key_env} or run: gruntly auth set {name}"})
+    out(rep, a.human)
+    return 0
+
+
+def cmd_auth(a) -> int:
+    """gruntly auth set|list|remove [provider]: API keys for hosted providers. Never prints a key."""
+    from . import keys, providers
+    if a.action == "list":
+        for name, p in providers.PROVIDERS.items():
+            _, src = keys.lookup(name, p.key_env)
+            print(f"{name}: {'key found (' + src + ')' if src else 'no key (set ' + p.key_env + ' or run: gruntly auth set ' + name + ')'}")
+        print(f"keys file: {keys.keys_path()}")
+        return 0
+    if a.action not in ("set", "remove") or not a.provider:
+        print("usage: gruntly auth set|remove PROVIDER | gruntly auth list", file=sys.stderr)
+        return 2
+    try:
+        providers.get(a.provider)
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        return 2
+    if a.action == "remove":
+        print(f"removed the stored key for {a.provider}" if keys.remove(a.provider) else f"no stored key for {a.provider}")
+        return 0
+    key = a.key
+    if not key:
+        import getpass
+        key = sys.stdin.readline().strip() if not sys.stdin.isatty() else getpass.getpass(f"{a.provider} API key (hidden): ")
+    if not key:
+        print("no key given", file=sys.stderr)
+        return 2
+    locked = keys.set_key(a.provider, key)
+    print(f"saved the {a.provider} key to {keys.keys_path()}" + (" (readable by you only)" if locked else
+          " (could NOT restrict the file to your user: it is plain text, keep it private)"))
     return 0
 
 
@@ -452,6 +491,9 @@ def build_parser() -> argparse.ArgumentParser:
     add("apply", cmd_apply, "run", branch={})
     add("discard", cmd_discard, "run")
     add("doctor", cmd_doctor)
+    au = add("auth", cmd_auth, "action")
+    au.add_argument("provider", nargs="?")
+    au.add_argument("--key", help="the key (prefer the hidden prompt or stdin: a flag stays in shell history)")
     i = add("init", cmd_init)
     i.add_argument("--snippet", action="store_true")
     add("stats", cmd_stats)
