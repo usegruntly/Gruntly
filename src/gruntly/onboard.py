@@ -69,6 +69,59 @@ def current_choice() -> tuple[str, str | None, str]:
     return "local", None, "the defaults"
 
 
+# ------------------------------------------------------------------------------------------------------ harnesses
+def current_harness() -> tuple[str, str]:
+    for label, p in (("this project", project_config()), ("your global settings", global_config_path())):
+        if p and p.is_file():
+            h = settings_file.get_value(p, "harness")
+            if h:
+                return h, label
+    return "auto", "the defaults"
+
+
+def show_harness(h, fetch: bool = False, current: str | None = None, number: int | None = None) -> None:
+    from . import harnesses
+    ok, ver = harnesses.installed(h.name) if h.name != "generic" else (True, None)
+    state = "installed" + (f" {ver}" if ver else "") if ok else "not installed"
+    head = f"{number}. " if number else ""
+    say(f"  {head}{h.title}  [{state}]" + ("  (current)" if h.name == current else ""))
+    say(f"       {h.good_at}")
+    say(f"       Weight: {h.cost}")
+    if not ok:
+        say(f"       Install: {h.install}")
+    say(f"       Docs: {h.docs}")
+    if fetch:
+        d = harnesses.live_description(h)
+        if d:
+            say(f"       Their own words (GitHub): {d}")
+
+
+def choose_harness(current: str | None = None, fetch: bool = False) -> str | None:
+    from . import harnesses
+    names = list(harnesses.HARNESSES)
+    say("\nWhich child agent should do the work? (auto = the first installed of opencode, qwen, hermes)")
+    for i, n in enumerate(names, 1):
+        show_harness(harnesses.HARNESSES[n], fetch, current, i)
+    while True:
+        v = ask("Number or name, a = auto (Enter to cancel): ")
+        if not v:
+            return None
+        if v.lower() in ("a", "auto"):
+            return "auto"
+        if v.isdigit() and 1 <= int(v) <= len(names):
+            return names[int(v) - 1]
+        if v in names:
+            return v
+        say("  Not one of the options.")
+
+
+def save_harness(harness: str, scope: str | None = None) -> Path:
+    proj = project_config()
+    path = global_config_path() if scope == "global" or proj is None else proj
+    settings_file.set_values(path, {"harness": None if harness == "auto" else harness})
+    return path
+
+
 # ------------------------------------------------------------------------------------------------------ providers
 def provider_status(name: str) -> str:
     if name == "local":
@@ -216,12 +269,13 @@ def setup() -> int:
         say("`gruntly setup` is an interactive guide: run it in a terminal.")
         return 2
     say("Welcome to gruntly: hand the grunt work to a cheaper model.\n")
-    say("Step 1 of 3: what is installed here")
-    from .adapters.base import pick_installed
+    say("Step 1 of 3: the child agent")
     import shutil
     say(f"  git: {'found' if shutil.which('git') else 'MISSING (gruntly needs git)'}")
-    harness = pick_installed()
-    say(f"  child agent CLI: {harness + ' found' if harness else 'none found: install one with  npm i -g opencode-ai  (or @qwen-code/qwen-code)'}")
+    harness = choose_harness(current_harness()[0])
+    scope = choose_scope()
+    if harness is not None:
+        say(f"  Saved to {save_harness(harness, scope)}: harness = {harness}")
 
     say("\nStep 2 of 3: where the child's model runs")
     provider = choose_provider(current_choice()[0])
@@ -238,7 +292,6 @@ def setup() -> int:
     model = choose_model(provider, LOCAL_DEFAULT_ENDPOINT, current_choice()[1])
     if provider == "local" and model is None:
         say("  No model chosen: gruntly will use whichever model is loaded in the local server.")
-    scope = choose_scope()
     path = save_choice(provider, model, scope)
     say(f"\nSaved to {path}: provider = {provider}, model = {model or 'whatever is loaded'}.")
     mark = mark_path()

@@ -517,6 +517,38 @@ def cmd_use(a) -> int:
     return 0
 
 
+def cmd_harness(a) -> int:
+    """gruntly harness [NAME]: list the child agents (what each is good at, weight, install, docs) or choose one."""
+    from . import harnesses, onboard
+    cur, where = onboard.current_harness()
+    if a.name and a.name != "auto" and a.name not in harnesses.HARNESSES:
+        print(f"unknown harness {a.name!r}; known: auto, {', '.join(harnesses.HARNESSES)}", file=sys.stderr)
+        return 2
+    live = onboard.interactive()
+    name = a.name
+    if not name:
+        print(f"Current: harness = {cur} (from {where})")
+        if not live or a.list:
+            print("\nChild agents gruntly can drive:")
+            for h in harnesses.HARNESSES.values():
+                onboard.show_harness(h, a.fetch, cur)
+            print("\nChoose one:  gruntly harness NAME   (or run it in a terminal for the picker)")
+            return 0
+        name = onboard.choose_harness(cur, a.fetch)
+        if name is None:
+            return 0
+    elif a.fetch:
+        onboard.show_harness(harnesses.HARNESSES[name], True) if name != "auto" else None
+    scope = "global" if a.global_ else "project" if a.project else (onboard.choose_scope() if live else "project")
+    path = onboard.save_harness(name, scope)
+    print(f"Saved to {path}: harness = {name}")
+    if name not in ("auto", "generic"):
+        ok, _ = harnesses.installed(name)
+        if not ok:
+            print(f"  {name} is not installed here yet:  {harnesses.HARNESSES[name].install}")
+    return 0
+
+
 def cmd_mode(a) -> int:
     """gruntly mode [auto|on|off] [--session|--project]: whether gruntly may be used. With no mode, shows the current one."""
     from . import mode as modemod
@@ -692,6 +724,12 @@ def build_parser() -> argparse.ArgumentParser:
     us.add_argument("--global", dest="global_", action="store_true", help="save to your global settings")
     us.add_argument("--project", action="store_true", help="save to this project's .gruntly.toml")
     add("setup", cmd_setup)
+    hn = add("harness", cmd_harness)
+    hn.add_argument("name", nargs="?", help="auto, opencode, qwen, hermes or generic (omit for the picker)")
+    hn.add_argument("--list", action="store_true", help="print the child agents and exit")
+    hn.add_argument("--fetch", action="store_true", help="also show each project's own description, read from GitHub")
+    hn.add_argument("--global", dest="global_", action="store_true", help="save to your global settings")
+    hn.add_argument("--project", action="store_true", help="save to this project's .gruntly.toml")
     md = add("mode", cmd_mode)
     md.add_argument("value", nargs="?", choices=["auto", "on", "off"], help="omit to show the current mode")
     md.add_argument("scope", nargs="?", choices=["session", "project"], help="same as --session / --project")

@@ -18,7 +18,7 @@ parent -- brief --> gruntly -- worktree --> child (local model)
 
 ## Ten-minute quickstart
 
-Prefer a guided version? Install gruntly (step 3), then run `gruntly setup`: it checks what is installed, lets you pick a provider (your local server or a hosted endpoint with your own API key), shows every model your account offers, saves your choice, and explains the main commands. `gruntly use` changes provider or model later; `gruntly models` lists what an account offers.
+Prefer a guided version? Install gruntly (step 3), then run `gruntly setup`: it checks what is installed, lets you pick a provider (your local server or a hosted endpoint with your own API key), shows every model your account offers, saves your choice, and explains the main commands. `gruntly harness` picks the child agent (OpenCode, Qwen Code, Hermes) with a short note and docs link for each; `gruntly use` changes provider or model later; `gruntly models` lists what an account offers.
 
 You need: git, Python 3.11+, [uv](https://docs.astral.sh/uv/), a local model server with an OpenAI-compatible API (LM Studio, llama.cpp, Ollama) and one child CLI.
 

@@ -146,9 +146,10 @@ def test_a_provider_without_a_key_asks_for_one_and_never_echoes_it(api, repo, mo
 def test_setup_walks_through_and_marks_the_person_as_onboarded(api, repo, monkeypatch, capsys):
     monkeypatch.chdir(repo)
     assert not onboard.is_onboarded()
-    script(monkeypatch, ["3", "2", "p"])                # fakeo, its second model, this project
+    script(monkeypatch, ["qwen", "p", "3", "2"])        # harness qwen, this project, then fakeo and its second model
     assert cli.main(["setup"]) == 0
     out = capsys.readouterr().out
+    assert settings_file.get_value(repo / ".gruntly.toml", "harness") == "qwen"
     assert "Step 1 of 3" in out and "Step 3 of 3" in out and "What gruntly does" in out and "gruntly agent-run --ask" in out
     assert "https://example.test/models" in out
     assert onboard.is_onboarded()
@@ -211,3 +212,27 @@ def test_doctor_checks_the_hosted_provider_not_the_local_server(api, repo, monke
     checks = {c["check"]: c for c in out["checks"]}
     assert checks["model_server"]["ok"] and "not needed: this project uses fakeo" in checks["model_server"]["detail"]
     assert checks["provider_models:fakeo"]["ok"] and "2 models listed" in checks["provider_models:fakeo"]["detail"]
+
+
+def test_harness_command_lists_each_child_with_docs_and_saves_a_choice(repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    assert cli.main(["harness", "--list"]) == 0
+    out = capsys.readouterr().out
+    for word in ("OpenCode", "Qwen Code", "Hermes Agent", "https://opencode.ai/docs", "Weight:"):
+        assert word in out
+    assert cli.main(["harness", "hermes", "--project"]) == 0
+    assert settings_file.get_value(repo / ".gruntly.toml", "harness") == "hermes"
+    assert cli.main(["harness", "auto", "--project"]) == 0
+    assert settings_file.get_value(repo / ".gruntly.toml", "harness") is None      # auto = no key
+    assert cli.main(["harness", "nope"]) == 2
+
+
+def test_the_harness_picker_takes_a_number_and_fetch_failure_is_silent(repo, monkeypatch, capsys):
+    from gruntly import harnesses
+    monkeypatch.chdir(repo)
+    monkeypatch.setattr(harnesses, "live_description", lambda h, timeout=5.0: "FETCHED " + h.title)
+    script(monkeypatch, ["2", "p"])
+    assert cli.main(["harness", "--fetch"]) == 0
+    out = capsys.readouterr().out
+    assert "FETCHED Qwen Code" in out
+    assert settings_file.get_value(repo / ".gruntly.toml", "harness") == "qwen"

@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- `gruntly harness` picks the child agent: lists OpenCode, Qwen Code, Hermes Agent and generic with what each is good at (as gruntly measured it), its weight, install command, docs link and whether it is installed; `--fetch` adds each project's own GitHub description. `gruntly setup` now starts with this step; the choice is saved as `harness` in the project or global settings.
 - Hermes Agent is a working child: gruntly writes its per-project `config.yaml` (custom endpoint and model), runs `hermes chat -Q`, reads the session id for `--resume`, maps the permission mode (`--yolo` or file tools only) and sets a UTF-8 locale. Verified live on WSL2 with NVIDIA through gruntly's proxy. Run gruntly inside WSL2 on Windows. No tool trace in quiet mode.
 - API keys are cleaned of BOM, zero-width characters and line breaks when saved or read, and refused if they are not plain ASCII (a piped key from Windows PowerShell started with a BOM and every request failed).
 - Fixes: the changed-file check used for non-Python requests compared against the staging area and reported a real edit as "not changed"; it now compares against the run's starting commit. Run worktrees are checked out exactly as stored (no LF to CRLF conversion under `core.autocrlf=true`), so the child's edits can find their text.

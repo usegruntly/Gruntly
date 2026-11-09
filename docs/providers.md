@@ -3,7 +3,8 @@
 ## Choosing a provider and a model
 
 ```
-gruntly setup               # first-time guide: what is installed, provider, key, model, and a tour of the commands
+gruntly setup               # first-time guide: child agent, provider, key, model, and a tour of the commands
+gruntly harness            # choose the child agent (opencode, qwen, hermes, generic); --list, --fetch for their own descriptions
 gruntly use                 # picker: choose provider, then a model from the live list; saved to this project or globally
 gruntly use gemini gemma-4-26b-a4b-it --project      # or in one line (--global for all projects)
 gruntly models gemini       # every model the account offers, with what the endpoint reports (--filter TEXT, --json)
