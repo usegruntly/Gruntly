@@ -21,7 +21,7 @@ export type Row = {
   tokens_in?: number
   tokens_out?: number
   // diff rows: the child's changes so far (or, with final, at the end of attempt n)
-  lines?: string[]
+  parts?: { path: string; tag?: string; text: string }[] // unified-diff hunks per file, drawn with the engine's own diff highlighter
   files?: number
   ins?: number
   dele?: number

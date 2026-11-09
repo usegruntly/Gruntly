@@ -52,8 +52,6 @@ const GRUNTLY = /(?:^|[\s;&|(])(?:[\w.:\\/~-]*[\\/])?gruntly(?:\.exe)?\s+(agent-
 const SHOWN_RUNNING = 8
 const SHOWN_DONE_CHILD = 3 // when finished: the last few things the child did ...
 const SHOWN_DONE_GRUNTLY = 2 // ... and gruntly's last steps, so both colours are visible
-const DIFF_RUNNING = 14
-const DIFF_DONE = 30
 const KEEP = 300
 
 function body(r: Row): string {
@@ -271,7 +269,7 @@ export const register: Register = on => {
 }
 
 function view($: any, e: any, rows: Row[], running: boolean) {
-  const { Box, Text } = $.ui.resolve(e)
+  const { Box, Text, Code } = $.ui.resolve(e)
   const start = rows.find(r => r.k === 'start')
   const toolCalls = rows.filter(r => r.who === 'child' && r.k === 'tool').length
   const plain = rows.filter(r => r.k !== 'diff')
@@ -282,8 +280,7 @@ function view($: any, e: any, rows: Row[], running: boolean) {
         ...plain.filter(r => r.who !== 'child').slice(-SHOWN_DONE_GRUNTLY),
       ].sort((a, b) => a.t - b.t)
   const diff = [...rows].reverse().find(r => r.k === 'diff')
-  const diffLines = (diff?.lines ?? []).slice(0, running ? DIFF_RUNNING : DIFF_DONE)
-  const hidden = (diff?.lines?.length ?? 0) - diffLines.length + (diff?.more ?? 0)
+  const parts = diff?.parts ?? []
   return (
     <Box flexDirection="column">
       <Text dimColor>
@@ -304,17 +301,13 @@ function view($: any, e: any, rows: Row[], running: boolean) {
             {' '}
             <Text color="red">{`-${diff.dele ?? 0}`}</Text>
           </Text>
-          {diffLines.map((ln, i) => (
-            <Text
-              key={i}
-              color={ln.startsWith('+') ? 'green' : ln.startsWith('-') ? 'red' : undefined}
-              bold={ln.startsWith('F ')}
-              dimColor={!ln.startsWith('+') && !ln.startsWith('-') && !ln.startsWith('F ')}
-            >
-              {`    ${ln.startsWith('F ') ? ln.slice(2) : ln}`}
-            </Text>
+          {parts.map((p, i) => (
+            <Box key={`${p.path}-${i}`} flexDirection="column">
+              <Text bold>{`  ${p.path}${p.tag ?? ''}`}</Text>
+              <Code format="diff" source={p.text} path={p.path} wrap="truncate-end" />
+            </Box>
           ))}
-          {hidden > 0 ? <Text dimColor>{`    … ${hidden} more lines (gruntly diff shows all)`}</Text> : null}
+          {(diff?.more ?? 0) > 0 ? <Text dimColor>{`  … ${diff?.more} more changed lines (gruntly diff shows all)`}</Text> : null}
         </Box>
       ) : null}
     </Box>

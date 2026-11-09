@@ -13,6 +13,7 @@ redaction and none of it reaches the parent's context.
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 
@@ -60,41 +61,59 @@ def events_from_line(line: str) -> list[dict]:
     return out
 
 
-DIFF_LINES = 60
+DIFF_LINES = 40
 DIFF_WIDTH = 140
+HUNK = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$")
 
 
 def compact_diff(patch: str, limit: int = DIFF_LINES) -> dict:
-    """A unified diff squeezed for the live view: file headers, hunk headers, +/- and context lines, capped.
-    Returns {"lines": [...], "files": n, "ins": n, "del": n, "more": lines left out}."""
-    lines, files, ins, dele, total = [], 0, 0, 0, 0
+    """A unified diff squeezed for the live view, capped at `limit` changed/context lines in all.
+
+    Returns {"files": n, "ins": n, "del": n, "more": lines left out, "parts": [{"path", "tag", "text"}]}.
+    Each part's text is valid unified-diff hunks (a hunk cut by the cap gets its header counts rewritten), so Claude Code's own
+    diff highlighter can draw it."""
+    files, ins, dele, total = 0, 0, 0, 0
+    parts: list[dict] = []
+    cur = None          # the file being read: {"path", "hunks": [[header, start_old, start_new, tail, body]]}
     for ln in patch.splitlines():
         if ln.startswith("diff --git"):
             files += 1
-            path = ln.split(" b/", 1)[-1]
-            row = "F " + path
-        elif ln.startswith(("new file", "deleted file")):
-            if lines and lines[-1].startswith("F "):
-                lines[-1] += " (new)" if ln.startswith("new") else " (deleted)"
+            cur = {"path": ln.split(" b/", 1)[-1], "tag": "", "hunks": []}
+            parts.append(cur)
+        elif cur is None:
             continue
+        elif ln.startswith("new file"):
+            cur["tag"] = " (new)"
+        elif ln.startswith("deleted file"):
+            cur["tag"] = " (deleted)"
+        elif ln.startswith("Binary files"):
+            cur["tag"] = " (binary)"
         elif ln.startswith(("index ", "--- ", "+++ ", "similarity", "old mode", "new mode", "\\ No newline")):
             continue
-        elif ln.startswith("Binary files"):
-            row = "F " + ln[:DIFF_WIDTH]
-        elif ln.startswith("@@"):
-            row = "@" + ln.split("@@")[1].strip() if ln.count("@@") >= 2 else ln
-        elif ln.startswith("+"):
-            ins += 1
-            row = ln
-        elif ln.startswith("-"):
-            dele += 1
-            row = ln
         else:
-            row = ln
-        total += 1
-        if len(lines) < limit:
-            lines.append(redact(row[:DIFF_WIDTH], []))
-    return {"lines": lines, "files": files, "ins": ins, "del": dele, "more": max(0, total - len(lines))}
+            m = HUNK.match(ln)
+            if m:
+                cur["hunks"].append([int(m.group(1)), int(m.group(2)), m.group(3), []])
+            elif cur["hunks"] and ln[:1] in ("+", "-", " ", ""):
+                cur["hunks"][-1][3].append(ln if ln else " ")
+                total += 1
+                ins += ln.startswith("+")
+                dele += ln.startswith("-")
+    budget, out = limit, []
+    for f in parts:
+        texts = []
+        for old_start, new_start, tail, body in f["hunks"]:
+            if budget <= 0:
+                break
+            kept = body[:budget]
+            budget -= len(kept)
+            kept = [redact(k[:DIFF_WIDTH], []) for k in kept]
+            old_n = sum(1 for k in kept if k[0] in " -")
+            new_n = sum(1 for k in kept if k[0] in " +")
+            texts.append(f"@@ -{old_start},{old_n} +{new_start},{new_n} @@{tail}\n" + "\n".join(kept))
+        out.append({"path": f["path"], "tag": f["tag"], "text": "\n".join(texts)})
+    return {"parts": [t for t in out if t["text"]], "files": files, "ins": ins, "del": dele,
+            "more": max(0, total - limit) if total > limit else 0}
 
 
 def clean(row: dict) -> dict:
@@ -127,7 +146,8 @@ def format_diff(r: dict, color: bool = False) -> list[str]:
     """A diff row as terminal lines: green additions, red removals."""
     head = f"  changes (attempt {r.get('n')}): {r.get('files', 0)} file(s), +{r.get('ins', 0)} -{r.get('dele', 0)}"
     out = [head]
-    for ln in r.get("lines", []):
+    flat = [x for t in r.get("parts", []) for x in ["F " + t["path"] + t["tag"], *t["text"].splitlines()]]
+    for ln in flat:
         c = ""
         if color:
             c = "\x1b[32m" if ln.startswith("+") else "\x1b[31m" if ln.startswith("-") else "\x1b[1m" if ln.startswith("F ") else "\x1b[2m"

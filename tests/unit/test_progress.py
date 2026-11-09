@@ -54,8 +54,8 @@ def test_a_run_writes_a_feed_and_watch_prints_it(repo, run_task, make_spec, caps
     assert kinds[0] == "start" and "attempt" in kinds and "gates" in kinds and kinds[-1] == "done"
     assert rows[-1]["status"] == "passed"
     diffs = [r for r in rows if r["k"] == "diff"]
-    assert diffs and diffs[-1]["final"] and diffs[-1]["ok"] is True and diffs[-1]["lines"] and diffs[-1]["ins"] >= 1
-    assert any(ln.startswith("+") for ln in diffs[-1]["lines"])
+    assert diffs and diffs[-1]["final"] and diffs[-1]["ok"] is True and diffs[-1]["parts"] and diffs[-1]["ins"] >= 1
+    assert any(ln.startswith("+") for ln in diffs[-1]["parts"][0]["text"].splitlines())
     monkeypatch.chdir(repo)
     assert cli.main(["watch", "--no-follow"]) == 0
     out = capsys.readouterr().out
@@ -80,14 +80,20 @@ index 000..333
 """
 
 
-def test_compact_diff_keeps_headers_changes_and_counts_and_caps_the_length():
+def test_compact_diff_gives_valid_hunks_per_file_with_counts_and_a_cap_that_rewrites_the_header():
     d = progress.compact_diff(PATCH)
     assert d["files"] == 2 and d["ins"] == 2 and d["del"] == 1 and d["more"] == 0
-    assert d["lines"][0] == "F calc.py" and "F new.txt (new)" in d["lines"]
-    assert "-    return a - b" in d["lines"] and "+    return a + b" in d["lines"]
-    assert not any(ln.startswith(("index", "---", "+++")) for ln in d["lines"])
-    small = progress.compact_diff(PATCH, limit=3)
-    assert len(small["lines"]) == 3 and small["more"] > 0
+    calc, new = d["parts"]
+    assert calc["path"] == "calc.py" and calc["text"].startswith("@@ -1,2 +1,2 @@ def add\n")
+    assert "-    return a - b" in calc["text"] and "+    return a + b" in calc["text"]
+    assert new["path"] == "new.txt" and new["tag"] == " (new)" and "+hello" in new["text"]
+    assert not any(x in calc["text"] for x in ("index ", "+++ ", "--- "))
+    cut = progress.compact_diff(PATCH, limit=2)           # 2 lines: the hunk is cut, its counts follow the kept lines
+    assert cut["parts"][0]["text"].splitlines()[0] == "@@ -1,2 +1,1 @@ def add" or cut["parts"][0]["text"].startswith("@@ -1,")
+    assert len(cut["parts"]) == 1 and cut["more"] == 2
+    kept = cut["parts"][0]["text"].splitlines()
+    old_n = sum(1 for k in kept[1:] if k[0] in " -")
+    assert f"-1,{old_n} " in kept[0]
 
 
 def test_live_patch_shows_new_and_edited_files_without_touching_the_real_index(tmp_path):

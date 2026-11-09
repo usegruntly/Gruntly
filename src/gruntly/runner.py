@@ -406,7 +406,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
             return
         d = progress.compact_diff(patch)
         feed.emit("child", "diff", n=attempt, final=final or None, ok=ok, files=d["files"], ins=d["ins"], dele=d["del"],
-                  more=d["more"] or None, lines=d["lines"])
+                  more=d["more"] or None, parts=d["parts"])
 
     child_s = gates_s = 0.0
     attempts_log: list[dict] = prior.get("attempts_log", [])
