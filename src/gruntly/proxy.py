@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 
 MAX_WAIT_S = 120          # never sleep longer than this for one request; return the 429 instead
 MAX_RETRIES = 3
+RETRY_5XX = (500, 502, 503, 504)
 TOKEN_CHARS = 3.5         # request characters per token, for the per-minute token budget
 
 
@@ -42,7 +43,7 @@ class Limiter:
         self.state, self.clock, self.sleep = state, clock, sleep
         self.win: deque[tuple[float, int]] = deque()
         self.lock = threading.Lock()
-        self.stats = {"requests": 0, "retries_429": 0, "waited_s": 0.0, "tokens_est": 0, "denied": 0}
+        self.stats = {"requests": 0, "retries_429": 0, "waited_s": 0.0, "tokens_est": 0, "denied": 0, "retries_5xx": 0}
 
     # ---- daily count (survives runs) ----
     def _day(self) -> dict:
@@ -143,7 +144,7 @@ class _Handler(BaseHTTPRequestHandler):
                                          "resets midnight Pacific). Try again tomorrow or use another provider.",
                                     {"code": "daily_quota"})
         u = urlparse(srv.upstream)
-        for attempt in range(MAX_RETRIES + 1):
+        for attempt in range(MAX_RETRIES + 4):
             conn = http.client.HTTPSConnection(u.netloc, timeout=600) if u.scheme == "https" else http.client.HTTPConnection(u.netloc, timeout=600)
             try:
                 conn.request(method, u.path.rstrip("/") + path, body=body or None, headers={
@@ -152,6 +153,12 @@ class _Handler(BaseHTTPRequestHandler):
                 r = conn.getresponse()
             except OSError as e:
                 return self._send_error(502, f"upstream unreachable: {e}")
+            if r.status in RETRY_5XX and attempt < MAX_RETRIES + 3:       # Gemma on the Gemini API answers 500 about half the time
+                r.read()
+                conn.close()
+                srv.limiter.stats["retries_5xx"] += 1
+                srv.limiter.sleep(min(2 * (attempt + 1), 10))
+                continue
             if r.status == 429 and attempt < MAX_RETRIES:
                 data = r.read()
                 wait = retry_after(r.headers, data)

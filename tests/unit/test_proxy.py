@@ -13,6 +13,7 @@ from gruntly.proxy import Limiter
 class Fake(BaseHTTPRequestHandler):
     seen: list = []
     fail_first = 0
+    errors_first = 0
 
     def log_message(self, *a):
         pass
@@ -28,6 +29,9 @@ class Fake(BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
         Fake.seen.append((self.path, self.headers.get("Authorization"), self.rfile.read(n)))
+        if Fake.errors_first > 0:
+            Fake.errors_first -= 1
+            return self._reply(500, b'{"error":{"status":"INTERNAL"}}')
         if Fake.fail_first > 0:
             Fake.fail_first -= 1
             return self._reply(429, b'{"error":"slow down"}', {"Retry-After": "0"})
@@ -40,7 +44,7 @@ class Fake(BaseHTTPRequestHandler):
 
 @pytest.fixture
 def upstream():
-    Fake.seen, Fake.fail_first = [], 0
+    Fake.seen, Fake.fail_first, Fake.errors_first = [], 0, 0
     srv = HTTPServer(("127.0.0.1", 0), Fake)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{srv.server_address[1]}/v1beta/openai"
@@ -132,3 +136,14 @@ def test_a_run_without_the_api_key_says_which_variable_to_set(repo, make_spec, m
     rid = runner.prepare(build_spec(make_spec("pass", provider="gemini"), root), root)
     res = runner.execute(root, rid)
     assert res["status"] == "error" and "GEMINI_API_KEY" in res["error"]
+
+
+def test_a_500_from_the_provider_is_retried(upstream):
+    Fake.errors_first = 2
+    srv = proxy.start("t", upstream, "k", {})
+    srv.limiter.sleep = lambda s: None
+    try:
+        assert post(srv.url).status == 200
+    finally:
+        stats = srv.stop()
+    assert stats["retries_5xx"] == 2 and len(Fake.seen) == 3

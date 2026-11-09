@@ -25,10 +25,11 @@ class Provider:
 
 PROVIDERS: dict[str, Provider] = {
     # Gemma 4 through the Gemini API (AI Studio key). Gemma 3 is no longer listed in Google's Gemma-on-Gemini docs, and the
-    # small Gemma sizes are not offered there. 26B-A4B activates about 4B parameters per token. Free-tier numbers for
-    # Gemma 4 were not published where we looked: rpm is a cautious guess, and a 429 is retried after the delay it names.
+    # small Gemma sizes are not offered there. 26B-A4B activates about 4B parameters per token. Measured (a 429 named it):
+    # 16,000 input tokens per minute on the free tier. The requests/min and daily numbers are not published: rpm is a guess.
+    # The API also answers 500 INTERNAL on about half the calls; the proxy retries those.
     "gemini": Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY",
-                       "gemma-4-26b-a4b-it", rpm=15, note="Gemma 4 via the Gemini API"),
+                       "gemma-4-26b-a4b-it", rpm=15, tpm=15000, note="Gemma 4 via the Gemini API"),
 }
 
 

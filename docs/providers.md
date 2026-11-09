@@ -16,9 +16,12 @@ with a clear message when the daily quota is used up. What a run used is saved i
 
 **Gemini (Gemma 4).** Gemma 3 and the small Gemma sizes are not offered through the Gemini API any more; the listed models are
 `gemma-4-31b-it` and `gemma-4-26b-a4b-it` (about 4B active parameters). Function calling and system instructions are documented
-for them. Free-tier limits for Gemma 4 were not published where we looked, so the preset only paces 15 requests/min: check
-AI Studio and set `rate_limits` if yours differ. The full harness sends 11-13k input tokens per request, which matters if a
-tokens-per-minute cap applies.
+for them. Measured on 2026-11-09 (the 429 body names it): **16,000 input tokens per minute** on the free tier. The requests/min and daily
+limits are not published, so the preset paces 15 requests/min as a guess. The full harness sends 11-13k input tokens per
+request, so that is about one request a minute: a 4-request task took 15 minutes (11 requests, 15 rate-limit retries, 758 s
+waiting) before the preset knew the cap. The API also returns 500 INTERNAL on about half of the calls; the proxy retries them.
+Both Gemma 4 models returned tool calls correctly through the OpenAI-compatible endpoint. One real task (a one-line edit in a
+700 KB file, which the local 9B/4B models failed on) passed on the first attempt.
 
 **Caveat.** A hosted model is not your local model. Use it to build and test the plumbing; accuracy and token numbers still
 have to be measured on the local models.
