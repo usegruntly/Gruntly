@@ -1,3 +1,5 @@
+export type Mode = 'auto' | 'on' | 'off'
+
 export type Row = {
   t: number
   who: string // child = the local/small model, gruntly = its checks and waits
@@ -22,6 +24,9 @@ export type Row = {
 
 declare module 'claude-code' {
   interface PluginState {
-    gruntly: { feed: Record<string, Row[]> }
+    gruntly: {
+      feed: Record<string, Row[]>
+      mode: { mode: Mode; source: string }
+    }
   }
 }

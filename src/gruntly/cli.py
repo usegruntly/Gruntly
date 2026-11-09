@@ -104,7 +104,9 @@ def cmd_do(a) -> int:
         else:
             request = sys.stdin.read()
         root = wtmod.preflight(Path.cwd())
-        p = do.plan(request, root)
+        from . import mode as modemod
+        off = modemod.refusal(root)
+        p = do.Refusal(off) if off else do.plan(request, root)
         if isinstance(p, do.Refusal):
             text, payload = do.render(None, None, refusal=p), {"status": "refused", "reason": p.reason}
         else:
@@ -202,11 +204,16 @@ def _ask_one(root: Path, question: str, budget_s: int) -> dict:
 def cmd_agent_run(a) -> int:
     """One prompt in, one marked result block out (see agent.py). Always exits 0."""
     import time
-    from . import agent
+    from . import agent, do
     blocks: list[str] = []
     try:
         request = " ".join(a.request) if a.request and a.request != ["-"] else (sys.stdin.read() if not sys.stdin.isatty() else "")
         root = wtmod.preflight(Path.cwd())
+        from . import mode as modemod
+        off = modemod.refusal(root)
+        if off:                                   # switched off: say so in the usual block, run nothing
+            print(agent.block(None, None, refusal=do.Refusal(off)))
+            return 0
         if a.ask and not a.cont:
             o = _ask_one(root, request, max(int(a.max_block), 30))
             print(agent.block(o["res"], None, error=o["error"], answer=o["answer"]))
@@ -244,6 +251,11 @@ def cmd_wait(a) -> int:
 
 def cmd_run(a) -> int:
     root = wtmod.preflight(Path.cwd())
+    from . import mode as modemod
+    off = modemod.refusal(root)
+    if off:
+        print(json.dumps({"status": "refused", "reason": off}))
+        return 0
     text = sys.stdin.read() if a.spec == "-" else Path(a.spec).read_text(encoding="utf8")
     raw = parse_spec_text(text)
     if a.apply_on_pass:
@@ -479,6 +491,28 @@ def cmd_use(a) -> int:
     return 0
 
 
+def cmd_mode(a) -> int:
+    """gruntly mode [auto|on|off] [--session|--project]: whether gruntly may be used. With no mode, shows the current one."""
+    from . import mode as modemod
+    root = wtmod.repo_root(Path.cwd())
+    if not a.value:
+        m, where = modemod.resolve(root)
+        print(f"gruntly mode: {m} (from {where})")
+        print("  auto = the skill decides; on = delegate every eligible change without asking; off = never use gruntly")
+        print("  change it:  gruntly mode on|off|auto   (this project; add --session to change only this Claude Code chat)")
+        return 0
+    try:
+        path = modemod.set_mode(root, a.value, "session" if a.session else "project")
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        return 2
+    m, where = modemod.resolve(root)
+    print(f"gruntly mode set to {a.value} for {'this session' if a.session else 'this project'} ({path})")
+    if where != ("session" if a.session else "project"):
+        print(f"  note: the mode in effect is {m}, from {where}, which takes priority")
+    return 0
+
+
 def cmd_setup(a) -> int:
     from . import onboard
     return onboard.setup()
@@ -627,6 +661,10 @@ def build_parser() -> argparse.ArgumentParser:
     us.add_argument("--global", dest="global_", action="store_true", help="save to your global settings")
     us.add_argument("--project", action="store_true", help="save to this project's .gruntly.toml")
     add("setup", cmd_setup)
+    md = add("mode", cmd_mode)
+    md.add_argument("value", nargs="?", choices=["auto", "on", "off"], help="omit to show the current mode")
+    md.add_argument("--session", action="store_true", help="only this Claude Code session (default: this project)")
+    md.add_argument("--project", action="store_true", help="this project (the default)")
     au = add("auth", cmd_auth, "action")
     au.add_argument("provider", nargs="?")
     au.add_argument("--key", help="the key (prefer the hidden prompt or stdin: a flag stays in shell history)")
