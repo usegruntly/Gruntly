@@ -3,7 +3,7 @@ export type Mode = 'auto' | 'on' | 'off'
 export type Row = {
   t: number
   who: string // child = the local/small model, gruntly = its checks and waits
-  k: string // start | attempt | tool | say | step | gates | wait | done
+  k: string // start | attempt | tool | say | step | diff | gates | wait | done
   tool?: string
   kind?: string
   what?: string
@@ -20,6 +20,13 @@ export type Row = {
   detail?: string
   tokens_in?: number
   tokens_out?: number
+  // diff rows: the child's changes so far (or, with final, at the end of attempt n)
+  lines?: string[]
+  files?: number
+  ins?: number
+  dele?: number
+  more?: number
+  final?: boolean
 }
 
 declare module 'claude-code' {

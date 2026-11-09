@@ -156,6 +156,23 @@ def patch(wt: Path, base: str, paths: list[str] | None = None) -> str:
     return git(["diff", "--cached", "--binary", "--no-renames", base, "--", *spec], wt).stdout
 
 
+def live_patch(wt: Path, base: str) -> str:
+    """The worktree's changes so far as a text diff, for the live view. Uses a throwaway copy of the index so the child's own
+    git state is never touched while it is running."""
+    import tempfile
+    idx = git(["rev-parse", "--git-path", "index"], wt, check=False).stdout.strip()
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td) / "index"
+        src = Path(idx) if Path(idx).is_absolute() else Path(wt) / idx
+        try:
+            tmp.write_bytes(src.read_bytes())
+        except OSError:
+            pass
+        env = {"GIT_INDEX_FILE": str(tmp)}
+        git(["add", "-A", "--", ".", *NOISE], wt, env=env, check=False)
+        return git(["diff", "--cached", "--no-renames", "--no-color", "-U2", base, "--", ".", *NOISE], wt, env=env, check=False).stdout
+
+
 def file_at_base(wt: Path, base: str, path: str) -> str:
     p = git(["show", f"{base}:{path}"], wt, check=False)
     return p.stdout if p.returncode == 0 else ""

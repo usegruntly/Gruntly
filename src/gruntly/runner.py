@@ -60,7 +60,7 @@ LOOP_LINE_MIN, LOOP_REPEATS, LOOP_WINDOW = 60, 6, 24   # a long identical line s
 TOOL_REPEATS, TOOL_WINDOW = 6, 12                       # the same tool call (same input) 6 times in the last 12 calls = a loop
 
 
-def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None, on_event=None) -> ChildRun:
+def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None, on_event=None, on_tick=None) -> ChildRun:
     kw = {}
     if os.name == "nt":
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -114,7 +114,7 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
         threads.append(threading.Thread(target=feed, daemon=True))
     for t in threads:
         t.start()
-    breach, last_scan, mt = None, 0.0, _tree_mtime(cwd)
+    breach, last_scan, last_tick, mt = None, 0.0, 0.0, _tree_mtime(cwd)
     while proc.poll() is None:
         now = time.monotonic()
         if now - t0 > wall_s:
@@ -128,6 +128,12 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
         if breach:
             adapter.cancel(proc)
             break
+        if on_tick and now - last_tick > 2:
+            last_tick = now
+            try:
+                on_tick()
+            except Exception:  # noqa: BLE001 - the live view must never break a run
+                pass
         if now - last_scan > 3:
             last_scan = now
             if beat:
@@ -386,6 +392,22 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         ev = progress.clean(dict(ev))
         feed.emit("child", ev.pop("k"), **ev)
 
+    shown_diff = [None]
+
+    def emit_diff(attempt: int, final: bool = False, ok: bool | None = None) -> None:
+        try:
+            patch = wtmod.live_patch(wt, base)
+        except Exception:  # noqa: BLE001
+            return
+        if not final and patch == shown_diff[0]:
+            return
+        shown_diff[0] = patch
+        if not patch.strip():
+            return
+        d = progress.compact_diff(patch)
+        feed.emit("child", "diff", n=attempt, final=final or None, ok=ok, files=d["files"], ins=d["ins"], dele=d["del"],
+                  more=d["more"] or None, lines=d["lines"])
+
     child_s = gates_s = 0.0
     attempts_log: list[dict] = prior.get("attempts_log", [])
     last_sig, last_gate, last_text = None, None, ""
@@ -431,7 +453,8 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         st.set_state("running", attempt=attempt_no)
         feed.emit("gruntly", "attempt", n=attempt_no)
         cr = run_child(adapter, cmd.argv, env, cmd.stdin, wt, min(remaining, spec.budget_s), spec.no_progress_s,
-                       beat=lambda info, a=attempt_no: st.set_state("running", attempt=a, **info), on_event=child_event)
+                       beat=lambda info, a=attempt_no: st.set_state("running", attempt=a, **info), on_event=child_event,
+                       on_tick=lambda a=attempt_no: emit_diff(a))
         child_s += cr.secs
         st.append_text("child.log", redact(f"\n=== attempt {attempt_no} exit={cr.exit_code} breach={cr.breach} ===\n"
                                            f"{cr.stdout}\n--- stderr ---\n{cr.stderr}\n", secrets))
@@ -451,6 +474,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
                       "output": "child output size cap exceeded",
                       "loop": "the child repeated the same output over and over"}[cr.breach]
             st.write_text(f"attempts/{attempt_no}/diff.patch", redact(wtmod.patch(wt, base), secrets))
+            emit_diff(attempt_no, final=True, ok=False)
             break
         stats = diff_stat(wt, base)
         if cr.exit_code not in (0, None) and INFRA.search(cr.stderr + cr.stdout) and stats["files"] == 0:
@@ -466,6 +490,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
             st.write_text(f"attempts/{attempt_no}/gate_{n}.txt", "" if g.get("ok") else redact(_failing_text(n, g), secrets))
         failed = first_failure(gates)
         feed.emit("gruntly", "gates", ok=failed is None, detail=None if failed is None else f"{failed} failed")
+        emit_diff(attempt_no, final=True, ok=failed is None)
         attempts_log.append({"n": attempt_no, "files": stats["files"], "ins": stats["insertions"],
                              "del": stats["deletions"], "failed_gate": failed})
         if failed is None:

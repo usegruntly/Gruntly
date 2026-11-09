@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Live diff: while the child works, the Claude Code view shows its changes so far under the command (green additions, red removals, capped), and keeps each attempt's final diff when it ends. gruntly reads the child's worktree, so it works for every harness. `gruntly watch` prints each attempt's final diff. The finished view now shows the child's last steps as well as gruntly's (it used to show only gruntly's, so the child's cyan rows never appeared). Plugin 0.7.0.
 - `gruntly harness` picks the child agent: lists OpenCode, Qwen Code, Hermes Agent and generic with what each is good at (as gruntly measured it), its weight, install command, docs link and whether it is installed; `--fetch` adds each project's own GitHub description. `gruntly setup` now starts with this step; the choice is saved as `harness` in the project or global settings.
 - Hermes Agent is a working child: gruntly writes its per-project `config.yaml` (custom endpoint and model), runs `hermes chat -Q`, reads the session id for `--resume`, maps the permission mode (`--yolo` or file tools only) and sets a UTF-8 locale. Verified live on WSL2 with NVIDIA through gruntly's proxy. Run gruntly inside WSL2 on Windows. No tool trace in quiet mode.
 - API keys are cleaned of BOM, zero-width characters and line breaks when saved or read, and refused if they are not plain ASCII (a piped key from Windows PowerShell started with a BOM and every request failed).

@@ -50,7 +50,10 @@ async function readMode($: any): Promise<{ mode: Mode; source: string }> {
 // `gruntly agent-run ...`, `gruntly run ...`, also through a path or gruntly.exe
 const GRUNTLY = /(?:^|[\s;&|(])(?:[\w.:\\/~-]*[\\/])?gruntly(?:\.exe)?\s+(agent-run|run|do|continue|wait)\b/
 const SHOWN_RUNNING = 8
-const SHOWN_DONE = 3
+const SHOWN_DONE_CHILD = 3 // when finished: the last few things the child did ...
+const SHOWN_DONE_GRUNTLY = 2 // ... and gruntly's last steps, so both colours are visible
+const DIFF_RUNNING = 14
+const DIFF_DONE = 30
 const KEEP = 300
 
 function body(r: Row): string {
@@ -69,6 +72,8 @@ function body(r: Row): string {
       return `checks: ${r.detail ?? (r.ok ? 'all passed' : 'failed')}`
     case 'wait':
       return `waiting ${r.secs}s (${r.why ?? 'rate limit'})`
+    case 'diff':
+      return `changes: ${r.files ?? 0} file(s), +${r.ins ?? 0} -${r.dele ?? 0}`
     case 'done':
       return `finished: ${r.status}${r.reason ? ` (${r.reason})` : ''}`
     default:
@@ -230,7 +235,16 @@ export const register: Register = on => {
     const { Box, Text } = $.ui.resolve(e)
     const start = rows.find(r => r.k === 'start')
     const toolCalls = rows.filter(r => r.who === 'child' && r.k === 'tool').length
-    const shown = rows.slice(e.isRunning ? -SHOWN_RUNNING : -SHOWN_DONE)
+    const plain = rows.filter(r => r.k !== 'diff')
+    const shown = e.isRunning
+      ? plain.slice(-SHOWN_RUNNING)
+      : [
+          ...plain.filter(r => r.who === 'child').slice(-SHOWN_DONE_CHILD),
+          ...plain.filter(r => r.who !== 'child').slice(-SHOWN_DONE_GRUNTLY),
+        ].sort((a, b) => a.t - b.t)
+    const diff = [...rows].reverse().find(r => r.k === 'diff')
+    const diffLines = (diff?.lines ?? []).slice(0, e.isRunning ? DIFF_RUNNING : DIFF_DONE)
+    const hidden = (diff?.lines?.length ?? 0) - diffLines.length + (diff?.more ?? 0)
 
     return (
       <Box flexDirection="column">
@@ -247,6 +261,27 @@ export const register: Register = on => {
             <Text dimColor={r.k === 'say' || r.k === 'step'}>{body(r)}</Text>
           </Box>
         ))}
+        {diff ? (
+          <Box flexDirection="column">
+            <Text color="cyan">
+              {`  ⟡ changes${diff.final ? ` (attempt ${diff.n}${diff.ok === false ? ', failed the checks' : ''})` : ' so far'}: ${diff.files ?? 0} file(s), `}
+              <Text color="green">{`+${diff.ins ?? 0}`}</Text>
+              {' '}
+              <Text color="red">{`-${diff.dele ?? 0}`}</Text>
+            </Text>
+            {diffLines.map((ln, i) => (
+              <Text
+                key={i}
+                color={ln.startsWith('+') ? 'green' : ln.startsWith('-') ? 'red' : undefined}
+                bold={ln.startsWith('F ')}
+                dimColor={!ln.startsWith('+') && !ln.startsWith('-') && !ln.startsWith('F ')}
+              >
+                {`    ${ln.startsWith('F ') ? ln.slice(2) : ln}`}
+              </Text>
+            ))}
+            {hidden > 0 ? <Text dimColor>{`    … ${hidden} more lines (gruntly diff shows all)`}</Text> : null}
+          </Box>
+        ) : null}
       </Box>
     )
   })

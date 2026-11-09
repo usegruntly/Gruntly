@@ -6,8 +6,9 @@ Three actors (field `who`):
   (the parent, Claude, is not here: its own steps are already in the Claude Code chat)
 
 The feed is for people, not for the parent's context: `gruntly watch` and the Claude Code panel read it, and the result block
-the parent receives is unchanged. It holds short labels only (a tool name, a path or the start of a command, one line of the
-child's own words), passed through redaction, never file contents or diffs.
+the parent receives is unchanged. It holds short labels (a tool name, a path or the start of a command, one line of the
+child's own words) and `diff` rows: a capped copy of the child's changes so far, for the diff view. All of it passes through
+redaction and none of it reaches the parent's context.
 """
 from __future__ import annotations
 
@@ -59,6 +60,43 @@ def events_from_line(line: str) -> list[dict]:
     return out
 
 
+DIFF_LINES = 60
+DIFF_WIDTH = 140
+
+
+def compact_diff(patch: str, limit: int = DIFF_LINES) -> dict:
+    """A unified diff squeezed for the live view: file headers, hunk headers, +/- and context lines, capped.
+    Returns {"lines": [...], "files": n, "ins": n, "del": n, "more": lines left out}."""
+    lines, files, ins, dele, total = [], 0, 0, 0, 0
+    for ln in patch.splitlines():
+        if ln.startswith("diff --git"):
+            files += 1
+            path = ln.split(" b/", 1)[-1]
+            row = "F " + path
+        elif ln.startswith(("new file", "deleted file")):
+            if lines and lines[-1].startswith("F "):
+                lines[-1] += " (new)" if ln.startswith("new") else " (deleted)"
+            continue
+        elif ln.startswith(("index ", "--- ", "+++ ", "similarity", "old mode", "new mode", "\\ No newline")):
+            continue
+        elif ln.startswith("Binary files"):
+            row = "F " + ln[:DIFF_WIDTH]
+        elif ln.startswith("@@"):
+            row = "@" + ln.split("@@")[1].strip() if ln.count("@@") >= 2 else ln
+        elif ln.startswith("+"):
+            ins += 1
+            row = ln
+        elif ln.startswith("-"):
+            dele += 1
+            row = ln
+        else:
+            row = ln
+        total += 1
+        if len(lines) < limit:
+            lines.append(redact(row[:DIFF_WIDTH], []))
+    return {"lines": lines, "files": files, "ins": ins, "del": dele, "more": max(0, total - len(lines))}
+
+
 def clean(row: dict) -> dict:
     """Redaction for the free-text fields."""
     for f in ("what", "text"):
@@ -85,7 +123,21 @@ def read_from(path: Path, offset: int = 0) -> tuple[list[dict], int]:
     return rows, offset + end
 
 
-KIND_VERB = {"read": "read", "edit": "edit", "run": "run", "other": "tool"}
+def format_diff(r: dict, color: bool = False) -> list[str]:
+    """A diff row as terminal lines: green additions, red removals."""
+    head = f"  changes (attempt {r.get('n')}): {r.get('files', 0)} file(s), +{r.get('ins', 0)} -{r.get('dele', 0)}"
+    out = [head]
+    for ln in r.get("lines", []):
+        c = ""
+        if color:
+            c = "\x1b[32m" if ln.startswith("+") else "\x1b[31m" if ln.startswith("-") else "\x1b[1m" if ln.startswith("F ") else "\x1b[2m"
+        out.append(f"    {c}{ln}{chr(27) + '[0m' if color else ''}")
+    if r.get("more"):
+        out.append(f"    ... {r['more']} more lines (gruntly diff RUN shows all)")
+    return out
+
+
+KIND_VERB ={"read": "read", "edit": "edit", "run": "run", "other": "tool"}
 
 
 def format_row(r: dict) -> str:

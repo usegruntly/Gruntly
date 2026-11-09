@@ -428,6 +428,11 @@ def cmd_watch(a) -> int:
     while True:
         rows, off = progress.read_from(path, off)
         for r in rows:
+            if r.get("k") == "diff":
+                if r.get("final"):                    # live updates would flood a terminal: show each attempt's last diff
+                    for ln in progress.format_diff(r, color):
+                        print(ln, flush=True)
+                continue
             line = progress.format_row(r)
             print(f"{tint.get(r.get('who'), '')}{line}[0m" if color else line, flush=True)
         if any(r.get("k") == "done" for r in rows) or not a.follow:
