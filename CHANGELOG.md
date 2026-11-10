@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Fix: a child that prints nothing while it works (Hermes in quiet mode, reading and thinking) was stopped as idle after 300 s although it was calling its model; requests through gruntly's proxy now count as progress.
 - `gruntly agent-run --supervised [--check CMD] 'task'`: small models are bad at long plans and at knowing they are wrong, so the child drafts a plan, a reviewer (the parent's model, called outside the parent's session with only the rules, the task, the plan and the step: about 1k tokens of base context instead of ~25k) approves or corrects it, a fresh child does each step, and the reviewer judges each step from its diff and the child's own report (APPROVE, FIX with exactly what was missed, or STOP; at most 2 fixes per step). It runs in the background; the parent gets one block (`gruntly wait s_...` while running). Reviewer cost is reported in the block.
 - The person's rules: `.gruntly/rules.md` (project) and a per-session file hold rules the person stated ("do not change the public API"); Claude notes and removes them (`gruntly rules add|remove|list`). Every child gets them in its task message and every reviewer sees them, together with the project's CLAUDE.md and AGENTS.md (`@file` imports followed, capped at about 8k tokens). Hermes now reads AGENTS.md itself (no more `--ignore-rules`). Plugin 0.9.0.
 - Benchmark: two larger tasks (`inventory_reorder`, `settings_refactor`, made by `bench/make_xl_tasks.py`) and a `supervised` arm whose reviewer cost is added to the parent's bill.

@@ -172,3 +172,16 @@ def test_a_child_that_repeats_one_tool_call_is_stopped_as_a_loop(tmp_path):
             "'state': {'status': 'error', 'input': {'command': 'x'}}}}), flush=True)\n time.sleep(0.05)\n")
     cr = run_child(GenericAdapter(), [sys.executable, "-c", code], {}, None, tmp_path, 30, 30)
     assert cr.breach == "loop"
+
+
+def test_a_silent_child_that_keeps_calling_its_model_is_not_idle(tmp_path):
+    import itertools
+    import sys as _sys
+    from gruntly import runner
+    from gruntly.adapters.generic import GenericAdapter
+    argv = [_sys.executable, "-c", "import time; time.sleep(5)"]
+    calls = itertools.count()
+    busy = runner.run_child(GenericAdapter(), argv, None, None, tmp_path, 30, 3.5, activity=lambda: next(calls))
+    assert busy.breach is None                   # silent for 5 s, but its model requests kept counting
+    idle = runner.run_child(GenericAdapter(), argv, None, None, tmp_path, 30, 3.5, activity=lambda: 0)
+    assert idle.breach == "idle"

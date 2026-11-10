@@ -173,7 +173,7 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
         err = None
         try:
             env = {**os.environ, "BASH_DEFAULT_TIMEOUT_MS": "600000", "BASH_MAX_TIMEOUT_MS": "600000"} if arm == LEAN else None
-            p = sh(cmd, work, timeout=2400, input=prompt_for(arm, spec), env=env)  # stdin: the Windows .cmd shim mangles multi-line args
+            p = sh(cmd, work, timeout=7200 if arm == SUPERVISED else 2400, input=prompt_for(arm, spec), env=env)  # stdin: the Windows .cmd shim mangles multi-line args
             raw = p.stdout
             if not raw.strip():
                 err = (p.stderr or "empty output")[-300:]

@@ -60,7 +60,8 @@ LOOP_LINE_MIN, LOOP_REPEATS, LOOP_WINDOW = 60, 6, 24   # a long identical line s
 TOOL_REPEATS, TOOL_WINDOW = 6, 12                       # the same tool call (same input) 6 times in the last 12 calls = a loop
 
 
-def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None, on_event=None, on_tick=None) -> ChildRun:
+def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None, on_event=None, on_tick=None,
+              activity=None) -> ChildRun:
     kw = {}
     if os.name == "nt":
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -141,6 +142,10 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
             new = _tree_mtime(cwd)
             if new > mt:
                 mt, state["last"] = new, now
+            if activity is not None:        # a child that prints nothing while it works (Hermes -Q) still calls its model
+                n = activity()
+                if n != state.get("acts"):
+                    state["acts"], state["last"] = n, now
         time.sleep(0.1)
     try:
         proc.wait(timeout=10)
@@ -305,6 +310,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
                          state_dir() / "providers" / f"{prov.name}.json")
     srv.limiter.on_wait = lambda secs, why: progress.Feed(st.dir / progress.NAME).emit("gruntly", "wait", secs=secs, why=why)
     spec.endpoint, spec.api_key = srv.url, "gruntly-proxy"      # the child never sees the real key
+    spec._activity = lambda: srv.limiter.stats.get("requests", 0)  # model requests count as progress for the idle guard
     spec.model = spec.model or prov.default_model
     try:
         return _execute_inner(st, spec, root, run_id, guidance, t_start)
@@ -440,6 +446,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         st.set_state("running", attempt=attempt_no)
         feed.emit("gruntly", "attempt", n=attempt_no)
         cr = run_child(adapter, cmd.argv, env, cmd.stdin, wt, min(remaining, spec.budget_s), spec.no_progress_s,
+                       activity=getattr(spec, "_activity", None),
                        beat=lambda info, a=attempt_no: st.set_state("running", attempt=a, **info), on_event=child_event,
                        on_tick=lambda a=attempt_no: emit_diff(a))
         child_s += cr.secs
