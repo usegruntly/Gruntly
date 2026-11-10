@@ -194,6 +194,7 @@ def locate(request: str, root: Path, files: list[str]) -> tuple[list[str], list[
 def find_tests(root: Path, files: list[str], targets: list[str], names: list[str]) -> list[str]:
     test_files = [f for f in files if f.endswith(".py") and is_test_path(f)]
     scored: list[tuple[int, str]] = []
+    weak: list[str] = []
     stems = {Path(t).stem for t in targets}
     for tf in test_files:
         try:
@@ -210,6 +211,10 @@ def find_tests(root: Path, files: list[str], targets: list[str], names: list[str
             score += 2
         if score >= 2:
             scored.append((score, tf))
+        elif score == 1:
+            weak.append(tf)
+    if not scored:                    # a test that only imports the target (test_json_new.py for tool/cli.py) still covers
+        return sorted(weak)[:MAX_TESTS]   # it; plan() then requires it to fail before the change, as for any other test
     return [f for _, f in sorted(scored, key=lambda x: (-x[0], x[1]))[:MAX_TESTS]]
 
 

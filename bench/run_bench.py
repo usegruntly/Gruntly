@@ -37,6 +37,7 @@ GD_ARMS = tuple(DO_TOML)
 LEAN_ALONE_PROMPT = ("You are a coding agent working in this repository. Do the task yourself with your tools, run the check "
                      "to confirm it passes, then reply in one line.")
 LEAN_ALONE = "lean_alone"   # the same stripped-down Claude doing the task itself: the matched baseline for `lean`
+PLANNER = "planner"   # Claude plans and supervises; the child finds the code and does the work (`agent-run --explore`)
 LEAN = "lean"   # a stripped-down Claude (one Bash tool, one-line system prompt) directing gruntly via `gruntly agent-run`
 
 
@@ -65,6 +66,14 @@ def prompt_for(arm: str, spec: dict) -> str:
     paths = ", ".join(spec["allowed_paths"])
     extra = " You may edit the existing tests." if spec.get("tests_writable") else ""
     base = spec["brief"] + f"\n\nThe check is `{cmd}`; edit only {paths}.{extra}"
+    if arm == PLANNER:
+        return (" ".join(spec["brief"].split()) + f"\n\nThe check is `{cmd}`.\n"
+                "You are the planner and supervisor; a child coding agent does the work. Do not read, search or edit the code "
+                "yourself. 1) Write a short numbered plan in plain words: what has to be true, not where the code is (the child "
+                "finds that). 2) Delegate each step with one foreground Bash call (timeout 600000): "
+                f"gruntly agent-run --explore --check '{cmd}' 'STEP IN PLAIN WORDS'. 3) Track each step from its result block: "
+                "passed and the diff does the step = done; a gap = gruntly agent-run --continue RUN_ID 'what to change'; "
+                "failed twice = say so and stop. Reply with each step and its outcome in a few lines.")
     if arm == LEAN:
         return " ".join(spec["brief"].split())
     if arm == LEAN_ALONE:
@@ -129,10 +138,15 @@ def gruntly_runs(work: Path) -> list[dict]:
     return [json.loads(p.read_text(encoding="utf8")) for p in sorted(d.glob("*/result.json"))] if d.exists() else []
 
 
+VAGUE = yaml.safe_load((HERE / "vague_briefs.yaml").read_text(encoding="utf8"))
+
+
 def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
     with tempfile.TemporaryDirectory(prefix="bench-", ignore_cleanup_errors=True) as tmp:
         work = Path(tmp) / "repo"
         spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else ""), a.provider)
+        if getattr(a, "vague", False) and task_dir.name in VAGUE:
+            spec["brief"] = VAGUE[task_dir.name]     # intent only: no file, no function, no method
         cmd = [shutil.which("claude") or "claude", "-p", "--allowedTools", *TOOLS, "--output-format", "stream-json", "--verbose",
                "--max-turns", "40", "--max-budget-usd", str(a.budget_usd)]
         if a.parent_model:
@@ -176,7 +190,7 @@ def mean(xs):
 
 
 def report(rows: list[dict], meta: dict) -> str:
-    arms = [x for x in ("alone", "forced", "policy", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
+    arms = [x for x in ("alone", "forced", "policy", "planner", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "
@@ -222,6 +236,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--harness", default="opencode")
     ap.add_argument("--model", default="qwen/qwen3.5-9b")
+    ap.add_argument("--vague", action="store_true", help="use bench/vague_briefs.yaml (intent only) where a task has one")
     ap.add_argument("--provider", default="", help="hosted provider for the child (e.g. nvidia); default: the local server")
     ap.add_argument("--parent-model", default="sonnet", help="Claude model for the parent (alias or id)")
     ap.add_argument("--tasks", default="")

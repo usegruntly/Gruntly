@@ -1,18 +1,12 @@
 ---
 name: gruntly
-description: Hand a bounded Python change in named files to a local model (agent-run), then check its diff. Good for mechanical edits, test-backed bug fixes, renames. Never for design, vague bugs or security code.
+description: Hand a bounded change in named files to a child coding agent. Call it directly, no need to load this skill first - one foreground Bash call, timeout 600000 - gruntly agent-run 'WHAT TO CHANGE, naming the file and function' - then read only the block between === GRUNTLY RESULT === and === END ===. For mechanical edits, test-backed bug fixes, renames; never design, vague bugs or security code.
 ---
 # gruntly
 
-Use it for a bounded, mechanical change where you can name the file (and function). Do design work, changes needing many files read first, or anything one shell command can do yourself. Named non-Python files (html, md, config) work too: only a changed-file check applies, so read the diff.
+Do design work, changes needing many files read first, or anything one shell command can do yourself. Named non-Python files (html, md, config) work too: only a changed-file check applies, so read the diff.
 
-**One call, in the foreground, Bash timeout 600000.** A run takes minutes and must finish inside that call. Never use `run_in_background`: it ends your turn and the conversation is re-billed to read the result.
-
-```
-gruntly agent-run 'WHAT TO CHANGE, naming the file and function'
-```
-
-Read only the block between `=== GRUNTLY RESULT ===` and `=== END ===`. Do not open files or rerun tests yourself.
+A run takes minutes and must finish inside that one call. Never use `run_in_background`: it ends your turn and the conversation is re-billed to read the result. Do not open files or rerun tests yourself: the block has the test result and the diff, code first.
 
 **Lookup** (a web page, facts from files, a shell query): `gruntly agent-run --ask 'question'`. The answer comes back as unverified child text with no diff; check what matters.
 

@@ -180,3 +180,41 @@ def test_a_non_python_request_that_changes_nothing_fails_the_check(repo, capsys,
     write_config(repo, "no_fix")
     out = say(capsys, monkeypatch, repo, "In notes.md add a sentence about gruntly.")
     assert "status: failed" in out and "status: passed" not in out
+
+
+def test_parts_run_side_by_side_and_apply_one_by_one_afterwards(proj, capsys, monkeypatch):
+    (proj / "other.py").write_text("def sub(a, b):\n    return a + b\n")
+    (proj / "test_other.py").write_text("from other import sub\n\ndef test_sub():\n    assert sub(3, 1) == 2\n")
+    commit(proj)
+    monkeypatch.setattr(cli, "_runs_in_parallel", lambda root: True)
+    out = say(capsys, monkeypatch, proj, "Fix the bugs in calc.py and other.py")
+    assert out.count(agent.OPEN) == 1 and "part 1 of 2" in out and "part 2 of 2" in out
+    assert "a + b" in (proj / "calc.py").read_text()            # the part that passed was applied after both finished
+
+
+def test_the_diff_shows_real_code_before_test_files():
+    p = ("diff --git a/test_x.py b/test_x.py\n@@ -0,0 +1 @@\n+t\n"
+         "diff --git a/tool/cli.py b/tool/cli.py\n@@ -1 +1 @@\n-a\n+b\n")
+    out = agent.code_first(p)
+    assert out.index("tool/cli.py") < out.index("test_x.py")
+
+
+def test_a_test_that_only_imports_the_target_still_covers_it(proj):
+    from gruntly import do
+    (proj / "tool").mkdir()
+    (proj / "tool" / "__init__.py").write_text("")
+    (proj / "tool" / "cli.py").write_text("def run(argv):\n    return 'text'\n")
+    (proj / "test_json_new.py").write_text("from tool.cli import run\n\ndef test_json():\n    assert run(['list', '--json']) == '{}'\n")
+    commit(proj)
+    p = do.plan("In tool/cli.py add --json to the list command.", proj)
+    assert not isinstance(p, do.Refusal), p
+    assert p.targets == ["tool/cli.py"] and "test_json_new.py" in p.tests
+
+
+def test_explore_gives_the_whole_project_but_not_the_tests_or_the_check(proj):
+    (proj / "check_names.py").write_text("print('ok')\n")
+    commit(proj)
+    p, raw = agent.explore_plan("Make the names consistent.", proj, "python check_names.py && python -m pytest -q")
+    assert raw["allowed_paths"] == ["**"] and "check_names.py" in raw["deny_paths"]
+    assert any(t.startswith("test_") for t in raw["deny_paths"]) and "find where this has to change yourself" in raw["brief"]
+    assert raw["acceptance"][0]["cmd"] == "python check_names.py && python -m pytest -q"

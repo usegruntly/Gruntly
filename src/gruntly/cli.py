@@ -127,7 +127,8 @@ def cmd_do(a) -> int:
     return 0
 
 
-def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = None) -> dict:
+def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = None, apply_on_pass: bool = True,
+               concurrency: int = 1) -> dict:
     """One agent-run step: returns the pieces `agent.block` needs. Never raises."""
     import re
     from . import agent, do
@@ -153,6 +154,13 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 rid = runner.prepare(build_spec(raw, root), root)
                 _spawn_worker(root, rid)
                 out["res"] = _wait(root, rid, budget_s)
+        elif getattr(a, "explore", False):
+            p, raw = agent.explore_plan(request, root, getattr(a, "check", None))
+            out["p"] = p
+            raw["apply_on_pass"] = apply_on_pass
+            rid = runner.prepare(build_spec(raw, root), root)
+            _spawn_worker(root, rid)
+            out["res"] = _wait(root, rid, budget_s)
         else:
             p = do.plan(request, root)
             raw = None
@@ -167,21 +175,59 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 raw = do.spec_for(request, p, root)
             if raw is not None:
                 out["p"] = p
+                raw["apply_on_pass"] = apply_on_pass
+                if concurrency > 1:
+                    raw["max_concurrency"] = concurrency
                 rid = runner.prepare(build_spec(raw, root), root)
                 _spawn_worker(root, rid)
                 out["res"] = _wait(root, rid, budget_s)
-        res = out["res"]
-        if res and res.get("applied"):
-            pf = root / ".gruntly" / "runs" / str(res.get("run_id", "")) / "apply.patch"
-            if pf.is_file():
-                out["patch"] = pf.read_text(encoding="utf8", errors="replace")
-            patch = out["patch"]
-            names = set(re.findall(r"^\+\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))
-            names |= set(re.findall(r"^@@[^@]*@@\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))  # edited, not added
-            out["contract"], _ = do.contract_and_shape(root, (res.get("diff_stat") or {}).get("paths", []), list(names))
+        _part_details(root, out)
     except Exception as e:  # noqa: BLE001 - the caller must still get a readable block
         out["error"] = f"{type(e).__name__}: {e}"
     return out
+
+
+def _part_details(root: Path, out: dict) -> None:
+    """The applied patch and the signatures it leaves in the code, for the result block."""
+    import re
+    from . import do
+    res = out["res"]
+    if res and res.get("applied"):
+        pf = root / ".gruntly" / "runs" / str(res.get("run_id", "")) / "apply.patch"
+        if pf.is_file():
+            out["patch"] = pf.read_text(encoding="utf8", errors="replace")
+        patch = out["patch"]
+        names = set(re.findall(r"^\+\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))
+        names |= set(re.findall(r"^@@[^@]*@@\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))  # edited, not added
+        paths = [x for x in (res.get("diff_stat") or {}).get("paths", []) if not do.is_test_path(x)]
+        out["contract"], _ = do.contract_and_shape(root, paths, list(names))
+
+
+PARALLEL_MAX = 4
+
+
+def _runs_in_parallel(root: Path) -> bool:
+    """Parts of a split request run side by side on a hosted provider; a local server answers one request at a time."""
+    return build_spec({"brief": "x", "acceptance": ["true"]}, root).provider != "local"
+
+
+def _apply_later(root: Path, out: dict) -> None:
+    """Apply a part that passed in its own worktree (parts run side by side and apply one by one afterwards, so no part
+    sees the main tree move while it is being checked)."""
+    res = out["res"] or {}
+    if res.get("status") != "passed" or res.get("applied"):
+        return
+    rid = res["run_id"]
+    st = store.Store.existing(root, rid)
+    s = st.read_json("state.json")
+    r = apply_run(root, st, Spec(**st.read_json("spec.json")), s["base"], s["main_fp"])
+    if r.get("applied"):
+        res.update(applied=True, verify=r.get("verify"))
+        wtmod.remove(root, rid)
+    else:
+        res.update(status="not applied", failure_bundle={"reason": "passed in its worktree but did not apply: "
+                                                        + str(r.get("error", "unknown"))})
+    _part_details(root, out)
 
 
 def _ask_one(root: Path, question: str, budget_s: int) -> dict:
@@ -218,8 +264,24 @@ def cmd_agent_run(a) -> int:
             o = _ask_one(root, request, max(int(a.max_block), 30))
             print(agent.block(o["res"], None, error=o["error"], answer=o["answer"]))
             return 0
-        parts = [(request, a.cont)] if a.cont else [(r, None) for r in agent.split_request(request, root)]
+        if a.cont:
+            parts = [(request, a.cont)]
+        elif getattr(a, "explore", False):
+            parts = [(request, None)]             # one intent: the child finds the files, so there is nothing to split
+        else:
+            parts = [(r, None) for r in agent.split_request(request, root)]
         t0 = time.time()
+        if len(parts) > 1 and _runs_in_parallel(root):   # a hosted model takes parallel requests: run parts side by side
+            from concurrent.futures import ThreadPoolExecutor
+            n = min(len(parts), PARALLEL_MAX)
+            with ThreadPoolExecutor(n) as ex:
+                outs = list(ex.map(lambda pr: _agent_one(root, pr[0], a, max(int(a.max_block) - 30, 60), None,
+                                                         apply_on_pass=False, concurrency=n), parts))
+            for o in outs:
+                _apply_later(root, o)
+                blocks.append(agent.block(o["res"], o["p"], refusal=o["refusal"], error=o["error"], patch=o["patch"],
+                                          request=o["request"], contract=o["contract"], note=o["note"]))
+            parts = []
         for i, (req, cont) in enumerate(parts):
             left = int(a.max_block - (time.time() - t0))
             if i and left < 60:      # out of time inside this call: say what was not started instead of starting it
@@ -258,8 +320,8 @@ def cmd_run(a) -> int:
             print("gruntly run: give a spec (--spec FILE or --spec - on stdin) or a request in plain words.\n" + RUN_HINT,
                   file=sys.stderr)
             return 2
-        return cmd_agent_run(argparse.Namespace(request=a.request, cont=None, attempts=None, ask=False,
-                                                max_block=a.max_block or 540, human=False))
+        return cmd_agent_run(argparse.Namespace(request=a.request, cont=None, attempts=None, ask=False, explore=False,
+                                                check=None, max_block=a.max_block or 540, human=False))
     root = wtmod.preflight(Path.cwd())
     from . import mode as modemod
     off = modemod.refusal(root)
@@ -776,6 +838,9 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--ask", action="store_true", help="research: the local agent answers a question with its own tools "
                    "(web, shell, files); no tests, no diff, nothing applied")
     g.add_argument("--max-block", type=int, default=540, help="seconds to wait in this one call (the caller's Bash timeout must be longer)")
+    g.add_argument("--explore", action="store_true", help="the request is an intent, not a location: the child finds where to "
+                   "change the code itself; scope is the whole project except tests, the check is the whole suite")
+    g.add_argument("--check", help="with --explore: the command that proves the step done (default: the whole test suite)")
     g = add("agent", cmd_agent)
     g.add_argument("task", nargs="*", help="the task for a lean Claude to direct through gruntly")
     g.add_argument("--model", default="sonnet")
