@@ -73,3 +73,12 @@ def test_steps_are_parsed_from_a_numbered_plan():
     assert supervise.parse_steps(text) == ["Find the bug in calc.py", "Fix it", "test it"]
     assert supervise.verdict("Looks fine. APPROVE: done") == ("APPROVE", "done")
     assert supervise.verdict("hmm") [0] == "FIX"
+
+
+def test_the_reviewer_sees_its_own_earlier_feedback_on_a_step(repo):
+    write_config(repo, "supervised")
+    rev = Reviewer("APPROVE", "FIX: keep the guard for n <= 0", "APPROVE: done")
+    supervise.run(repo, start(repo), call=rev)
+    assert "YOUR EARLIER FEEDBACK ON THIS STEP" in rev.seen[2] and "keep the guard for n <= 0" in rev.seen[2]
+    assert "do not ask to undo that" in rev.seen[1]
+    assert "list them in your REPORT; do not fix them" in prompts(repo)[-1]

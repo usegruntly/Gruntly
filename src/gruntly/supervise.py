@@ -153,7 +153,8 @@ def _step_raw(task: dict, plan: list[str], done: list[str], k: int, feedback: st
     from .agent import explore_plan
     plan_text = "\n".join(f"{i}. {s}" for i, s in enumerate(plan, 1))
     brief = (f"{task['request']}\n\nTHE WHOLE PLAN (other steps are done by others; do not do them):\n{plan_text}\n\n"
-             f"DONE SO FAR:\n{chr(10).join(done) or '(nothing yet)'}\n\nYOUR STEP, AND ONLY THIS STEP: {k}. {plan[k - 1]}")
+             f"DONE SO FAR:\n{chr(10).join(done) or '(nothing yet)'}\n\nYOUR STEP, AND ONLY THIS STEP: {k}. {plan[k - 1]}\n"
+             "If you notice problems that belong to other steps, list them in your REPORT; do not fix them.")
     if feedback:
         brief += ("\n\nA REVIEWER CHECKED AN EARLIER ATTEMPT AT THIS STEP"
                   + (" (its changes are already in the code: correct them, do not start over)" if applied_before else "")
@@ -214,27 +215,33 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
     steps_out: list[dict] = []
     for k in range(1, len(plan) + 1):
         feedback, applied_before = "", False
+        earlier: list[str] = []                          # the reviewer's own feedback on this step, so it stays consistent
         outcome = None
         for attempt in range(MAX_FIXES + 1):
             progress(phase="step", step=k, of=len(plan), attempt=attempt + 1)
             c = _child(root, _step_raw(task, plan, done, k, feedback, applied_before, root))
             res = c["res"]
             status = res.get("status")
-            if status != "passed" and applied_before and (res.get("failure_bundle") or {}).get("reason") == "empty diff":
-                status = "passed"          # the earlier attempt's changes stand; this child found nothing more to change
+            if status != "passed" and (res.get("failure_bundle") or {}).get("reason") == "empty diff":
+                status = "no change"       # nothing left to do (an earlier attempt or step did it): the reviewer decides
             gates = {g: (v if isinstance(v, bool) else bool((v or {}).get("ok"))) for g, v in (res.get("gates") or {}).items()}
             diff = redact(c["patch"], [])[:DIFF_CHARS]
             report = redact(c["report"], [])[-REPORT_CHARS:]
             gate_out = (res.get("untrusted") or {}).get("gate_output") or ""
             tail = (f"STEP {k} OF {len(plan)}: {plan[k - 1]}\n"
                     f"RESULT: status {status}; checks {json.dumps(gates)}"
-                    + (f"; check output:\n{gate_out[-1500:]}" if status != "passed" and gate_out else "")
+                    + (f"; check output:\n{gate_out[-1500:]}" if status not in ("passed", "no change") and gate_out else "")
                     + f"\n\nDIFF (written by the small model):\n{diff or '(no change)'}\n\n"
                     f"THE SMALL MODEL'S REPORT (verify it against the diff):\n{report or '(no report)'}\n\n"
-                    "Reply APPROVE: one line saying what this step did; or FIX: exactly what is wrong or missing and what "
-                    "to do (a fresh small model will do it); or STOP: why this cannot work.")
+                    + ("YOUR EARLIER FEEDBACK ON THIS STEP (stay consistent with it unless the diff shows it was wrong):\n"
+                       + "\n".join(earlier) + "\n\n" if earlier else "")
+                    + "Judge whether this step is now done correctly and completely. If the code also does parts of later "
+                    "steps and does them correctly, do not ask to undo that: approve and say which. Reply APPROVE: one line "
+                    "saying what is done; or FIX: exactly what is wrong or missing and what to do (a fresh small model will "
+                    "do it); or STOP: why this cannot work.")
             kind, rest = review(tail)
-            if kind == "APPROVE" and status == "passed":
+            earlier.append(f"- after run {attempt + 1}: {kind}: {' '.join(rest.split())[:400]}")
+            if kind == "APPROVE" and status in ("passed", "no change"):
                 outcome = {"step": k, "status": "approved", "summary": rest.splitlines()[0][:200] if rest else plan[k - 1],
                            "runs": attempt + 1, "run_id": c["run_id"], "patch": c["patch"]}
                 done.append(f"{k}. {outcome['summary']}")
@@ -242,7 +249,7 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
             if kind == "STOP":
                 outcome = {"step": k, "status": "stopped", "summary": rest[:300], "runs": attempt + 1, "run_id": c["run_id"]}
                 break
-            if status != "passed":
+            if status not in ("passed", "no change"):
                 wtmod.remove(root, c["run_id"])              # its changes were never applied; start the fix from the tree
                 feedback = rest or "the check failed"       # an earlier applied attempt (if any) stays in the code
             else:
