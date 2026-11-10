@@ -93,3 +93,11 @@ def test_a_step_with_nothing_left_to_do_shows_the_reviewer_the_code_as_it_is(rep
     block = supervise.run(repo, start(repo), call=rev)
     assert "status: passed" in block
     assert "THE FILES THIS STEP NAMES, AS THEY ARE NOW" in rev.seen[1] and "return a + b" in rev.seen[1]
+
+
+def test_the_plan_and_the_steps_go_to_different_reviewers(repo):
+    write_config(repo, "supervised")
+    models = []
+    rev = Reviewer("APPROVE", "APPROVE: done")
+    supervise.run(repo, start(repo), call=lambda text, model: (models.append(model), rev(text, model))[1])
+    assert models == [supervise.PLAN_REVIEWER_MODEL, supervise.REVIEWER_MODEL] == ["sonnet:low", "haiku"]

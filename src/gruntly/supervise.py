@@ -32,7 +32,11 @@ MAX_FIXES = 2
 STEP_BUDGET_S = 600
 DIFF_CHARS = 8_000
 REPORT_CHARS = 2_500
-REVIEWER_MODEL = "sonnet"
+# Measured 2026-11-10 on six step reviews (five planted bugs, one correct change): Sonnet at low effort, Haiku 5.5 at low
+# and at default effort each got 6/6; a review cost about $0.010, $0.0007 and $0.0005. Steps go to Haiku; the plan, one
+# call per task whose rewrite mattered most in practice, goes to Sonnet at low effort. "model:effort" picks both.
+REVIEWER_MODEL = "haiku"
+PLAN_REVIEWER_MODEL = "sonnet:low"
 # No double quotes or angle brackets: on Windows `claude` is a .cmd shim and cmd.exe would read them as syntax.
 REVIEWER_SYSTEM = (
     "You supervise a small coding model that works on a repository in small steps. You cannot run tools or read files: "
@@ -83,8 +87,9 @@ def _read(d: Path, name: str, default=None):
 def reviewer_call(text: str, model: str = REVIEWER_MODEL, timeout_s: int = 300) -> tuple[str, float]:
     """One call to the parent's model with no tools and a tiny base context. Returns (reply, cost in USD)."""
     exe = shutil.which("claude") or "claude"
+    model, _, effort = model.partition(":")
     argv = [exe, "-p", "--model", model, "--system-prompt", REVIEWER_SYSTEM, "--tools", "", "--strict-mcp-config",
-            "--disable-slash-commands", "--output-format", "json", "--max-turns", "1"]
+            "--disable-slash-commands", "--output-format", "json", "--max-turns", "1"] + (["--effort", effort] if effort else [])
     p = subprocess.run(argv, input=text, capture_output=True, text=True, encoding="utf8", errors="replace",
                        timeout=timeout_s)
     try:
@@ -199,12 +204,13 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
     d = sup_dir(root, sid)
     task = _read(d, "task.json")
     model = task.get("model") or REVIEWER_MODEL
+    plan_model = task.get("plan_model") or PLAN_REVIEWER_MODEL
     costs = {"reviewer_calls": 0, "reviewer_cost_usd": 0.0}
     log: list[dict] = []
     stable = context(root, task)
 
-    def review(tail: str) -> tuple[str, str]:
-        reply, cost = call(stable + "\n\n" + tail, model)
+    def review(tail: str, who: str | None = None) -> tuple[str, str]:
+        reply, cost = call(stable + "\n\n" + tail, who or model)
         costs["reviewer_calls"] += 1
         costs["reviewer_cost_usd"] = round(costs["reviewer_cost_usd"] + cost, 5)
         _write(d, "costs.json", costs)
@@ -229,7 +235,7 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
                         enumerate(plan, 1)) + "\n\nIs every step small, correct and needed, and does the plan cover the "
                         "whole task? Every step must change code: no steps that only read, check or test (each step's "
                         "worker reads what it needs; the check runs after every step). Reply APPROVE, or REVISE followed "
-                        f"by the corrected numbered plan (at most {MAX_STEPS} steps, the fewer the better).")
+                        f"by the corrected numbered plan (at most {MAX_STEPS} steps, the fewer the better).", plan_model)
     if kind == "REVISE" and parse_steps(rest):
         plan = parse_steps(rest)
     elif kind == "STOP":
@@ -304,7 +310,8 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
         lines.append(f"step {s['step']}: {s['status']} after {s.get('runs', 1)} run(s): {s['summary']}")
     for i, p in enumerate(plan[len(steps):], len(steps) + 1):
         lines.append(f"step {i}: not started: {p[:160]}")
-    lines.append(f"reviewer: {costs['reviewer_calls']} calls, ${costs['reviewer_cost_usd']:.4f} (outside your session)")
+    lines.append(f"reviewer: {costs['reviewer_calls']} calls, ${costs['reviewer_cost_usd']:.4f} (outside your session; "
+                 f"plan: {task.get('plan_model') or PLAN_REVIEWER_MODEL}, steps: {task.get('model') or REVIEWER_MODEL})")
     patch = "".join(s.get("patch", "") for s in steps if s["status"] == "approved")
     if patch.strip():
         files = sorted(set(re.findall(r"^diff --git a/\S+ b/(\S+)", patch, re.M)))

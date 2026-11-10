@@ -268,7 +268,8 @@ def cmd_agent_run(a) -> int:
             from . import supervise
             sid = supervise.new_id()
             supervise._write(supervise.sup_dir(root, sid), "task.json",
-                             {"request": request, "check": getattr(a, "check", None), "model": getattr(a, "reviewer", None)})
+                             {"request": request, "check": getattr(a, "check", None), "model": getattr(a, "reviewer", None),
+                              "plan_model": getattr(a, "plan_reviewer", None)})
             _spawn(root, ["_supervise", sid])
             print(supervise.wait(root, sid, max(int(a.max_block), 30)))
             return 0
@@ -893,7 +894,9 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--check", help="with --explore or --supervised: the command that proves the work done (default: the whole test suite)")
     g.add_argument("--supervised", action="store_true", help="the child plans and does the work in small steps, a fresh child per "
                    "step; your model reviews the plan and every step outside your session; one block comes back")
-    g.add_argument("--reviewer", help="with --supervised: the reviewer model (default: sonnet)")
+    g.add_argument("--reviewer", help="with --supervised: the model that reviews each step, as model or model:effort "
+                   "(default: haiku)")
+    g.add_argument("--plan-reviewer", help="with --supervised: the model that approves the plan (default: sonnet:low)")
     g = add("agent", cmd_agent)
     g.add_argument("task", nargs="*", help="the task for a lean Claude to direct through gruntly")
     g.add_argument("--model", default="sonnet")

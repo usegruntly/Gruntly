@@ -69,8 +69,8 @@ def prompt_for(arm: str, spec: dict) -> str:
     base = spec["brief"] + f"\n\nThe check is `{cmd}`; edit only {paths}.{extra}"
     if arm == SUPERVISED:
         return (" ".join(spec["brief"].split()) + f"\n\nThe check is `{cmd}`.\n"
-                "Delegate the whole task with one foreground Bash call (timeout 600000): gruntly agent-run --supervised "
-                f"--check '{cmd}' 'THE TASK IN PLAIN WORDS, with every requirement above'. If the block says running, call "
+                "Delegate the whole task with one foreground Bash call (timeout 3600000): gruntly agent-run --supervised "
+                f"--max-block 3500 --check '{cmd}' 'THE TASK IN PLAIN WORDS, with every requirement above'. If the block says running, call "
                 "gruntly wait RUN_ID the same way until it is done. Read only the block. If it passed, reply in two lines; "
                 "if it failed, finish the rest yourself.")
     if arm == PLANNER:
@@ -172,7 +172,8 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
         t0 = time.time()
         err = None
         try:
-            env = {**os.environ, "BASH_DEFAULT_TIMEOUT_MS": "600000", "BASH_MAX_TIMEOUT_MS": "600000"} if arm == LEAN else None
+            env = ({**os.environ, "BASH_DEFAULT_TIMEOUT_MS": "600000", "BASH_MAX_TIMEOUT_MS": "600000"} if arm == LEAN else
+                   {**os.environ, "BASH_MAX_TIMEOUT_MS": "3600000"} if arm == SUPERVISED else None)   # one blocking call, not many waits
             p = sh(cmd, work, timeout=7200 if arm == SUPERVISED else 2400, input=prompt_for(arm, spec), env=env)  # stdin: the Windows .cmd shim mangles multi-line args
             raw = p.stdout
             if not raw.strip():
