@@ -34,7 +34,6 @@ def make_spec():
         d = {
             "brief": "Fix add() in calc.py.",
             "harness": "generic",
-            "profile": "auto",
             "child_cmd": [sys.executable, FAKE, scenario, "{prompt}"],
             "allowed_paths": ["calc.py"],
             "acceptance": [{"cmd": f'"{sys.executable}" -m pytest -q', "timeout_s": 60}],

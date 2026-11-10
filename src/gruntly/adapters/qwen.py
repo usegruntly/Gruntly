@@ -1,14 +1,7 @@
 """Qwen Code (verified against 0.26.9, see docs/adapters.md).
 
-Slim profiles use `--bare`: it skips auto-discovery (settings, hooks, MCP, skills, memory) and turns off the
-managed-memory extractor, a separate ~7k-token request on every run. Bare mode forces the core tools to
-read_file, edit, notebook_edit and run_shell_command (`--core-tools` is ignored), so the profile removes the ones
-it does not want with `--exclude-tools`. There is no whole-file write tool in bare mode; `edit` creates files
-when `old_string` is empty. `--system-prompt` replaces the default system prompt.
-
-Qwen's `edit` refuses to change a file that has not been read with `read_file` first. Excluding `read_file` because the
-file was already inlined in the prompt made the model loop for 27 requests (131k tokens) and give up, so `read_file`
-stays whenever editing is allowed. Bare mode also offers `get_goal` / `update_goal`, which a small model wanders into.
+Run as shipped: its own system prompt and tools. gruntly sets the endpoint and maps the parent's permission mode to
+`--approval-mode`. The prompt goes on stdin.
 """
 from __future__ import annotations
 
@@ -18,11 +11,6 @@ from pathlib import Path
 
 from ..spec import permission_mode
 from .base import Caps, ChildOutcome, Command, Detection, count_malformed, kill_tree, which
-
-SYSTEM = "You change code files in the current directory using the tools provided. Be concise."
-BARE_TOOLS = {"read": ["read_file"], "write": ["edit", "read_file"], "edit": ["edit", "read_file"],
-              "test": ["run_shell_command"]}
-BARE_ALL = ["read_file", "edit", "notebook_edit", "run_shell_command", "get_goal", "update_goal"]
 
 
 class QwenAdapter:
@@ -38,16 +26,10 @@ class QwenAdapter:
             return Detection(True, None, f"version check failed: {e}")
         return Detection(True, v)
 
-    def command(self, task, workdir: Path, prompt: str, resume: str | None, profile=None) -> Command:
+    def command(self, task, workdir: Path, prompt: str, resume: str | None) -> Command:
         exe = which("qwen") or "qwen"
         argv = [exe, "--auth-type", "openai", "--approval-mode", {"bypass": "yolo", "accept-edits": "auto-edit", "plan": "plan"}[permission_mode(task)], "-o", "json",
                 "--max-wall-time", str(max(30, int(task.budget_s)))]
-        if profile is not None and profile.name != "default":
-            keep = {t for logical in profile.tools for t in BARE_TOOLS.get(logical, [])}
-            argv += ["--bare", "--system-prompt", SYSTEM]
-            for t in BARE_ALL:
-                if t not in keep:
-                    argv += ["--exclude-tools", t]
         if task.model:
             argv += ["-m", task.model]
         if resume:
@@ -79,7 +61,7 @@ class QwenAdapter:
         return out
 
     def capabilities(self) -> Caps:
-        return Caps(resume=True, structured_output=True, profiles=True)
+        return Caps(resume=True, structured_output=True)
 
     def cancel(self, proc) -> None:
         kill_tree(proc)

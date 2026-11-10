@@ -4,7 +4,7 @@ A request such as "fix the off-by-one in paginate()" is resolved by code, not by
   1. locate: which file defines the function/class the request names (Python `ast` index, then explicit paths)
   2. test:   which test file covers it, and the command that runs it
   3. red:    that command must FAIL now; a test that already passes cannot verify a change
-and only then is a spec built and handed to the normal runner (slim profile, apply on pass).
+and only then is a spec built and handed to the normal runner (the child harness as shipped, apply on pass).
 Anything unclear is a refusal with a reason, which costs nothing: the caller just does the task itself.
 """
 from __future__ import annotations
@@ -17,7 +17,8 @@ from pathlib import Path
 
 from . import worktree as wtmod
 from .gates.acceptance import run_cmd
-from .profiles import TEST_NAME
+
+TEST_NAME = re.compile(r"^test_.*\.py$|_test\.(?:py|go)$|\.(?:test|spec)\.\w+$")   # a real test file, not a helper or fixture
 
 # only real file extensions count as a path: `pkg.utils` is a dotted name, not a file
 EXTENSIONS = "py|pyi|js|jsx|ts|tsx|go|rs|java|rb|php|c|h|cc|cpp|cs|sh|md|toml|yaml|yml|json|txt|cfg|ini"

@@ -64,7 +64,7 @@ How gruntly drives it (`adapters/hermes.py`):
 
 Limits:
 - Quiet mode prints no tool trace, so a Hermes run has no `child_trace` line and nothing from the child in the live feed (gruntly's own steps still appear). Non-quiet mode prints `┊` tool previews that could be parsed; not done.
-- No token usage is reported. Every request carries Hermes's own system prompt and about 18 tool schemas (the `default`-profile cost; there are no slim profiles for it).
+- No token usage is reported. Every request carries Hermes's own system prompt and about 18 tool schemas (every harness runs as it ships).
 - `-v` (verbose) prints a masked fragment of the API key: gruntly never uses it.
 - Context length for a custom endpoint defaults to 131072 in Hermes; for a local model with a smaller window, set it in the model's entry (not wired yet).
 - One run measured per permission mode. No long-task or repeated benchmark has been done for Hermes.
@@ -81,7 +81,9 @@ Limits:
 - An impossible task (acceptance always exits 1) escalated after 2 attempts via stuck detection, with a 1.4 KB result.
 - Real usage numbers from `result.usage` populate `child_usage`.
 
-## Slim profiles (measured 2026-11-07)
+## Slim profiles (measured 2026-11-07; removed 2026-11-10)
+
+Removed: the child now always runs as its harness ships, with its own system prompt and tools. The measurements below are kept as history.
 
 Both children ship a large system prompt and many tool schemas (OpenCode ~10.8k input tokens on the first request of a trivial task, Qwen Code ~14k plus a ~7k "memory extractor" request). `profiles.py` replaces that with just what a task needs.
 

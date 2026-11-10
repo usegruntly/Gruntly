@@ -22,7 +22,7 @@ Prefer a guided version? Install gruntly (step 3), then run `gruntly setup`: it 
 
 You need: git, Python 3.11+, [uv](https://docs.astral.sh/uv/), a local model server with an OpenAI-compatible API (LM Studio, llama.cpp, Ollama) and one child CLI.
 
-1. **Local model.** In LM Studio load a coder model, set its context to **16k or more** (8k is enough for small tasks with the default `auto` profile; the stock harness wants 32k), start the server (default `http://127.0.0.1:1234`).
+1. **Local model.** In LM Studio load a coder model, set its context to **32k or more** (the child harness's own system prompt and tools take much of it), start the server (default `http://127.0.0.1:1234`).
 2. **A child.** `npm i -g @qwen-code/qwen-code` or `npm i -g opencode-ai`.
 3. **gruntly.** `uv tool install "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly"`
 4. **Check.** `gruntly doctor` (warns about small context windows and missing children).
@@ -72,11 +72,11 @@ Everything the child wrote (its summary, test output, handoff notes) sits under 
 
 ## When delegating is worth it
 
-Delegating has a fixed cost (a spec to write, a result to read), so it only pays when the task would cost the parent about 8 or more turns, or large file reads. The benchmark in `docs/benchmarks/benchmark.md` found it loses on 4-turn tasks. `gruntly stats` tracks pass rate per harness/model/context and says `delegate`, `avoid` or `unknown`. gruntly refuses to run when the model's context is below the profile's floor (typist 8k, worker 16k, default 32k; `allow_small_ctx: true` overrides).
+Delegating has a fixed cost (a call to make, a result block to read), so it only pays when the task would cost the parent about 8 or more turns, or large file reads. The benchmark in `docs/benchmarks/benchmark.md` found it loses on 4-turn tasks. `gruntly stats` tracks pass rate per harness/model/context and says `delegate`, `avoid` or `unknown`. gruntly refuses to run when a local model's context is below 32k (`allow_small_ctx: true` overrides). Cost comparisons with Claude working alone: `docs/benchmarks/benchmark-cost-laguna-summary.md`.
 
-## Slim profiles and evaluate & fix
+## The child runs as its harness ships
 
-A coding-agent CLI sends ~11k input tokens per request before it reads your task. gruntly replaces that with what the task needs: `profile: typist` for a few small named files (files inlined, only file-writing tools, ~1.2k tokens per request), `worker` when the child must look around, `default` for the stock harness; `auto` (the default) chooses. The child gets **no shell**: it is told not to run tests, and gruntly runs the acceptance command and the other gates itself and sends any failure straight back as the next attempt, so the parent only ever sees the final result. Measured against the stock setup in `docs/benchmarks/child-bench.md`: about 70% fewer child tokens and 44% less time at the same hidden-test pass rate. The child can follow a precise brief but not resolve a vague one: write precise briefs.
+gruntly never replaces the child harness's system prompt or tools: OpenCode, Qwen Code and Hermes run as they ship, with the parent's permission mode applied. gruntly adds one task message (what to change, which files may change, the test command, no git) and judges the result itself: tests, scope, diff size, weakened tests, new dependencies. A failure goes straight back to the child as the next attempt, so the parent only sees the final result. A bigger child model mostly means fewer retries: Poolside Laguna (33B MoE) passed 9 of 9 delegated small tasks on its first attempt, against about 56% for a 4B model. (Slimmed prompts and tool sets were removed on 2026-11-10; their measurements stay in `docs/adapters.md`.)
 
 ## One-request mode: `/gruntly:gd`
 

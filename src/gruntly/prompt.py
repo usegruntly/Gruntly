@@ -1,7 +1,6 @@
-"""Child prompts: standard preamble + brief, and the retry/handoff prompts."""
+"""What gruntly says to the child, on top of the child harness's own system prompt and tools (which are never replaced):
+the task, the few rules the harness cannot know (which files, which check, no git), and the retry/handoff messages."""
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 HANDOFF_FILE = ".gruntly-handoff.md"
 
@@ -27,32 +26,6 @@ def preamble(spec) -> str:
     )
 
 
-@dataclass
-class Ctx:
-    """What the profile adds to a prompt: the resolved profile and the current text of the files to show."""
-    profile: object = None
-    inline: str = ""
-
-
-def _slim(spec, ctx: Ctx) -> str:
-    rp = ctx.profile
-    acc = "; ".join(a["cmd"] for a in spec.acceptance) or "the task's checks"
-    lines = [_paths(spec)]
-    if rp.rewrite_only:
-        lines.append("Rewrite each file you change in full; do not send partial edits.")
-    if rp.self_check:
-        lines.append(f"Check your work by running exactly this and nothing else: {acc}. If it passes, reply with two lines saying what you changed.")
-    else:
-        lines.append("Do not run tests. Make your edits and finish your turn: the system runs the tests and sends you "
-                     "the errors if they fail. Reply with two lines saying what you changed.")
-    lines.append("Make changes with the file tools: code you only show in your reply is ignored. "
-                 "No git. Do not install packages. If you are blocked, say why in two lines.")
-    if rp.name == "worker":
-        lines.append("Look around only as much as you need. State any assumption you had to make in your final message. "
-                     f"If your context runs out, write {HANDOFF_FILE} (files read, understood, done, remaining) and stop.")
-    return "\n".join(lines)
-
-
 def research(spec) -> str:
     return ("You are working in a temporary git worktree that is only for reading. Answer the question below with your tools: "
             "read files, run commands, search or fetch the web. Do not change any file. Reply with the answer only, as short "
@@ -60,25 +33,16 @@ def research(spec) -> str:
             f"QUESTION:\n{spec.brief}")
 
 
-def first(spec, ctx: Ctx | None = None) -> str:
+def first(spec) -> str:
     if getattr(spec, "kind", "code") == "research":
         return research(spec)
-    if ctx is None or ctx.profile is None or ctx.profile.name == "default":
-        c = f"\nStart with: {', '.join(spec.context_files)}" if spec.context_files else ""
-        return f"{preamble(spec)}\n\nTASK:\n{spec.brief}{c}"
-    body = f"{_slim(spec, ctx)}\n\nTASK:\n{spec.brief}"
-    return body + (f"\n\n{ctx.inline}" if ctx.inline else "")
+    c = f"\nStart with: {', '.join(spec.context_files)}" if spec.context_files else ""
+    return f"{preamble(spec)}\n\nTASK:\n{spec.brief}{c}"
 
 
-def retry(spec, gate: str, output: str, handoff: str = "", guidance: str = "", context_hit: bool = False,
-          ctx: Ctx | None = None) -> str:
-    slim = ctx is not None and ctx.profile is not None and ctx.profile.name != "default"
-    if slim and not ctx.profile.self_check:
-        parts = [f"The system ran the checks and '{gate}' failed. Output:\n{output}",
-                 "Fix the code and finish your turn. Do not run tests.", _paths(spec)]
-    else:
-        parts = [f"Your previous attempt did not pass the '{gate}' check. Fix only that.",
-                 f"Last output:\n{output}", _paths(spec)]
+def retry(spec, gate: str, output: str, handoff: str = "", guidance: str = "", context_hit: bool = False) -> str:
+    parts = [f"Your previous attempt did not pass the '{gate}' check. Fix only that.",
+             f"Last output:\n{output}", _paths(spec)]
     if handoff:
         parts.append(f"Notes from the previous run (it may have been cut off):\n{handoff}")
     if guidance:
@@ -88,14 +52,13 @@ def retry(spec, gate: str, output: str, handoff: str = "", guidance: str = "", c
     return "\n\n".join(parts)
 
 
-def resume_fresh(spec, gate: str, output: str, handoff: str = "", guidance: str = "",
-                 context_hit: bool = False, ctx: Ctx | None = None) -> str:
-    """For children that cannot resume: the failure plus the full task, with files re-read from the worktree."""
-    return retry(spec, gate, output, handoff, guidance, context_hit, ctx) + "\n\n" + first(spec, ctx)
+def resume_fresh(spec, gate: str, output: str, handoff: str = "", guidance: str = "", context_hit: bool = False) -> str:
+    """For children that cannot resume: the failure plus the full task."""
+    return retry(spec, gate, output, handoff, guidance, context_hit) + "\n\n" + first(spec)
 
 
-def continuation(spec, handoff: str, guidance: str, ctx: Ctx | None = None) -> str:
-    parts = [first(spec, ctx)]
+def continuation(spec, handoff: str, guidance: str) -> str:
+    parts = [first(spec)]
     if handoff:
         parts.append(f"A previous run was cut off. Its notes:\n{handoff}")
     if guidance:

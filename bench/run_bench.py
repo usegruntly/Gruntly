@@ -74,8 +74,9 @@ def prompt_for(arm: str, spec: dict) -> str:
     if arm == "alone":
         return base + "\nDo the work yourself and run the check to confirm. Reply in two lines."
     if arm == "forced":
-        return (base + "\nDelegate this to the local model with your gruntly skill, using its one-call flow "
-                       "(`gruntly run --apply-on-pass`). Follow the skill's result rules. If gruntly escalates, do it yourself. Reply in two lines.")
+        return (base + "\nDelegate this to the child agent through gruntly, as your gruntly skill says (one call: "
+                       "`gruntly agent-run` with the request in plain words). Follow the skill's result rules. If gruntly fails, "
+                       "do it yourself. Reply in two lines.")
     return (base + "\nThe gruntly plugin is available. Use it only if your gruntly skill says delegating is worthwhile for a "
                    "task like this; otherwise just do the work yourself. Run the check to confirm. Reply in two lines.")
 

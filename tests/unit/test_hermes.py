@@ -83,7 +83,7 @@ def test_odd_characters_in_values_stay_valid(tmp_path):
 
 def test_capabilities_and_missing_install_message(tmp_path, monkeypatch):
     a = HermesAdapter()
-    assert a.capabilities().resume and not a.capabilities().profiles
+    assert a.capabilities().resume
     import gruntly.adapters.hermes as h
     monkeypatch.setattr(h, "which", lambda n: None)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))          # no installer folder here either

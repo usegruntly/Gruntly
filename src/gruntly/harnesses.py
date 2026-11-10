@@ -22,26 +22,25 @@ class Harness:
     docs: str
     repo: str             # owner/name for the live description
     traced: bool          # gruntly shows its tool calls (child_trace and the live view)
-    profiles: bool        # gruntly can slim its prompt and tools
 
 
 HARNESSES: dict[str, Harness] = {h.name: h for h in (
     Harness("opencode", "OpenCode",
-            "Best supported: full tool trace, token counts, session resume, slim profiles, and a shell limited to the acceptance command.",
+            "Best supported: full tool trace, token counts and session resume.",
             "Light: about 10.8k input tokens on the first request of a trivial task.",
-            "npm i -g opencode-ai", "https://opencode.ai/docs", "sst/opencode", True, True),
+            "npm i -g opencode-ai", "https://opencode.ai/docs", "sst/opencode", True),
     Harness("qwen", "Qwen Code",
-            "Built around Qwen models, so a good match for local Qwen. Tool trace, token counts, resume, slim profiles.",
+            "Built around Qwen models, so a good match for local Qwen. Tool trace, token counts and resume.",
             "Heavier: about 14k input tokens plus a ~7k memory-extractor request on a trivial task.",
-            "npm i -g @qwen-code/qwen-code", "https://qwenlm.github.io/qwen-code-docs/en/users/overview", "QwenLM/qwen-code", True, True),
+            "npm i -g @qwen-code/qwen-code", "https://qwenlm.github.io/qwen-code-docs/en/users/overview", "QwenLM/qwen-code", True),
     Harness("hermes", "Hermes Agent",
             "Broadest agent: about 18 built-in tools, memory and skills. In gruntly it runs with its tools as shipped.",
-            "Heaviest per request (large prompt, no slim profile). No tool trace, token counts or live view yet.",
+            "Heaviest per request (large prompt, about 18 tools). No tool trace, token counts or live view yet.",
             "uv tool install hermes-agent  (Windows: the Hermes installer, or WSL2)",
-            "https://hermes-agent.nousresearch.com", "NousResearch/hermes-agent", False, False),
+            "https://hermes-agent.nousresearch.com", "NousResearch/hermes-agent", False),
     Harness("generic", "Any other agent CLI",
-            "Bring your own: gruntly runs the command you give (child_cmd) and checks the result. No resume, trace or profiles.",
-            "Whatever that tool costs.", "set child_cmd in the spec", "https://github.com/usegruntly/Gruntly/blob/main/docs/adapters.md", "", False, False),
+            "Bring your own: gruntly runs the command you give (child_cmd) and checks the result. No resume or trace.",
+            "Whatever that tool costs.", "set child_cmd in the spec", "https://github.com/usegruntly/Gruntly/blob/main/docs/adapters.md", "", False),
 )}
 
 

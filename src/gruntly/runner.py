@@ -12,12 +12,12 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import doctor, profiles, progress, prompt, result as resmod, sandbox, trace as tracemod, worktree as wtmod
+from . import doctor, progress, prompt, result as resmod, sandbox, trace as tracemod, worktree as wtmod
 from .apply import apply_run
 from .adapters.base import get_adapter, scrub_env
 from .gates import acceptance, deps, diff_size, scope, test_weakening
 from .redact import redact, secrets_from_env
-from .spec import Spec
+from .spec import MIN_CONTEXT, Spec
 from .store import Store
 
 OUTPUT_CAP = 8_000_000
@@ -249,18 +249,6 @@ def _holdout_gate(h: dict, wt: Path, root: Path, secrets: list[str]) -> dict:
             f.unlink(missing_ok=True)
 
 
-def pick_profile(spec, tree: Path, adapter, forced: str | None = None) -> "profiles.ResolvedProfile":
-    """`auto` only applies to harnesses that understand profiles; others keep their defaults unless asked."""
-    caps = adapter.capabilities()
-    if forced is None and spec.profile == "auto" and not caps.profiles:
-        return profiles.resolve(spec, tree, "default")
-    rp = profiles.resolve(spec, tree, forced)
-    if rp.rewrite_only and not caps.whole_file_write:
-        rp.rewrite_only = False
-        rp.tools = profiles.tools_for(rp.name, False, rp.inline, rp.self_check)
-    return rp
-
-
 def first_failure(gates: dict) -> str | None:
     for n in GATE_PRIORITY:
         if n in gates and not gates[n]["ok"]:
@@ -355,12 +343,12 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         ctx = p["ctx"].get(spec.model) if spec.model else (next(iter(p["ctx"].values()), None))
         if ctx:
             st.set_state("running", ctx=ctx)
-            floor = profiles.context_floor(spec, pick_profile(spec, root, adapter, prior.get("profile") if cont else None).name)
+            floor = spec.min_context or MIN_CONTEXT
             if ctx < floor and not spec.allow_small_ctx:
                 return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
                                error=f"model context is {ctx} tokens (< {floor}): the agent's own prompt "
                                      f"nearly fills it and runs fail. Reload the model with a larger context, or set "
-                                     f"allow_small_ctx: true (or profile: typist, which needs less) to run anyway.")
+                                     f"allow_small_ctx: true to run anyway.")
 
     if cont:
         # The main tree may legitimately have changed since this run started (other runs were applied meanwhile), so the
@@ -382,11 +370,9 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
     attempt_no = prior.get("attempts", 0)
     session = prior.get("session")
     handoff_path = wt / prompt.HANDOFF_FILE
-    rp = pick_profile(spec, wt, adapter, prior.get("profile") if cont else None)
-    st.set_state("running", profile=rp.name)
+    st.set_state("running")
     feed = progress.Feed(st.dir / progress.NAME)
-    feed.emit("gruntly", "start", model=spec.model, harness=spec.harness, provider=spec.provider if spec.provider != "local" else None,
-              profile=rp.name)
+    feed.emit("gruntly", "start", model=spec.model, harness=spec.harness, provider=spec.provider if spec.provider != "local" else None)
 
     def child_event(ev: dict) -> None:
         ev = progress.clean(dict(ev))
@@ -430,14 +416,13 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
             status, reason = "timeout", "wall-clock budget used up"
             break
         notes = redact(handoff_path.read_text(encoding="utf8", errors="replace"), [])[:1500] if handoff_path.exists() else ""
-        pctx = prompt.Ctx(rp, profiles.inline_block(spec, rp, wt))  # files re-read each attempt: they may have changed
         if local == 1:
-            text = prompt.continuation(spec, notes, guidance, pctx) if cont else prompt.first(spec, pctx)
+            text = prompt.continuation(spec, notes, guidance) if cont else prompt.first(spec)
         elif caps.resume and session:
-            text = prompt.retry(spec, last_gate, last_text, notes, "", context_hit, pctx)
+            text = prompt.retry(spec, last_gate, last_text, notes, "", context_hit)
         else:
-            text = prompt.resume_fresh(spec, last_gate, last_text, notes, "", context_hit, pctx)
-        cmd = adapter.command(spec, wt, text, session if (local > 1 and caps.resume) else None, profile=rp)
+            text = prompt.resume_fresh(spec, last_gate, last_text, notes, "", context_hit)
+        cmd = adapter.command(spec, wt, text, session if (local > 1 and caps.resume) else None)
         try:
             cmd = sandbox.wrap(cmd, spec.sandbox_level, wt, root, spec.endpoint)
         except RuntimeError as e:
@@ -516,7 +501,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
     notes = redact(handoff_path.read_text(encoding="utf8", errors="replace")[:1500], []) \
         if status in ("escalate", "timeout") and handoff_path.exists() else ""
     st.write_json("state.json", {"base": base, "main_fp": main_fp, "attempts": attempt_no, "session": session,
-                                 "attempts_log": attempts_log, "warnings": warnings, "profile": rp.name})
+                                 "attempts_log": attempts_log, "warnings": warnings})
     applied = hint = None
     if status == "passed":
         hint = _review_hint(gates, stats, warnings, st.read_json("trace.json", {}))

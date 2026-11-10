@@ -41,17 +41,17 @@ DEFAULTS: dict[str, Any] = {
     "env_allow": [],
     "apply_on_pass": False,
     "holdout": None,
-    "min_context": None,           # None = the profile's floor (typist 8k, worker 16k, default 32k)
+    "min_context": None,           # None = MIN_CONTEXT: the child harness's own prompt and tools need that much room
     "allow_small_ctx": False,
-    "profile": "default",          # default = the child harness as shipped (all its tools); auto | typist | worker = slimmer (see profiles.py)
-    "inline_files": "auto",        # embed the target files in the prompt: auto | true | false
     "followup": False,             # a follow-up on work already in the tree: the tests are expected to pass before the change
     "provider": "local",           # local = the model server at `endpoint`; or a hosted preset from providers.py (e.g. gemini)
     "rate_limits": {},             # override a provider preset: rpm, tpm, rpd
-    "web": True,                   # slim profiles only: also offer the harness's page-fetch tool; fetched text is untrusted
     "permissions": "inherit",      # child permission mode: inherit (env GRUNTLY_PARENT_MODE, else bypass) | bypass | accept-edits | plan
-    "self_check": False,           # True lets the child run the acceptance command itself; False = evaluate & fix
 }
+# The child always runs as its harness ships it: its own system prompt and all its tools. These older spec fields chose
+# slimmer prompts and tool sets; they are accepted and ignored so existing configs keep working.
+RETIRED_FIELDS = ("profile", "inline_files", "web", "self_check")
+MIN_CONTEXT = 32_768
 PERMISSION_MODES = ("inherit", "bypass", "accept-edits", "plan")
 _CLAUDE_MODES = {"bypasspermissions": "bypass", "acceptedits": "accept-edits", "default": "accept-edits", "plan": "plan",
                 "bypass": "bypass", "accept-edits": "accept-edits"}
@@ -100,11 +100,7 @@ class Spec:
     holdout: Any = None            # {files: [...], cmd: "..."}: parent-written tests the child never sees
     min_context: int | None = None
     allow_small_ctx: bool = False
-    profile: str = "auto"
-    inline_files: Any = "auto"
-    self_check: bool = False
     followup: bool = False
-    web: bool = True
     provider: str = "local"
     rate_limits: dict = field(default_factory=dict)
     permissions: str = "inherit"
@@ -157,6 +153,8 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
         merged = _merge(merged, _toml(repo_root / ".gruntly.toml"))
     merged = _merge(merged, raw)
     merged.pop("do", None)  # the `[do]` table in .gruntly.toml configures `gruntly do`, not a task spec
+    for k in RETIRED_FIELDS:
+        merged.pop(k, None)
     brief = merged.pop("brief", None)
     if not isinstance(brief, str) or not brief.strip():
         raise SpecError("'brief' is required")
@@ -210,8 +208,6 @@ def _validate(s: Spec) -> None:
     s.acceptance = norm
     if s.kind == "code" and not norm:
         raise SpecError("code tasks need at least one acceptance command")
-    if s.profile not in ("auto", "typist", "worker", "default"):
-        raise SpecError("profile must be auto, typist, worker or default")
     if s.provider != "local":
         from . import providers
         try:
@@ -222,8 +218,6 @@ def _validate(s: Spec) -> None:
         raise SpecError("rate_limits may only hold rpm, tpm and rpd")
     if s.permissions not in PERMISSION_MODES:
         raise SpecError("permissions must be one of " + ", ".join(PERMISSION_MODES))
-    if s.inline_files not in ("auto", True, False):
-        raise SpecError("inline_files must be auto, true or false")
     if s.holdout is not None:
         h = s.holdout
         if not isinstance(h, dict) or not h.get("cmd") or not _as_list(h.get("files")):

@@ -38,7 +38,15 @@ Delegation does not save money on tasks the parent finishes in 3 to 5 turns: the
 - Benchmark tasks are synthetic and small (the brief wants tasks from the user's own repos); `bench/validate_tasks.py` proves each starter fails and a reference solution passes the hidden tests.
 - Not done in v1: PyPI publish (name re-check needed first), a live sandbox level 1 run, a live Hermes run, ACP adapter (not clearly simpler), research tasks (kind exists, no research path).
 
+## The child runs as its harness ships; slim profiles removed (2026-11-10)
+
+- User decision: a parent agent (Claude now, others through MCP later) runs any child agent through that child's own harness, as shipped. gruntly does not replace the harness's system prompt or trim its tools; it adds one task message and judges the result.
+- Why the profiles went: slimming saved free child tokens but hid what each harness is good at, and the cost that matters is the parent's. The cost benchmark (2026-11-10) found the parent's extra turns, not the child, decide whether delegating pays.
+- One entry point everywhere: `gruntly agent-run 'request in plain words'` (skill, manual, CLAUDE.md snippet, MCP `gruntly_delegate`, and `gruntly run 'words'`). A spec stays available for exact control.
+
 ## Slim child profiles and evaluate & fix (2026-11-07)
+Superseded on 2026-11-10 (see above).
+
 
 - The child's cost is dominated by its harness, not the task: ~11k input tokens per request for a one-line fix. Profiles (`typist`, `worker`, `default`, `auto`) replace the harness prompt and tool set per task; which profile wins is decided by `bench/run_child_bench.py` (free: no Claude involved), not by argument.
 - User decision: the local model gets **no shell**. It is told not to run tests; gruntly runs the acceptance command and all other gates and feeds any failure back as the next attempt, so the parent never sees intermediate failures. `self_check: true` (acceptance command only) stays available as a benchmark arm.

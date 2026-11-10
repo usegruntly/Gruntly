@@ -22,17 +22,17 @@ def test_tools_listed_and_async_run_round_trip(repo, make_spec):
 
     async def go():
         names = {t.name for t in await server.list_tools()}
-        assert names == {"gruntly_run", "gruntly_manage"}  # tool schemas sit in context every turn: keep few
+        assert names == {"gruntly_delegate", "gruntly_manage"}  # tool schemas sit in context every turn: keep few
         def d(x):
             return x if isinstance(x, dict) else json.loads(x)
 
         # default: blocks, applies on pass, returns the compact result
-        res = d(_text(await server.call_tool("gruntly_run", {"spec_yaml": yaml.safe_dump(make_spec("pass")),
+        res = d(_text(await server.call_tool("gruntly_delegate", {"spec_yaml": yaml.safe_dump(make_spec("pass")),
                                                              "repo": str(repo)})))
         assert res["status"] == "passed" and res["applied"] is True
         # async path: queue, poll, read
         (repo / "calc.py").write_text("def add(a, b):\n    return a - b\n")
-        started = d(_text(await server.call_tool("gruntly_run", {"spec_yaml": yaml.safe_dump(make_spec("pass")),
+        started = d(_text(await server.call_tool("gruntly_delegate", {"spec_yaml": yaml.safe_dump(make_spec("pass")),
                                                                  "repo": str(repo), "wait": False,
                                                                  "apply_on_pass": False})))
         rid = started["run_id"]
@@ -48,3 +48,19 @@ def test_tools_listed_and_async_run_round_trip(repo, make_spec):
 
     asyncio.run(go())
     assert "a + b" in (repo / "calc.py").read_text()
+
+
+def test_delegate_in_plain_words_returns_the_one_block(repo):
+    server = mcp_server.build_server()
+
+    async def go():
+        return _raw(await server.call_tool("gruntly_delegate", {"request": "", "repo": str(repo)}))
+
+    out = asyncio.run(go())
+    assert "plain words" in json.dumps(out)
+
+
+def _raw(result):
+    if getattr(result, "structured_content", None) is not None:
+        return result.structured_content
+    return result.content[0].text

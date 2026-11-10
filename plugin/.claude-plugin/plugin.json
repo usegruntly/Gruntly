@@ -1,7 +1,7 @@
 {
   "name": "gruntly",
   "displayName": "Gruntly",
-  "version": "0.7.3",
+  "version": "0.8.0",
   "description": "Hand the grunt work to your local model. Delegates well-scoped coding tasks to a local-model agent and verifies the result with gates before you take it back.",
   "author": {
     "name": "usegruntly"

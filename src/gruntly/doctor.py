@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from . import sandbox
 from .adapters.base import get_adapter
-from .profiles import FLOORS
+from .spec import MIN_CONTEXT
 
 MIN_CTX = 32_768
 
@@ -57,11 +57,10 @@ def run(endpoint: str, model: str | None = None, hosted: str | None = None) -> d
         for mid, n in p["ctx"].items():
             if model and mid != model:
                 continue
-            ok = n >= FLOORS["typist"]
-            note = "" if n >= FLOORS["default"] else (
-                f" (enough for the typist and worker profiles; the stock harness wants {FLOORS['default']})" if ok
-                else f" (< {FLOORS['typist']}: too small even for the typist profile)")
-            add("context_size", ok, f"{mid}: {n} tokens{note}", warn=n < FLOORS["default"])
+            ok = n >= MIN_CONTEXT
+            note = "" if ok else (f" (< {MIN_CONTEXT}: the child harness's own prompt and tools nearly fill it; reload the "
+                                  "model with a larger context)")
+            add("context_size", ok, f"{mid}: {n} tokens{note}", warn=not ok)
     ok1, why1 = sandbox.level_available(1)
     add("sandbox", True, f"level 0 always; level 1: {why1}", warn=not ok1)
     add("isolation_note", True, "level 0 is not a security boundary; auto-approve flags run shell unattended", warn=True)

@@ -87,7 +87,7 @@ class HermesAdapter:
         except Exception as e:  # noqa: BLE001
             return Detection(True, None, f"version check failed: {e}")
 
-    def command(self, task, workdir: Path, prompt: str, resume: str | None, profile=None) -> Command:
+    def command(self, task, workdir: Path, prompt: str, resume: str | None) -> Command:
         model = task.model or "default"
         home = home_for(workdir)
         write_config(home, task.endpoint, task.api_key, model)

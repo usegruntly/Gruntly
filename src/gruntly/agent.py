@@ -191,6 +191,9 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
                   f"full patch: .gruntly/runs/{rid}/apply.patch"]
         if "more lines" in shown:
             lines.append("flags: diff truncated, review before accepting")
+        elif st == "passed" and r.get("applied") and answer is None:
+            # the caller has everything: rereading files or rerunning tests is a paid turn that adds nothing
+            lines.append("next: nothing to open or rerun; check this diff against the request, then reply")
     return wrap("\n".join(lines))
 
 

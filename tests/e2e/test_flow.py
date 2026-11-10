@@ -116,7 +116,7 @@ def test_small_context_is_refused_before_any_attempt(repo, make_spec, monkeypatc
     monkeypatch.setattr(doctor, "probe_endpoint", lambda *_a, **_k: {"ok": True, "models": ["m"], "ctx": {"m": 15000}, "error": None})
     monkeypatch.setattr("gruntly.adapters.qwen.QwenAdapter.detect", lambda self: Detection(True, "x"))
     root = worktree.preflight(repo)
-    spec = make_spec("pass", harness="qwen", child_cmd=None, model="m", profile="default")
+    spec = make_spec("pass", harness="qwen", child_cmd=None, model="m")
     res = runner.execute(root, runner.prepare(build_spec(spec, root), root))
     assert res["status"] == "error" and res["attempts"] == 0 and "15000" in res["error"]
     assert "allow_small_ctx" in res["error"]
@@ -128,7 +128,7 @@ def test_small_context_can_be_allowed_explicitly(repo, make_spec, monkeypatch):
     monkeypatch.setattr(doctor, "probe_endpoint", lambda *_a, **_k: {"ok": True, "models": ["m"], "ctx": {"m": 15000}, "error": None})
     monkeypatch.setattr("gruntly.adapters.qwen.QwenAdapter.detect", lambda self: Detection(True, "x"))
     monkeypatch.setattr("gruntly.adapters.qwen.QwenAdapter.command",
-                        lambda self, t, w, p, r, profile=None: __import__("gruntly.adapters.base", fromlist=["Command"]).Command(
+                        lambda self, t, w, p, r: __import__("gruntly.adapters.base", fromlist=["Command"]).Command(
                             [sys.executable, str(__import__("conftest").FAKE), "pass"]))
     root = worktree.preflight(repo)
     spec = make_spec("pass", harness="qwen", child_cmd=None, model="m", allow_small_ctx=True)

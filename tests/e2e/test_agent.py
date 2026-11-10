@@ -26,6 +26,7 @@ def test_the_result_is_one_marked_block_with_status_files_and_diff(proj, capsys,
     out = say(capsys, monkeypatch, proj, "fix add() so test_calc passes")
     assert out.startswith(agent.OPEN) and out.endswith(agent.CLOSE), out
     assert "status: passed" in out and "calc.py" in out and "a + b" in out
+    assert "next: nothing to open or rerun" in out          # the caller has the tests and the whole diff
     assert "[untrusted diff" in out and "full patch: .gruntly/runs/" in out
     assert out.count(agent.OPEN) == 1
 

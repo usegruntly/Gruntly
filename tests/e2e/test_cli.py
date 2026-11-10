@@ -123,7 +123,7 @@ def test_init_writes_config_and_snippet(repo, capsys, monkeypatch):
     assert rc == 0 and (repo / ".gruntly.toml").exists()
     assert "doctor" in json.loads(out)
     _, out = call(capsys, "init", "--snippet")
-    assert "untrusted" in out and "gruntly run --apply-on-pass" in out
+    assert "untrusted" in out and "gruntly agent-run '" in out and "--spec" not in out
     assert ".gruntly/" in (repo / ".git" / "info" / "exclude").read_text()
 
 
@@ -180,3 +180,17 @@ def test_a_worker_that_crashes_leaves_the_reason_not_a_mystery(repo, monkeypatch
     assert res["status"] == "error" and "PermissionError" in res["error"] and "Access is denied" in res["error"]
     assert "PermissionError" in (st.dir / "worker-crash.txt").read_text(encoding="utf8")
     assert clim._wait(root, rid, 5)["status"] == "error"
+
+
+def test_run_with_plain_words_is_agent_run_and_a_wrong_flag_names_the_call(repo, capsys, monkeypatch):
+    import gruntly.cli as clim
+    monkeypatch.chdir(repo)
+    seen = {}
+    monkeypatch.setattr(clim, "cmd_agent_run", lambda a: seen.update(request=a.request, max_block=a.max_block) or 0)
+    assert clim.main(["run", "fix", "add()", "in", "calc.py"]) == 0
+    assert seen == {"request": ["fix", "add()", "in", "calc.py"], "max_block": 540}
+    assert clim.main(["run"]) == 2
+    assert "gruntly agent-run" in capsys.readouterr().err
+    assert clim.main(["run", "--check", "pytest", "fix it"]) == 2
+    err = capsys.readouterr().err
+    assert "unrecognized arguments: --check" in err and "gruntly agent-run" in err
