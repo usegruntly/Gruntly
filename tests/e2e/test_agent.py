@@ -216,5 +216,6 @@ def test_explore_gives_the_whole_project_but_not_the_tests_or_the_check(proj):
     commit(proj)
     p, raw = agent.explore_plan("Make the names consistent.", proj, "python check_names.py && python -m pytest -q")
     assert raw["allowed_paths"] == ["**"] and "check_names.py" in raw["deny_paths"]
-    assert any(t.startswith("test_") for t in raw["deny_paths"]) and "find where this has to change yourself" in raw["brief"]
+    assert not any(t.startswith("test_") for t in raw["deny_paths"])      # a rename must reach the tests too
+    assert "find where this has to change yourself" in raw["brief"]
     assert raw["acceptance"][0]["cmd"] == "python check_names.py && python -m pytest -q"

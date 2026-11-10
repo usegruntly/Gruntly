@@ -12,7 +12,7 @@ Run it in the foreground with a long Bash timeout (600000 ms). Never use `run_in
 - `failed`, `escalate`, `refused`: do it yourself. `gruntly discard RUN_ID` removes partial work.
 - `running`: `gruntly wait RUN_ID`, same foreground call.
 - A lookup instead of a change (a web page, facts from files): `gruntly agent-run --ask 'question'`.
-- An intent instead of a location (the child finds the code): `gruntly agent-run --explore [--check 'CMD'] 'what has to be true'`. Scope is the whole project except the tests and the check's files; the check is the whole suite unless given. Plan the steps yourself and send one step per call.
+- An intent instead of a location (the child finds the code): `gruntly agent-run --explore [--check 'CMD'] 'what has to be true'`. Scope is the whole project except the check's own files (tests may change where the task needs it; a deleted or loosened assertion is still rejected); the check is the whole suite unless given. Plan the steps yourself and send one step per call.
 
 ## When to delegate
 All must hold: an executable check proves the work done; the task is mechanical; doing it yourself would take ~8+ turns or large file reads. Below that the fixed cost of delegating (a call and reading the block) is more than the work: measured on ten ~4-turn tasks, delegating cost about 45% more than doing them directly. Never delegate design, ambiguous debugging or security-sensitive code. `gruntly stats` reports pass rate per harness/model; it says `avoid` below 70% over 10+ runs.

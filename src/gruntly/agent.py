@@ -114,13 +114,15 @@ def loose_plan(request: str, root: Path, refusal: "do.Refusal"):
 
 
 EXPLORE_TAIL = ("Nobody has looked at the code for you: find where this has to change yourself (list, search and read files "
-                "first), then make the change. Keep the whole test suite passing. Do not edit the tests or the files the "
+                "first), then make the change. Keep the whole test suite passing. Edit tests only where the task itself "
+                "changes them (a rename, a changed message); never delete or loosen an assertion. Do not edit the files the "
                 "check runs.")
 
 
 def explore_plan(request: str, root: Path, check: str | None = None):
-    """`agent-run --explore`: the child gets an intent, not a location. Scope is the whole project except the tests and
-    the check's own files; the check is the whole suite. The parent plans steps and tracks them; it does not read code."""
+    """`agent-run --explore`: the child gets an intent, not a location. Scope is the whole project except the check's own
+    files (tests may change where the task needs it, e.g. a rename; the test-weakening gate still rejects a deleted or
+    loosened assertion). The check is the whole suite. The parent plans steps and tracks them; it does not read code."""
     import shlex
     files = do.tracked(root)
     tests = [f for f in files if f.endswith(".py") and do.is_test_path(f)]
@@ -129,7 +131,7 @@ def explore_plan(request: str, root: Path, check: str | None = None):
     checkers = [t for t in shlex.split(acceptance.replace("&&", " ").replace(";", " ")) if t in files]
     plan = do.Plan([f for f in files if f.endswith(".py") and not do.is_test_path(f)], tests, acceptance, [])
     raw = {"brief": request.strip()[:2000] + "\n\n" + EXPLORE_TAIL, "allowed_paths": ["**"],
-           "deny_paths": [".env*", ".github/**", ".gruntly.toml"] + tests + checkers, "context_files": [],
+           "deny_paths": [".env*", ".github/**", ".gruntly.toml"] + checkers, "context_files": [],
            "acceptance": [{"cmd": acceptance, "timeout_s": 300}], "apply_on_pass": True, "max_attempts": 2}
     return plan, raw
 
