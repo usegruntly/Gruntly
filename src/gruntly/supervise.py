@@ -166,6 +166,32 @@ def _step_raw(task: dict, plan: list[str], done: list[str], k: int, feedback: st
     return raw
 
 
+CURRENT_CHARS = 6_000
+
+
+def _current_files(root: Path, text: str) -> str:
+    """With no diff the reviewer cannot see whether a step was already done, so show it the files the step (or the
+    child's report) names, as they are now."""
+    from . import do
+    names = [f for f in do.tracked(root) if not f.startswith(".gruntly")
+             and (f in text or (len(f.rsplit("/", 1)[-1]) >= 4 and f.rsplit("/", 1)[-1] in text))]
+    parts, used = [], 0
+    for f in dict.fromkeys(names):
+        try:
+            body = (Path(root) / f).read_text(encoding="utf8", errors="replace")
+        except OSError:
+            continue
+        if used + len(body) > CURRENT_CHARS:
+            parts.append(f"=== {f} === (left out: too long)")
+            continue
+        used += len(body)
+        parts.append(f"=== {f} ===\n{body.rstrip()}")
+    if not parts:
+        return ""
+    return ("THE FILES THIS STEP NAMES, AS THEY ARE NOW (no change was made, so judge the code itself):\n"
+            + "\n".join(parts) + "\n\n")
+
+
 # ---------------------------------------------------------------------------------------------- the loop
 def run(root: Path, sid: str, call=reviewer_call) -> str:
     """Run a supervised task to the end and return the block for the parent. `call` is the reviewer (tests swap it)."""
@@ -232,7 +258,8 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
                     f"RESULT: status {status}; checks {json.dumps(gates)}"
                     + (f"; check output:\n{gate_out[-1500:]}" if status not in ("passed", "no change") and gate_out else "")
                     + f"\n\nDIFF (written by the small model):\n{diff or '(no change)'}\n\n"
-                    f"THE SMALL MODEL'S REPORT (verify it against the diff):\n{report or '(no report)'}\n\n"
+                    + (_current_files(root, plan[k - 1] + "\n" + report) if not diff.strip() else "")
+                    + f"THE SMALL MODEL'S REPORT (verify it against the diff):\n{report or '(no report)'}\n\n"
                     + ("YOUR EARLIER FEEDBACK ON THIS STEP (stay consistent with it unless the diff shows it was wrong):\n"
                        + "\n".join(earlier) + "\n\n" if earlier else "")
                     + "Judge whether this step is now done correctly and completely. If the code also does parts of later "

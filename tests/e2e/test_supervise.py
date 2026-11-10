@@ -82,3 +82,14 @@ def test_the_reviewer_sees_its_own_earlier_feedback_on_a_step(repo):
     assert "YOUR EARLIER FEEDBACK ON THIS STEP" in rev.seen[2] and "keep the guard for n <= 0" in rev.seen[2]
     assert "do not ask to undo that" in rev.seen[1]
     assert "list them in your REPORT; do not fix them" in prompts(repo)[-1]
+
+
+def test_a_step_with_nothing_left_to_do_shows_the_reviewer_the_code_as_it_is(repo):
+    import subprocess
+    (repo / "calc.py").write_text("def add(a, b):\n    return a + b\n")     # already done before the step runs
+    subprocess.run(["git", "commit", "-qam", "already fixed"], cwd=repo, check=True)
+    write_config(repo, "supervised")
+    rev = Reviewer("APPROVE", "APPROVE: already correct")
+    block = supervise.run(repo, start(repo), call=rev)
+    assert "status: passed" in block
+    assert "THE FILES THIS STEP NAMES, AS THEY ARE NOW" in rev.seen[1] and "return a + b" in rev.seen[1]
