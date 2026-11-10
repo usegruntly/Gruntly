@@ -409,6 +409,8 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         if acceptance.check(spec, wt)["ok"]:
             warnings.append("acceptance already passes before any change: it cannot prove the task was done")
 
+    from . import rules as rulesmod
+    rules = rulesmod.person_rules(root)             # the person's own rules, noted by the parent in .gruntly/rules.md
     for local in range(1, spec.max_attempts + 1):
         attempt_no += 1
         remaining = spec.budget_s - (time.monotonic() - t_start)
@@ -417,11 +419,11 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
             break
         notes = redact(handoff_path.read_text(encoding="utf8", errors="replace"), [])[:1500] if handoff_path.exists() else ""
         if local == 1:
-            text = prompt.continuation(spec, notes, guidance) if cont else prompt.first(spec)
+            text = prompt.continuation(spec, notes, guidance, rules) if cont else prompt.first(spec, rules)
         elif caps.resume and session:
             text = prompt.retry(spec, last_gate, last_text, notes, "", context_hit)
         else:
-            text = prompt.resume_fresh(spec, last_gate, last_text, notes, "", context_hit)
+            text = prompt.resume_fresh(spec, last_gate, last_text, notes, "", context_hit, rules)
         cmd = adapter.command(spec, wt, text, session if (local > 1 and caps.resume) else None)
         try:
             cmd = sandbox.wrap(cmd, spec.sandbox_level, wt, root, spec.endpoint)
@@ -446,6 +448,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         out = adapter.parse(cr.stdout, cr.stderr, cr.exit_code if cr.exit_code is not None else -1)
         st.write_json("trace.json", tracemod.merge(st.read_json("trace.json", {}), tracemod.summarize(tracemod.calls_from(cr.stdout))))
         summary = redact(out.final_message, secrets)
+        st.write_text(f"attempts/{attempt_no}/final.txt", summary)   # the child's own report, for a reviewer
         if spec.kind == "research":
             st.write_text("answer.txt", summary)
         session = out.session_id or session

@@ -38,6 +38,12 @@ Delegation does not save money on tasks the parent finishes in 3 to 5 turns: the
 - Benchmark tasks are synthetic and small (the brief wants tasks from the user's own repos); `bench/validate_tasks.py` proves each starter fails and a reference solution passes the hidden tests.
 - Not done in v1: PyPI publish (name re-check needed first), a live sandbox level 1 run, a live Hermes run, ACP adapter (not clearly simpler), research tasks (kind exists, no research path).
 
+## Supervised runs and the person's rules (2026-11-10)
+
+- User design: small models fail at long plans and do not know when they are wrong. So the child plans, the parent's model approves, a fresh child does each small step, and the parent's model reviews every step from the diff and the child's report, telling it what it missed instead of doing the work.
+- The reviews run outside the parent's session: each turn there re-reads its whole context (25k to 150k tokens), while a reviewer call carries about 1k tokens of base context plus the rules, the task, the plan and one step. The parent's session gets one block.
+- What the parent knows from the chat reaches the reviewer through `.gruntly/rules.md` (rules the person stated, kept by Claude) and the project's CLAUDE.md / AGENTS.md. Softer context still travels only in the task text.
+
 ## The child runs as its harness ships; slim profiles removed (2026-11-10)
 
 - User decision: a parent agent (Claude now, others through MCP later) runs any child agent through that child's own harness, as shipped. gruntly does not replace the harness's system prompt or trim its tools; it adds one task message and judges the result.

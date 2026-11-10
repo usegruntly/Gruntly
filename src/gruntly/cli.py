@@ -59,9 +59,13 @@ def _root() -> Path:
 
 
 def _spawn_worker(root: Path, rid: str) -> None:
+    _spawn(root, ["_worker", rid])
+
+
+def _spawn(root: Path, args: list[str]) -> None:
     # Windows: CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP. DETACHED_PROCESS leaves the worker without a console, and every
     # console program it then starts (the child agent, pytest) would open its own visible window.
-    subprocess.Popen([sys.executable, "-m", "gruntly", "_worker", rid], cwd=str(root),
+    subprocess.Popen([sys.executable, "-m", "gruntly", *args], cwd=str(root),
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      **({"creationflags": 0x08000000 | 0x00000200} if sys.platform == "win32" else {"start_new_session": True}))
 
@@ -260,6 +264,14 @@ def cmd_agent_run(a) -> int:
         if off:                                   # switched off: say so in the usual block, run nothing
             print(agent.block(None, None, refusal=do.Refusal(off)))
             return 0
+        if getattr(a, "supervised", False) and not a.cont:
+            from . import supervise
+            sid = supervise.new_id()
+            supervise._write(supervise.sup_dir(root, sid), "task.json",
+                             {"request": request, "check": getattr(a, "check", None), "model": getattr(a, "reviewer", None)})
+            _spawn(root, ["_supervise", sid])
+            print(supervise.wait(root, sid, max(int(a.max_block), 30)))
+            return 0
         if a.ask and not a.cont:
             o = _ask_one(root, request, max(int(a.max_block), 30))
             print(agent.block(o["res"], None, error=o["error"], answer=o["answer"]))
@@ -307,7 +319,45 @@ def cmd_agent(a) -> int:
 
 
 def cmd_wait(a) -> int:
+    if a.run.startswith("s_"):                       # a supervised task: its result is a block, like agent-run's
+        from . import supervise
+        print(supervise.wait(_root(), a.run, a.timeout))
+        return 0
     out(_wait(_root(), a.run, a.timeout), a.human)
+    return 0
+
+
+def cmd_supervise(a) -> int:
+    from . import supervise
+    root = _root()
+    try:
+        supervise.run(root, a.run)
+    except BaseException:  # noqa: BLE001 - detached: never die without saying why
+        import traceback
+        supervise._write(supervise.sup_dir(root, a.run), "crash.txt", traceback.format_exc())
+        return 1
+    return 0
+
+
+def cmd_rules(a) -> int:
+    """gruntly rules [add TEXT | remove N|TEXT] [--session]: the person's rules every child and reviewer follows."""
+    from . import rules as rulesmod
+    root = _root()
+    if a.action == "add":
+        try:
+            path = rulesmod.add(root, " ".join(a.text), a.session)
+        except ValueError as e:
+            print(e, file=sys.stderr)
+            return 2
+        print(f"noted in {path}")
+    elif a.action == "remove":
+        gone = rulesmod.remove(root, " ".join(a.text), a.session)
+        print("removed: " + "; ".join(gone) if gone else "no rule matched")
+    current = rulesmod.person_rules(root)
+    print(current or "(no rules yet)")
+    files = rulesmod._read_with(root)
+    if files:
+        print("read with: " + ", ".join(files))
     return 0
 
 
@@ -321,7 +371,7 @@ def cmd_run(a) -> int:
                   file=sys.stderr)
             return 2
         return cmd_agent_run(argparse.Namespace(request=a.request, cont=None, attempts=None, ask=False, explore=False,
-                                                check=None, max_block=a.max_block or 540, human=False))
+                                                supervised=False, check=None, max_block=a.max_block or 540, human=False))
     root = wtmod.preflight(Path.cwd())
     from . import mode as modemod
     off = modemod.refusal(root)
@@ -840,7 +890,10 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--max-block", type=int, default=540, help="seconds to wait in this one call (the caller's Bash timeout must be longer)")
     g.add_argument("--explore", action="store_true", help="the request is an intent, not a location: the child finds where to "
                    "change the code itself; scope is the whole project except tests, the check is the whole suite")
-    g.add_argument("--check", help="with --explore: the command that proves the step done (default: the whole test suite)")
+    g.add_argument("--check", help="with --explore or --supervised: the command that proves the work done (default: the whole test suite)")
+    g.add_argument("--supervised", action="store_true", help="the child plans and does the work in small steps, a fresh child per "
+                   "step; your model reviews the plan and every step outside your session; one block comes back")
+    g.add_argument("--reviewer", help="with --supervised: the reviewer model (default: sonnet)")
     g = add("agent", cmd_agent)
     g.add_argument("task", nargs="*", help="the task for a lean Claude to direct through gruntly")
     g.add_argument("--model", default="sonnet")
@@ -848,6 +901,11 @@ def build_parser() -> argparse.ArgumentParser:
     add("guide", cmd_guide)
     add("mcp", cmd_mcp)
     add("_worker", cmd_worker, "run")
+    add("_supervise", cmd_supervise, "run")
+    ru = add("rules", cmd_rules)
+    ru.add_argument("action", nargs="?", choices=["list", "add", "remove"], default="list")
+    ru.add_argument("text", nargs="*", help="the rule to add, or the number or text of the rule to remove")
+    ru.add_argument("--session", action="store_true", help="only this Claude Code session")
     return p
 
 

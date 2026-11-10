@@ -8,7 +8,8 @@ How a run is wired:
     (`.gruntly/child-state/hermes-home`, so sessions and Hermes's model-metadata cache survive between attempts) and rewrites its
     `custom_providers` and `model` entries before every attempt, because the endpoint (the proxy's port) changes per run.
   * `chat -Q -q PROMPT` is the headless mode: the final answer on stdout, `session_id: ID` on stderr. `--resume ID` continues it.
-  * `--ignore-rules` keeps Hermes from injecting AGENTS.md / SOUL.md / memory: the task prompt is all it gets from gruntly.
+  * Hermes runs as shipped and reads the project's AGENTS.md itself (SOUL.md and memory come from the data folder gruntly
+    gives it, which holds none of the person's own).
   * The permission mode follows the parent: bypass passes `--yolo`; accept-edits and plan give it only the `file` toolset
     (read, search, patch, write), so there is no shell. Hermes cannot make edits read-only, so plan is the same as accept-edits.
 
@@ -92,7 +93,7 @@ class HermesAdapter:
         home = home_for(workdir)
         write_config(home, task.endpoint, task.api_key, model)
         mode = permission_mode(task)
-        argv = [find_hermes() or "hermes", "chat", "-Q", "--ignore-rules", "--provider", f"custom:{PROVIDER}", "-m", model]
+        argv = [find_hermes() or "hermes", "chat", "-Q", "--provider", f"custom:{PROVIDER}", "-m", model]
         argv += ["--yolo"] if mode == "bypass" else ["-t", "file"]
         if resume:
             argv += ["--resume", resume]

@@ -12,6 +12,8 @@ Run it in the foreground with a long Bash timeout (600000 ms). Never use `run_in
 - `failed`, `escalate`, `refused`: do it yourself. `gruntly discard RUN_ID` removes partial work.
 - `running`: `gruntly wait RUN_ID`, same foreground call.
 - A lookup instead of a change (a web page, facts from files): `gruntly agent-run --ask 'question'`.
+- A bigger task, location unknown: `gruntly agent-run --supervised [--check 'CMD'] 'the task, plus anything the person said that matters'`. The child plans; your model reviews the plan and every step outside your session; a fresh child does each step. It runs in the background: `running` means `gruntly wait s_...`.
+- The person's rules: `gruntly rules add 'rule'` when they state a lasting rule about the code, `gruntly rules remove N` when they lift it. Children and reviewers follow `.gruntly/rules.md`; reviewers also read CLAUDE.md and AGENTS.md.
 - An intent instead of a location (the child finds the code): `gruntly agent-run --explore [--check 'CMD'] 'what has to be true'`. Scope is the whole project except the check's own files (tests may change where the task needs it; a deleted or loosened assertion is still rejected); the check is the whole suite unless given. Plan the steps yourself and send one step per call.
 
 ## When to delegate

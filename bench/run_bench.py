@@ -29,7 +29,7 @@ import yaml
 HERE = Path(__file__).parent
 PLUGIN = HERE.parent / "plugin"
 TOOLS = ["Bash", "Write", "Read", "Edit", "Glob", "Grep", "Skill"]
-LARGE = {"bugs_batch", "rename_domain", "cli_json"}
+LARGE = {"bugs_batch", "rename_domain", "cli_json", "inventory_reorder", "settings_refactor"}
 # per-arm `[do]` settings for the slash-command arms: gd = old behaviour, gdA = diff in the request, gdAB = diff + hints
 DO_TOML = {"gd": "\n[do]\ndiff = false\nhints = false\n", "gdA": "\n[do]\ndiff = true\nhints = false\n",
            "gdAB": "\n[do]\ndiff = true\nhints = true\n"}
@@ -37,6 +37,7 @@ GD_ARMS = tuple(DO_TOML)
 LEAN_ALONE_PROMPT = ("You are a coding agent working in this repository. Do the task yourself with your tools, run the check "
                      "to confirm it passes, then reply in one line.")
 LEAN_ALONE = "lean_alone"   # the same stripped-down Claude doing the task itself: the matched baseline for `lean`
+SUPERVISED = "supervised"   # one call; the child plans and works in steps, a reviewer (outside the session) checks each
 PLANNER = "planner"   # Claude plans and supervises; the child finds the code and does the work (`agent-run --explore`)
 LEAN = "lean"   # a stripped-down Claude (one Bash tool, one-line system prompt) directing gruntly via `gruntly agent-run`
 
@@ -66,6 +67,12 @@ def prompt_for(arm: str, spec: dict) -> str:
     paths = ", ".join(spec["allowed_paths"])
     extra = " You may edit the existing tests." if spec.get("tests_writable") else ""
     base = spec["brief"] + f"\n\nThe check is `{cmd}`; edit only {paths}.{extra}"
+    if arm == SUPERVISED:
+        return (" ".join(spec["brief"].split()) + f"\n\nThe check is `{cmd}`.\n"
+                "Delegate the whole task with one foreground Bash call (timeout 600000): gruntly agent-run --supervised "
+                f"--check '{cmd}' 'THE TASK IN PLAIN WORDS, with every requirement above'. If the block says running, call "
+                "gruntly wait RUN_ID the same way until it is done. Read only the block. If it passed, reply in two lines; "
+                "if it failed, finish the rest yourself.")
     if arm == PLANNER:
         return (" ".join(spec["brief"].split()) + f"\n\nThe check is `{cmd}`.\n"
                 "You are the planner and supervisor; a child coding agent does the work. Do not read, search or edit the code "
@@ -182,7 +189,10 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
                 "wall_s": wall, "error": err, **info, "gruntly_status": [r["status"] for r in grs],
                 "gruntly_applied": [r.get("applied") for r in grs], "gruntly_attempts": [r["attempts"] for r in grs],
                 "gruntly_result_chars": [len(json.dumps(r)) for r in grs],
-                "child_tokens": sum(r.get("child_tokens") or 0 for r in grs)}
+                "child_tokens": sum(r.get("child_tokens") or 0 for r in grs),
+                # reviewer calls made by gruntly outside the parent's session are paid too: count them
+                "reviewer_cost_usd": round(sum(json.loads(p.read_text(encoding="utf8")).get("reviewer_cost_usd", 0)
+                                               for p in (work / ".gruntly" / "supervised").glob("*/costs.json")), 5)}
 
 
 def mean(xs):
@@ -190,7 +200,7 @@ def mean(xs):
 
 
 def report(rows: list[dict], meta: dict) -> str:
-    arms = [x for x in ("alone", "forced", "policy", "planner", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
+    arms = [x for x in ("alone", "forced", "policy", "planner", "supervised", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "

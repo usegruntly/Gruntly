@@ -19,7 +19,7 @@ import statistics
 from pathlib import Path
 
 PRICE = {"sonnet-5.5 input": 2.00, "haiku-5.5 input": 0.10}      # $ per million tokens
-PAIRS = [("policy", "alone"), ("lean", "lean_alone"), ("lean", "alone"), ("forced", "alone")]
+PAIRS = [("policy", "alone"), ("lean", "lean_alone"), ("lean", "alone"), ("forced", "alone"), ("planner", "alone"), ("supervised", "alone")]
 
 
 def parent_tokens(r: dict) -> int:
@@ -44,7 +44,7 @@ def child_cost(r: dict, price: float) -> float:
 
 
 def table(rows: list[dict]) -> list[str]:
-    arms = [a for a in ("alone", "policy", "forced", "lean_alone", "lean") if any(r["arm"] == a for r in rows)]
+    arms = [a for a in ("alone", "policy", "forced", "planner", "supervised", "lean_alone", "lean") if any(r["arm"] == a for r in rows)]
     L = ["| arm | runs | passed | parent $/run | $ per correct task | turns | parent tokens (all kinds) | of which output | child tokens | delegated | false pass |",
          "|---|---|---|---|---|---|---|---|---|---|---|"]
     for a in arms:
@@ -97,9 +97,12 @@ def main() -> None:
     ap.add_argument("--out")
     a = ap.parse_args()
     rows = json.loads(Path(a.rows).read_text(encoding="utf8"))
+    for r in rows:                     # the reviewer runs outside the parent's session (agent-run --supervised): add it
+        r["session_cost_usd"] = r["cost_usd"]
+        r["cost_usd"] = round(r["cost_usd"] + (r.get("reviewer_cost_usd") or 0), 5)
     L = [f"# Cost summary: {Path(a.rows).name}", "",
          f"{len(rows)} runs, {len({r['task'] for r in rows})} tasks. Parent cost is Claude Code's own `total_cost_usd` for the whole session "
-         "(cache reads included, takeover after a failed delegation included). The child's tokens cost nothing in the primary numbers.", ""]
+         "(cache reads included, takeover after a failed delegation included), plus any reviewer calls gruntly made outside the session. The child's tokens cost nothing in the primary numbers.", ""]
     L += table(rows) + [""]
     for arm, base in PAIRS:
         L += compare(rows, arm, base)

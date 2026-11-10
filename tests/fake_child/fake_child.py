@@ -19,6 +19,13 @@ def main_repo() -> Path:
     return Path(common).resolve().parent
 
 
+if scenario == "supervised":                        # agent-run --supervised: a plan when asked, else the step
+    if "write a plan" in prompt:
+        print("1. Fix add() in calc.py so it returns a + b.")
+    else:
+        fix()
+        print("Fixed add().\nREPORT: read calc.py and test_calc.py; changed add to return a + b; ran pytest, it passed.")
+    sys.exit(0)
 if scenario == "pass":
     fix()
     print("fixed add(); tests pass")

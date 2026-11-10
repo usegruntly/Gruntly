@@ -1,0 +1,11 @@
+brief: 'Configuration is read from APP_* environment variables all over the app package.
+  Move it into one place: a frozen Settings dataclass in app/config.py and a load()
+  function that reads every variable when it is called, with the same names, defaults
+  and types as today, and raises ValueError naming the variable when a number cannot
+  be parsed. Every other module must use load() instead of reading the environment;
+  behaviour stays the same.'
+allowed_paths:
+- '**'
+acceptance:
+- cmd: python -m pytest -q
+  timeout_s: 300

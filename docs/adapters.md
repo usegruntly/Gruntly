@@ -59,7 +59,7 @@ gruntly use nvidia nvidia/nemotron-3.5-bolt-e4b --project
 How gruntly drives it (`adapters/hermes.py`):
 - Headless mode is `hermes chat -Q -q PROMPT`: the final answer on stdout, `session_id: ID` on stderr, and `--resume ID` continues that session (checked: the second call remembered the edit).
 - Hermes reads its endpoint from `$HERMES_HOME/config.yaml`. gruntly keeps one home per project (`.gruntly/child-state/hermes-home`) and rewrites `custom_providers` and `model` there before each attempt, because the proxy port changes per run. A config without a `model:` section is ignored with a warning.
-- `--ignore-rules` keeps Hermes from injecting AGENTS.md, SOUL.md and memory. Permission mode `bypass` passes `--yolo`; `accept-edits` and `plan` pass `-t file` (read, search, patch, write; no shell). Hermes cannot make edits read-only, so plan equals accept-edits.
+- Hermes reads the project's AGENTS.md itself (since 2026-11-10; it used to run with `--ignore-rules`). Permission mode `bypass` passes `--yolo`; `accept-edits` and `plan` pass `-t file` (read, search, patch, write; no shell). Hermes cannot make edits read-only, so plan equals accept-edits.
 - `LANG=C.UTF-8` is set for the child: under an ASCII locale Hermes silently strips non-ASCII characters from the request.
 
 Limits:

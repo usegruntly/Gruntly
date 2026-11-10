@@ -33,11 +33,15 @@ def research(spec) -> str:
             f"QUESTION:\n{spec.brief}")
 
 
-def first(spec) -> str:
+def _rules(rules: str) -> str:
+    return f"\n\nRULES THE PERSON SET FOR THIS PROJECT (follow them):\n{rules}" if rules.strip() else ""
+
+
+def first(spec, rules: str = "") -> str:
     if getattr(spec, "kind", "code") == "research":
-        return research(spec)
+        return research(spec) + _rules(rules)
     c = f"\nStart with: {', '.join(spec.context_files)}" if spec.context_files else ""
-    return f"{preamble(spec)}\n\nTASK:\n{spec.brief}{c}"
+    return f"{preamble(spec)}{_rules(rules)}\n\nTASK:\n{spec.brief}{c}"
 
 
 def retry(spec, gate: str, output: str, handoff: str = "", guidance: str = "", context_hit: bool = False) -> str:
@@ -52,13 +56,14 @@ def retry(spec, gate: str, output: str, handoff: str = "", guidance: str = "", c
     return "\n\n".join(parts)
 
 
-def resume_fresh(spec, gate: str, output: str, handoff: str = "", guidance: str = "", context_hit: bool = False) -> str:
+def resume_fresh(spec, gate: str, output: str, handoff: str = "", guidance: str = "", context_hit: bool = False,
+                 rules: str = "") -> str:
     """For children that cannot resume: the failure plus the full task."""
-    return retry(spec, gate, output, handoff, guidance, context_hit) + "\n\n" + first(spec)
+    return retry(spec, gate, output, handoff, guidance, context_hit) + "\n\n" + first(spec, rules)
 
 
-def continuation(spec, handoff: str, guidance: str) -> str:
-    parts = [first(spec)]
+def continuation(spec, handoff: str, guidance: str, rules: str = "") -> str:
+    parts = [first(spec, rules)]
     if handoff:
         parts.append(f"A previous run was cut off. Its notes:\n{handoff}")
     if guidance:

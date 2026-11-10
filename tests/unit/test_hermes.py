@@ -46,7 +46,7 @@ def test_the_config_points_hermes_at_the_endpoint_and_names_the_model(tmp_path):
     assert 'base_url: "http://127.0.0.1:5555/v1"' in cfg and 'api_key: "gruntly-proxy"' in cfg and 'model: "m/one"' in cfg
     assert "provider: custom:gruntly" in cfg
     assert cmd.env["HERMES_HOME"] == str(home_for(w)) and cmd.env["LANG"] == "C.UTF-8" and cmd.stdin is None
-    assert cmd.argv[1:4] == ["chat", "-Q", "--ignore-rules"] and cmd.argv[-2:] == ["-q", "do it"]
+    assert cmd.argv[1:3] == ["chat", "-Q"] and "--ignore-rules" not in cmd.argv and cmd.argv[-2:] == ["-q", "do it"]   # reads AGENTS.md
     assert "--provider" in cmd.argv and "custom:gruntly" in cmd.argv and "--resume" not in cmd.argv
 
 
