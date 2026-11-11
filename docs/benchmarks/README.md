@@ -19,3 +19,13 @@ says they are. The reasoning that came out of them is in `../decisions.md` and `
 | `child-bench`, `child-bench-precise`, `child-bench-vague` | Which child profile (typist, worker, default) does best, with precise and with vague briefs. |
 
 To rerun one, see the matching script in `bench/` (`run_bench.py`, `run_child_bench.py`, `run_local_alone.py`); each writes here by default.
+
+## How to read the numbers (rules from `../investigation-2026-11-11.md`, applied by `bench/run_bench.py` from 2026-11-11 on)
+
+- **Cost per run** is Claude Code's own `total_cost_usd` for the whole session plus the reviewers gruntly called outside it (`reviewer $` is shown on its own). The child is local or the person's own hosted key and is never counted as money.
+- **Marginal cost** subtracts the $0.045 every fresh `claude -p` session pays before it does anything. The floor is the same in every arm and hides the differences, so compare the marginal columns, and remember that a real session already paid its floor long ago.
+- **Cost of a pass** is mean cost divided by pass rate (the expected cost of one correct solution): a false pass counts as no pass, and a takeover is already inside the cost.
+- **Takeover edits** are the parent's own Edit/Write calls after its first gruntly call: the term the model in `bench/cost_model.py` assumed to be 10%.
+- **Cost-cap table**: the share of runs that passed within a per-run cost cap, so an arm that wins on means but is unreliable shows it.
+- **n**: fewer than 20 runs per arm is a measurement, not a claim; the arm table says nothing about quality below that, and the numbers of 2026-11-10 and before predate these columns.
+- Re-render any saved run with the current report: `python bench/run_bench.py --report-only --out docs/benchmarks/<name>.md` (it reads the `.json` next to it and runs nothing).

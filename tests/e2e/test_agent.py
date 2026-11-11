@@ -256,3 +256,46 @@ def test_the_cost_line_names_what_the_child_used_and_never_turns_it_into_dollars
 def test_a_real_run_reports_its_child_in_the_result(run_task, make_spec):
     res, _ = run_task(make_spec("pass"))
     assert res["child"]["harness"] == "generic" and res["child"]["provider"] == "local"
+
+
+HOLDOUT_TEST = "from calc import add\n\n\ndef test_negative_numbers():\n    assert add(-2, -3) == -5\n"
+
+
+def holdout_run(capsys, monkeypatch, repo, stdin_text, *flags):
+    monkeypatch.chdir(repo)
+    monkeypatch.setattr("sys.stdin", io.StringIO(stdin_text))
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False, raising=False)
+    assert cli.main(["agent-run", *flags]) == 0
+    return capsys.readouterr().out.strip()
+
+
+def test_a_holdout_on_stdin_is_written_run_after_the_child_and_never_in_the_diff(proj, capsys, monkeypatch):
+    out = holdout_run(capsys, monkeypatch, proj, HOLDOUT_TEST, "--holdout", "holdout_calc.py", "fix add() so test_calc passes")
+    assert "status: passed" in out and "holdout: pass (holdout_calc.py" in out and "UNPROVEN" not in out
+    assert (proj / "holdout_calc.py").read_text() == HOLDOUT_TEST                  # kept, untracked, for the parent to keep or delete
+    assert "holdout_calc.py" not in out.split("files:")[1].splitlines()[0]         # never part of what the child changed
+
+
+def test_a_child_that_passes_the_visible_test_but_fails_the_holdout_is_not_a_pass(proj, capsys, monkeypatch):
+    write_config(proj, "hardcode")
+    out = holdout_run(capsys, monkeypatch, proj, HOLDOUT_TEST, "--holdout", "holdout_calc.py", "fix add() so test_calc passes")
+    assert "status: failed" in out and "holdout: FAILED (holdout_calc.py)" in out
+    assert "test_negative_numbers" in out and "assert add(-2" not in out          # which test, never what it asserts
+
+
+def test_a_holdout_needs_a_file_or_stdin_and_must_be_inside_the_project(proj, capsys, monkeypatch, tmp_path):
+    out = holdout_run(capsys, monkeypatch, proj, "", "--holdout", "nothere.py", "fix add() so test_calc passes")
+    assert "status: error" in out and "does not exist" in out
+    outside = tmp_path / "h.py"
+    outside.write_text(HOLDOUT_TEST)
+    out = holdout_run(capsys, monkeypatch, proj, "", "--holdout", str(outside), "fix add() so test_calc passes")
+    assert "status: error" in out and "outside the project" in out
+
+
+def test_a_split_request_starts_with_one_line_saying_which_part_to_look_at():
+    ok = f"{agent.OPEN}\nrun: r1\nstatus: passed\n{agent.CLOSE}"
+    unproven = f"{agent.OPEN}\nrun: r1\nstatus: passed, {agent.UNPROVEN}\n{agent.CLOSE}"
+    bad = f"{agent.OPEN}\nrun: r2\nstatus: failed (stuck: gate 'acceptance' failed identically twice)\n{agent.CLOSE}"
+    out = agent.join_blocks([ok, unproven, bad])
+    assert out.splitlines()[1] == "parts: 2 passed, 1 failed (part 3: stuck: gate 'acceptance' failed identically twice)"
+    assert out.count(agent.OPEN) == 1 and "--- part 3 of 3 ---" in out

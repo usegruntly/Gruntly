@@ -112,7 +112,8 @@ def judge(task_dir: Path, work: Path) -> bool:
 
 def analyse(raw: str) -> dict:
     """Turns, cost, context and tool-output size from a stream-json transcript."""
-    tool_bytes = peak = sessions = background = 0
+    tool_bytes = peak = sessions = background = takeover = 0
+    seen_gruntly = False
     tools: dict[str, int] = {}
     result: dict = {}
     for line in raw.splitlines():
@@ -132,6 +133,10 @@ def analyse(raw: str) -> dict:
                 if b.get("type") == "tool_use":
                     tools[b.get("name", "?")] = tools.get(b.get("name", "?"), 0) + 1
                     background += bool((b.get("input") or {}).get("run_in_background"))
+                    if b.get("name") == "Bash" and "gruntly" in str((b.get("input") or {}).get("command", "")):
+                        seen_gruntly = True
+                    elif seen_gruntly and b.get("name") in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
+                        takeover += 1
         elif t == "user":
             for b in (e.get("message", {}).get("content") or []):
                 if isinstance(b, dict) and b.get("type") == "tool_result":
@@ -141,7 +146,7 @@ def analyse(raw: str) -> dict:
             result = e
     u = result.get("usage") or {}
     return {"cost_usd": round(result.get("total_cost_usd") or 0, 4), "turns": result.get("num_turns"),
-            "reply": (result.get("result") or "")[:500], "tools": tools, "sessions": sessions, "background_calls": background, "tool_output_bytes": tool_bytes, "peak_ctx": peak,
+            "reply": (result.get("result") or "")[:500], "tools": tools, "sessions": sessions, "background_calls": background, "takeover_edits": takeover, "tool_output_bytes": tool_bytes, "peak_ctx": peak,
             "tokens": {"input": u.get("input_tokens", 0), "cache_write": u.get("cache_creation_input_tokens", 0),
                        "cache_read": u.get("cache_read_input_tokens", 0), "output": u.get("output_tokens", 0)}}
 
@@ -208,6 +213,22 @@ def mean(xs):
     return statistics.fmean(xs) if xs else 0.0
 
 
+FLOOR = 0.045                 # a fresh `claude -p` session pays this before it does anything (docs/investigation-2026-11-11.md)
+CAPS = (0.05, 0.10, 0.20, 0.50, 1.00)
+
+
+def total(r: dict) -> float:
+    """What the person pays for one run: the parent session plus the reviewers gruntly called outside it. The child is local or
+    the person's own hosted key and is never counted as money."""
+    return r["cost_usd"] + (r.get("reviewer_cost_usd") or 0)
+
+
+def cost_of_pass(rs: list[dict]) -> str:
+    """Mean cost per run divided by the pass rate: the expected cost of one correct solution (a false pass counts as no pass)."""
+    rate = mean([r["passed"] for r in rs])
+    return f"{mean([total(r) for r in rs]) / rate:.3f}" if rate else "inf"
+
+
 def report(rows: list[dict], meta: dict) -> str:
     arms = [x for x in ("alone", "forced", "policy", "planner", "supervised", "subagent", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
@@ -216,20 +237,29 @@ def report(rows: list[dict], meta: dict) -> str:
          "S = ten small tasks the parent solves in ~4 turns; L = three larger tasks (six bugs, a 15-file rename, a CLI feature). "
          "Arms: `alone`; `forced` (told to delegate through the one-call flow); `policy` (may delegate if the skill's triage rule says so).", "",
          "## Totals by bucket (means over tasks and repetitions)", "",
-         "| bucket | arm | runs | pass rate | cost $/run | vs alone | turns | session splits | wall s | parent output tok | tool-output KB in context | delegated | child tok |",
-         "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+         "| bucket | arm | runs | pass rate | cost $/run | reviewer $ | vs alone | marginal $ (after the $0.045 floor) | vs alone, marginal | cost of a pass $ | turns | takeover edits | session splits | wall s | parent output tok | tool-output KB in context | delegated | child tok |",
+         "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for b in ("S", "L"):
-        base = [r["cost_usd"] for r in rows if r["bucket"] == b and r["arm"] == "alone"]
+        base = [total(r) for r in rows if r["bucket"] == b and r["arm"] == "alone"]
         for arm in arms:
             rs = [r for r in rows if r["bucket"] == b and r["arm"] == arm]
             if not rs:
                 continue
-            rel = f"{mean([r['cost_usd'] for r in rs]) / mean(base) - 1:+.0%}" if base and arm != "alone" else "-"
+            rel = f"{mean([total(r) for r in rs]) / mean(base) - 1:+.0%}" if base and arm != "alone" else "-"
+            marg = mean([total(r) - FLOOR for r in rs])
+            marg_rel = (f"{marg / (mean(base) - FLOOR) - 1:+.0%}" if base and arm != "alone" and mean(base) > FLOOR else "-")
             deleg = sum(1 for r in rs if r["gruntly_status"])
-            L.append(f"| {b} | {arm} | {len(rs)} | {mean([r['passed'] for r in rs]):.0%} | {mean([r['cost_usd'] for r in rs]):.3f} | {rel} | "
-                     f"{mean([r['turns'] or 0 for r in rs]):.1f} | {mean([max(0, r.get('sessions', 1) - 1) for r in rs]):.1f} | "
+            L.append(f"| {b} | {arm} | {len(rs)} | {mean([r['passed'] for r in rs]):.0%} | {mean([total(r) for r in rs]):.3f} | "
+                     f"{mean([r.get('reviewer_cost_usd') or 0 for r in rs]):.4f} | {rel} | {marg:.3f} | {marg_rel} | {cost_of_pass(rs)} | "
+                     f"{mean([r['turns'] or 0 for r in rs]):.1f} | {mean([r.get('takeover_edits', 0) for r in rs]):.1f} | "
+                     f"{mean([max(0, r.get('sessions', 1) - 1) for r in rs]):.1f} | "
                      f"{mean([r['wall_s'] for r in rs]):.0f} | {mean([r['tokens']['output'] for r in rs]):.0f} | {mean([r['tool_output_bytes'] for r in rs]) / 1024:.1f} | "
                      f"{deleg}/{len(rs)} | {sum(r['child_tokens'] for r in rs) or '-'} |")
+    L += ["", "## Share of runs that passed within a cost cap (parent + reviewers per run; a run over the cap counts as not solved)", "",
+          "| arm | runs | " + " | ".join(f"<= ${c:.2f}" for c in CAPS) + " |", "|---|---|" + "---|" * len(CAPS)]
+    for arm in arms:
+        rs = [r for r in rows if r["arm"] == arm]
+        L.append(f"| {arm} | {len(rs)} | " + " | ".join(f"{sum(1 for r in rs if r['passed'] and total(r) <= c) / len(rs):.0%}" for c in CAPS) + " |")
     L += ["", "## Per task (mean over repetitions)", "",
           "| task | arm | pass | cost $ | turns | wall s | gruntly (status, attempts) | false pass |", "|---|---|---|---|---|---|---|---|"]
     for task in sorted({r["task"] for r in rows}):
@@ -240,13 +270,16 @@ def report(rows: list[dict], meta: dict) -> str:
             g = "; ".join(f"{s}{'+applied' if ap else ''} ({n})" for r in rs for s, ap, n in
                           zip(r["gruntly_status"], r["gruntly_applied"], r["gruntly_attempts"])) or "-"
             fp = sum(1 for r in rs if not r["passed"] and "passed" in r["gruntly_status"])
-            L.append(f"| {task} | {arm} | {sum(r['passed'] for r in rs)}/{len(rs)} | {mean([r['cost_usd'] for r in rs]):.3f} | "
+            L.append(f"| {task} | {arm} | {sum(r['passed'] for r in rs)}/{len(rs)} | {mean([total(r) for r in rs]):.3f} | "
                      f"{mean([r['turns'] or 0 for r in rs]):.1f} | {mean([r['wall_s'] for r in rs]):.0f} | {g} | {fp or '-'} |")
     errs = [r for r in rows if r.get("error")]
     if errs:
         L += ["", "Errors: " + "; ".join(f"{r['task']}/{r['arm']}#{r['rep']}: {r['error']}" for r in errs)]
-    L += ["", "Accounting: parent cost is Claude Code's own `total_cost_usd` for the whole session (cache reads included), so any "
-          "takeover after an escalation is counted. Local child tokens are free of paid cost but cost wall time. "
+    L += ["", "Accounting: cost = Claude Code's own `total_cost_usd` for the whole session (cache reads included, so any takeover "
+          "after an escalation is counted) plus the reviewers gruntly called outside it. Marginal = cost minus the $0.045 every fresh "
+          "`claude -p` session pays before doing anything (it is the same in every arm, so it hides the differences). Cost of a pass = "
+          "mean cost / pass rate. Takeover edits = the parent's own Edit/Write calls after its first gruntly call. "
+          "Local child tokens are free of paid cost but cost wall time. "
           "False pass = gruntly reported `passed` but the hidden tests failed. Transcripts are in `bench/runs/`."]
     return "\n".join(L) + "\n"
 
@@ -264,10 +297,15 @@ def main():
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--budget-usd", type=float, default=1.5, help="per-run cap for the parent")
     ap.add_argument("--resume", action="store_true", help="continue from the saved .json next to --out")
+    ap.add_argument("--report-only", action="store_true", help="re-render the saved .json next to --out with the current report; run nothing")
     ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmarks" / "benchmark-v2.md"))
     a = ap.parse_args()
     names = [n for n in a.tasks.split(",") if n] or sorted(p.name for p in (HERE / "tasks").iterdir() if p.is_dir())
     raw = Path(a.out).with_suffix(".json")
+    if a.report_only:
+        Path(a.out).write_text(report(json.loads(raw.read_text(encoding="utf8")), vars(a)), encoding="utf8")
+        print(f"wrote {a.out}")
+        return
     rows = json.loads(raw.read_text(encoding="utf8")) if raw.exists() and a.resume else []
     done = {(r["task"], r["arm"], r["rep"]) for r in rows}
     for rep in range(1, a.reps + 1):

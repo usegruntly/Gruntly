@@ -184,7 +184,21 @@ def join_blocks(blocks: list[str]) -> str:
         return blocks[0]
     inner = [b.replace(OPEN + "\n", "", 1).rsplit("\n" + CLOSE, 1)[0] for b in blocks]
     parts = [f"--- part {i} of {len(inner)} ---\n{x}" for i, x in enumerate(inner, 1)]
-    return OPEN + "\n" + "\n".join(parts) + "\n" + CLOSE
+    return OPEN + "\n" + parts_table(inner) + "\n" + "\n".join(parts) + "\n" + CLOSE
+
+
+def parts_table(inner: list[str]) -> str:
+    """One line before the parts of a split request, so the caller sees at a glance which part to look at."""
+    statuses = []
+    for x in inner:
+        m = re.search(r"^status: (\w+)[^\n(]*(?:\((.*)\))?", x, re.M)
+        statuses.append((m.group(1), m.group(2) or "") if m else ("unknown", ""))
+    counts: dict[str, int] = {}
+    for s, _ in statuses:
+        counts[s] = counts.get(s, 0) + 1
+    line = "parts: " + ", ".join(f"{n} {s}" for s, n in counts.items())
+    bad = [f"part {i}: {r[:80] or s}" for i, (s, r) in enumerate(statuses, 1) if s != "passed"]
+    return line + (" (" + "; ".join(bad) + ")" if bad else "")
 
 
 def code_first(patch: str) -> str:
@@ -200,7 +214,8 @@ def code_first(patch: str) -> str:
 
 
 def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | None = None, patch: str = "",
-          request: str = "", contract: list[str] | None = None, note: str = "", answer: str | None = None) -> str:
+          request: str = "", contract: list[str] | None = None, note: str = "", answer: str | None = None,
+          holdout: list[str] | None = None, review: dict | None = None) -> str:
     """The single block the caller reads. Child-written text appears only inside [untrusted] fences."""
     def wrap(body: str) -> str:
         return f"{OPEN}\n{body}\n{CLOSE}"
@@ -222,7 +237,9 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     hints = r.get("review_hint") or []
     flags = ([note] if note else []) + hints + [w for w in (r.get("warnings") or []) if not any(w in h for h in hints)]
     weak = note == LOOSE_NOTE or any("acceptance already passes" in w for w in (r.get("warnings") or []))
-    unproven = st == "passed" and bool(r.get("applied")) and answer is None and weak and adds_test_file(patch)
+    held = (r.get("gates") or {}).get("holdout")        # True = the parent's own test passed; a dict = it failed; absent = none
+    unproven = (st == "passed" and bool(r.get("applied")) and answer is None and weak and adds_test_file(patch)
+                and held is not True)
     if unproven:       # the first thing the caller reads, not a flag in the middle: the only green here is the child's own
         flags = [f for f in flags if f != LOOSE_NOTE and not f.startswith("weak acceptance") and "acceptance already passes" not in f]
     if st == "passed" and answer is not None:
@@ -233,11 +250,19 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
         lines += ["status: passed" + (", " + UNPROVEN if unproven else ""),
                   f"tests: pass (attempts: {r.get('attempts', '?')}, verify: {r.get('verify')})",
                   f"files: {files} (+{ds.get('insertions', 0)} -{ds.get('deletions', 0)}), applied to the working tree, not committed"]
+        if holdout and held is True:
+            lines.append(f"holdout: pass ({', '.join(holdout)}: your test, the child never saw it; it stays in your tree, "
+                         "untracked: keep it with your tests or delete it)")
     else:
         reason = (r.get("failure_bundle") or {}).get("reason") or st
         lines += [f"status: failed ({reason})", f"files: {files}; partial work kept: gruntly diff {rid}, gruntly discard {rid}"]
+        if holdout and held is not None and held is not True:
+            lines.append(f"holdout: FAILED ({', '.join(holdout)}): the child was told only which of your tests failed, "
+                         "never what they assert; the failing names are below")
     if r.get("child"):
         lines.append(cost_line(r["child"]))
+    if review:
+        lines += review["lines"]
     if r.get("child_trace"):
         lines.append(r["child_trace"])
     if flags:
@@ -255,7 +280,14 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
             lines.append("flags: diff truncated, review before accepting")
         elif st == "passed" and r.get("applied") and answer is None:
             # the caller has everything: rereading files or rerunning tests is a paid turn that adds nothing
-            lines.append("next: nothing to open or rerun; check this diff against the request, then reply")
+            verdict = (review or {}).get("verdict")
+            if verdict == "APPROVE":
+                lines.append("next: nothing to open or rerun; the review approved it, reply")
+            elif verdict == "FIX":
+                lines.append(f"next: the review found a gap (above): send it back once with gruntly agent-run --continue {rid} "
+                             "'what is missing', then reply")
+            else:
+                lines.append("next: nothing to open or rerun; check this diff against the request, then reply")
     return wrap("\n".join(lines))
 
 

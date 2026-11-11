@@ -1,5 +1,6 @@
 """`agent-run --supervised`: the child plans, a fresh child does each step, a reviewer (stubbed here) judges each one."""
 import json
+import sys
 
 from gruntly import cli, rules as rulesmod, supervise
 from tests.e2e.test_do import write_config
@@ -14,10 +15,13 @@ def start(repo, request="Make add() in calc.py add.", check=None):
 class Reviewer:
     """Scripted replies, recording what the reviewer was shown."""
     def __init__(self, *replies):
-        self.replies, self.seen = list(replies), []
+        self.replies, self.seen, self.systems, self.caches = list(replies), [], [], []
 
-    def __call__(self, text, model):
-        self.seen.append(text)
+    def __call__(self, text, model, timeout_s=300, system_file=None, cache=True):
+        system = system_file.read_text(encoding="utf8") if system_file else ""
+        self.seen.append(system + "\n\n" + text)         # what the reviewer knew: its system prompt and the message
+        self.systems.append(system)
+        self.caches.append(cache)
         return self.replies.pop(0) if self.replies else "APPROVE: ok", 0.002
 
 
@@ -100,7 +104,7 @@ def test_the_plan_and_the_steps_go_to_different_reviewers(repo):
     write_config(repo, "supervised")
     models = []
     rev = Reviewer("APPROVE", "APPROVE: done")
-    supervise.run(repo, start(repo), call=lambda text, model: (models.append(model), rev(text, model))[1])
+    supervise.run(repo, start(repo), call=lambda text, model, **kw: (models.append(model), rev(text, model, **kw))[1])
     assert models == [supervise.PLAN_REVIEWER_MODEL, supervise.REVIEWER_MODEL] == ["sonnet:low", "haiku"]
 
 
@@ -116,3 +120,44 @@ def test_a_pass_checked_by_the_whole_suite_with_child_written_tests_is_unproven(
     sid = start(repo, check="python -c pass")
     named = supervise._finish(repo, supervise.sup_dir(repo, sid), sid, {"request": "r", "check": "python -c pass"}, "passed", "", ["x"], steps, costs)
     assert "UNPROVEN" not in named                    # the person's own check decided, not the child's test
+
+
+def test_a_supervised_task_runs_the_holdout_once_at_the_end_and_a_red_holdout_fails_it(repo):
+    write_config(repo, "supervised")
+    (repo / "holdout_calc.py").write_text("from calc import add\n\n\ndef test_negative():\n    assert add(-2, -3) == -5\n")
+    sid = supervise.new_id()
+    task = {"request": "Make add() in calc.py add.", "check": None, "model": None,
+            "holdout": {"files": ["holdout_calc.py"], "cmd": f'"{sys.executable}" -m pytest -q -p no:cacheprovider holdout_calc.py'}}
+    supervise._write(supervise.sup_dir(repo, sid), "task.json", task)
+    block = supervise.run(repo, sid, call=Reviewer("APPROVE", "APPROVE: done"))
+    assert "status: passed" in block and "holdout: pass (holdout_calc.py" in block
+    # the children never saw it: it was hidden from every worktree
+    assert not any("holdout_calc" in p for p in prompts(repo))
+
+    (repo / "holdout_calc.py").write_text("from calc import add\n\n\ndef test_impossible():\n    assert add(1, 1) == 3\n")
+    sid = supervise.new_id()
+    supervise._write(supervise.sup_dir(repo, sid), "task.json", task)
+    block = supervise.run(repo, sid, call=Reviewer("APPROVE", "APPROVE: done"))
+    assert "status: failed (the holdout test failed" in block and "holdout: FAILED (holdout_calc.py)" in block
+    assert "test_impossible" in block
+
+
+def test_every_step_review_shares_one_byte_identical_system_prompt_and_only_the_plan_review_skips_the_cache(repo):
+    write_config(repo, "supervised")
+    rulesmod.add(repo, "Do not rename add()")
+    rev = Reviewer("APPROVE", "APPROVE: done")
+    block = supervise.run(repo, start(repo), call=rev)
+    plan_system, step_system = rev.systems
+    assert "Do not rename add()" in plan_system and plan_system != step_system
+    assert step_system.startswith(plan_system) and "THE APPROVED PLAN" in step_system and "1. Fix add()" in step_system
+    assert rev.caches == [False, True]                    # the one plan call is not cached; the step reviews are
+    d = supervise.sup_dir(repo, next(iter(supervise.sup_dir(repo, "x").parent.iterdir())).name)
+    assert (d / "system-steps.txt").read_text(encoding="utf8") == step_system   # written once, never rewritten
+    assert "reviewer: 2 calls" in block
+
+
+def test_a_second_step_review_gets_exactly_the_same_system_bytes(repo):
+    write_config(repo, "supervised")
+    rev = Reviewer("APPROVE", "FIX: also handle negatives", "APPROVE: done")
+    supervise.run(repo, start(repo), call=rev)
+    assert len(rev.systems) == 3 and rev.systems[1] == rev.systems[2] and rev.caches == [False, True, True]

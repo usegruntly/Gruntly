@@ -98,6 +98,7 @@ class Spec:
     env_allow: list[str] = field(default_factory=list)
     apply_on_pass: bool = False
     holdout: Any = None            # {files: [...], cmd: "..."}: parent-written tests the child never sees
+    hide: list[str] = field(default_factory=list)   # files kept out of the child's worktree, not gated (a supervised task's holdout)
     min_context: int | None = None
     allow_small_ctx: bool = False
     followup: bool = False

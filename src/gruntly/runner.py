@@ -363,7 +363,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         wt = root / ".gruntly" / "worktrees" / run_id
     else:
         main_fp = wtmod.fingerprint(root)
-        w = wtmod.create(root, run_id, spec.base, exclude=(spec.holdout or {}).get("files"))
+        w = wtmod.create(root, run_id, spec.base, exclude=[*((spec.holdout or {}).get("files") or []), *spec.hide] or None)
         base, wt = w.base, w.path
         # A file the task is told to read but the snapshot lacks (git-ignored, excluded): the child would invent its content.
         missing = [f for f in spec.context_files if (root / f).is_file() and not (wt / f).is_file()]

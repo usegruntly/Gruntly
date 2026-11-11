@@ -15,6 +15,7 @@ comes first so a provider can cache it across the reviews of one task.
 from __future__ import annotations
 
 import json
+import os
 import re
 import secrets
 import shutil
@@ -84,16 +85,26 @@ def _read(d: Path, name: str, default=None):
 
 
 # ---------------------------------------------------------------------------------------------- the reviewer
-def reviewer_call(text: str, model: str = REVIEWER_MODEL, timeout_s: int = 300) -> tuple[str, float]:
-    """One call to the parent's model with no tools and a tiny base context. Returns (reply, cost in USD)."""
+def reviewer_call(text: str, model: str = REVIEWER_MODEL, timeout_s: int = 300, system_file=None,
+                  cache: bool = True) -> tuple[str, float]:
+    """One call to the parent's model with no tools and a tiny base context. Returns (reply, cost in USD).
+    `system_file`: the system prompt as a file (byte-stable across the calls of one task, and free of the Windows `.cmd`
+    quoting rules); default is REVIEWER_SYSTEM. `cache=False` is for a one-shot call, where writing the cache costs more than
+    it can ever save (measured: a Sonnet review at low effort, $0.0072 without it against $0.011 with)."""
     exe = shutil.which("claude") or "claude"
     model, _, effort = model.partition(":")
-    argv = [exe, "-p", "--model", model, "--system-prompt", REVIEWER_SYSTEM, "--tools", "", "--strict-mcp-config",
+    system = ["--system-prompt-file", str(system_file)] if system_file else ["--system-prompt", REVIEWER_SYSTEM]
+    argv = [exe, "-p", "--model", model, *system, "--tools", "", "--strict-mcp-config",
             "--disable-slash-commands", "--output-format", "json", "--max-turns", "1"] + (["--effort", effort] if effort else [])
+    env = None if cache else {**os.environ, "DISABLE_PROMPT_CACHING": "1"}
     p = subprocess.run(argv, input=text, capture_output=True, text=True, encoding="utf8", errors="replace",
-                       timeout=timeout_s)
+                       timeout=timeout_s, env=env)
+    reviewer_call.last = {}
     try:
         d = json.loads(p.stdout)
+        u = d.get("usage") or {}
+        reviewer_call.last = {k: u.get(v) or 0 for k, v in (("input", "input_tokens"), ("cache_read", "cache_read_input_tokens"),
+                                                          ("cache_write", "cache_creation_input_tokens"), ("output", "output_tokens"))}
         return str(d.get("result") or ""), float(d.get("total_cost_usd") or 0)
     except (ValueError, TypeError):
         raise RuntimeError(f"the reviewer call failed: {(p.stderr or p.stdout).strip()[-300:]}") from None
@@ -154,6 +165,13 @@ def _child(root: Path, raw: dict) -> dict:
     return {"run_id": rid, "res": res, "report": report, "patch": patch, "answer": answer}
 
 
+def _sized(root: Path) -> dict:
+    """Step budgets from this child's own recorded speed (speed.py); empty until it has history, then STEP_BUDGET_S applies."""
+    from . import speed
+    s = build_spec({"brief": "x", "acceptance": ["true"]}, root)
+    return speed.for_project(root, s.harness, s.model, budget_floor=STEP_BUDGET_S)
+
+
 def _step_raw(task: dict, plan: list[str], done: list[str], k: int, feedback: str, applied_before: bool, root: Path) -> dict:
     from .agent import explore_plan
     plan_text = "\n".join(f"{i}. {s}" for i, s in enumerate(plan, 1))
@@ -168,6 +186,9 @@ def _step_raw(task: dict, plan: list[str], done: list[str], k: int, feedback: st
     _, raw = explore_plan(brief, root, task.get("check"))
     raw["brief"] = raw["brief"][:6000]
     raw.update(max_attempts=2, budget_s=STEP_BUDGET_S, apply_on_pass=True, followup=True)
+    raw.update(_sized(root))
+    if task.get("holdout"):
+        raw["hide"] = list(task["holdout"]["files"])
     return raw
 
 
@@ -207,12 +228,18 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
     plan_model = task.get("plan_model") or PLAN_REVIEWER_MODEL
     costs = {"reviewer_calls": 0, "reviewer_cost_usd": 0.0}
     log: list[dict] = []
-    stable = context(root, task)
+    # Everything that stays the same between the reviews of one task (who the reviewer is, the person's rules, CLAUDE.md /
+    # AGENTS.md, the task, and for the step reviews the approved plan) is the system prompt, written once as a file and never
+    # changed, so a provider's cache can serve it on every call. The user message is only what changes: the diff and the report.
+    base_system = REVIEWER_SYSTEM + "\n\n" + context(root, task)
+    _write(d, "system-plan.txt", base_system)
 
-    def review(tail: str, who: str | None = None) -> tuple[str, str]:
-        reply, cost = call(stable + "\n\n" + tail, who or model)
+    def review(tail: str, who: str | None = None, plan: bool = False) -> tuple[str, str]:
+        # the plan review is one call (caching it would cost more than it saves); the step reviews are several
+        reply, cost = call(tail, who or model, system_file=d / ("system-plan.txt" if plan else "system-steps.txt"), cache=not plan)
         costs["reviewer_calls"] += 1
         costs["reviewer_cost_usd"] = round(costs["reviewer_cost_usd"] + cost, 5)
+        costs.setdefault("calls", []).append({"model": who or model, "usd": round(cost, 5), **(getattr(call, "last", None) or {})})
         _write(d, "costs.json", costs)
         log.append({"t": round(time.time()), "tail": tail[:300], "reply": reply[:1500]})
         _write(d, "reviews.json", log)
@@ -235,7 +262,8 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
     rules = rulesmod.person_rules(root)
     ask = PLAN_ASK + task["request"] + (f"\n\nThe check that must pass at the end: {task['check']}" if task.get("check") else "")
     planned = _child(root, {"kind": "research", "brief": ask, "allowed_paths": [], "acceptance": [], "max_attempts": 1,
-                            "apply_on_pass": False, "budget_s": STEP_BUDGET_S})
+                            "apply_on_pass": False, "budget_s": STEP_BUDGET_S, **_sized(root),
+                            "hide": list((task.get("holdout") or {}).get("files") or [])})
     account(planned["res"])
     plan = parse_steps(planned["answer"])
     if not plan:
@@ -245,12 +273,13 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
                         enumerate(plan, 1)) + "\n\nIs every step small, correct and needed, and does the plan cover the "
                         "whole task? Every step must change code: no steps that only read, check or test (each step's "
                         "worker reads what it needs; the check runs after every step). Reply APPROVE, or REVISE followed "
-                        f"by the corrected numbered plan (at most {MAX_STEPS} steps, the fewer the better).", plan_model)
+                        f"by the corrected numbered plan (at most {MAX_STEPS} steps, the fewer the better).", plan_model, plan=True)
     if kind == "REVISE" and parse_steps(rest):
         plan = parse_steps(rest)
     elif kind == "STOP":
         return _finish(root, d, sid, task, "failed", "the reviewer stopped at the plan: " + rest[:300], plan, [], costs)
     _write(d, "plan.txt", "\n".join(f"{i}. {s}" for i, s in enumerate(plan, 1)))
+    _write(d, "system-steps.txt", base_system + "\n\nTHE APPROVED PLAN (you will review its steps one at a time):\n" + _read(d, "plan.txt"))
 
     # 3-4. a fresh child per step, each reviewed
     done: list[str] = []
@@ -313,13 +342,27 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
     from .agent import CLOSE, DIFF_CHARS as BLOCK_DIFF_CHARS, DIFF_LINES, OPEN, UNPROVEN, adds_test_file, code_first
     from . import do
     patch = "".join(s.get("patch", "") for s in steps if s["status"] == "approved")
+    held, held_run = task.get("holdout"), None
+    if held and status == "passed":
+        held_run = run_cmd(held["cmd"], root, 300, purge=False)
+        if not held_run["ok"]:                          # a reviewer can fail a step but never pass a red test of the parent's
+            status, reason = "failed", "the holdout test failed after every step was approved"
     # no check was named, so the whole existing suite was the check: if the child also wrote its own tests, the green is its own
-    unproven = status == "passed" and not task.get("check") and adds_test_file(patch)
+    unproven = status == "passed" and not task.get("check") and adds_test_file(patch) and not held
     lines = [f"run: {sid} (supervised: the child planned and did each step; a reviewer checked every step)",
              f"status: {status}" + (f" ({reason})" if reason else "") + (", " + UNPROVEN if unproven else "")]
     if task.get("check"):
         r = run_cmd(task["check"], root, 600, purge=False)
         lines.append(f"check in your working tree: {'pass' if r['ok'] else 'FAIL'} ({task['check']})")
+    if held:
+        files = ", ".join(held["files"])
+        if held_run is None:
+            lines.append(f"holdout: not run ({files}): the task did not finish")
+        elif held_run["ok"]:
+            lines.append(f"holdout: pass ({files}: your test, no child saw it; it stays in your tree, untracked)")
+        else:
+            names = [ln.strip()[:160] for ln in held_run["output"].splitlines() if ln.startswith("FAILED ")]
+            lines.append(f"holdout: FAILED ({files}): " + ("; ".join(names[:6]) or "see its output: gruntly cannot name the tests"))
     for s in steps:
         lines.append(f"step {s['step']}: {s['status']} after {s.get('runs', 1)} run(s): {s['summary']}")
     for i, p in enumerate(plan[len(steps):], len(steps) + 1):
@@ -328,7 +371,9 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
         from .agent import cost_line
         lines.append(cost_line({k: costs.get("child_" + k) for k in ("model", "harness", "provider", "tokens", "requests", "s")},
                                runs=costs["child_runs"]))
-    lines.append(f"reviewer: {costs['reviewer_calls']} calls, ${costs['reviewer_cost_usd']:.4f} (outside your session; "
+    cache_read = sum(c.get("cache_read", 0) for c in costs.get("calls", []))
+    lines.append(f"reviewer: {costs['reviewer_calls']} calls, ${costs['reviewer_cost_usd']:.4f} (outside your session"
+                 + (f"; {cache_read:,} tokens served from cache" if cache_read else "") + "; "
                  f"plan: {task.get('plan_model') or PLAN_REVIEWER_MODEL}, steps: {task.get('model') or REVIEWER_MODEL})")
     if patch.strip():
         files = sorted(set(re.findall(r"^diff --git a/\S+ b/(\S+)", patch, re.M)))
