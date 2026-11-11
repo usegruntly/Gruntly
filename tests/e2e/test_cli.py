@@ -136,6 +136,16 @@ def test_stats_aggregates_runs(repo, run_task, make_spec, capsys):
     assert s["total_runs"] == 2 and b["passed"] == 1 and b["escalated"] == 1 and b["pass_rate"] == 0.5
 
 
+def test_stats_show_the_only_dollars_gruntly_spends(repo, run_task, make_spec, capsys, monkeypatch):
+    monkeypatch.chdir(repo)
+    for i, usd in enumerate((0.0123, 0.0004)):       # two supervised tasks' reviewers
+        d = repo / ".gruntly" / "supervised" / f"s_x{i}"
+        d.mkdir(parents=True)
+        (d / "costs.json").write_text(json.dumps({"reviewer_calls": 3, "reviewer_cost_usd": usd}))
+    _, out = call(capsys, "stats")
+    assert json.loads(out)["reviewer_usd_this_project"] == 0.0127
+
+
 def test_user_status_is_clean_during_and_after_runs(repo, run_task, make_spec):
     run_task(make_spec("pass"))
     status = worktree.git(["status", "--porcelain"], repo).stdout

@@ -42,6 +42,18 @@ UNPROVEN = ("UNPROVEN: no existing test covers this change; the only tests that 
             "Read the diff as unreviewed code")
 
 
+def cost_line(c: dict, runs: int = 1) -> str:
+    """What the child used, said plainly: a local child is not a dollar saved and a hosted one is billed on the person's own
+    key, so neither is turned into money. The parent's cost is the two turns it spends on this call and the reply."""
+    who = " via ".join(x for x in (c.get("model"), c.get("harness")) if x) or "the child"
+    bits = [f"{runs} runs" if runs > 1 else "", f"{c['requests']} requests" if c.get("requests") else "",
+            f"{c['tokens']:,} tokens" if c.get("tokens") else "", f"{c['s']} s" if c.get("s") else ""]
+    use = ", ".join(b for b in bits if b)
+    where = ("ran on your machine, no paid tokens" if c.get("provider", "local") == "local"
+             else f"ran on {c['provider']} with your own key, not in your Claude usage")
+    return f"cost: the child {where} ({who}{', ' + use if use else ''}); you pay for this call and your reply"
+
+
 def adds_test_file(patch: str) -> bool:
     """True when the patch creates a test file: the child wrote tests that nobody else checked."""
     return any(do.is_test_path(m.group(1)) for m in re.finditer(r"^diff --git a/\S+ b/(\S+)\nnew file mode", patch, re.M))
@@ -224,6 +236,8 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     else:
         reason = (r.get("failure_bundle") or {}).get("reason") or st
         lines += [f"status: failed ({reason})", f"files: {files}; partial work kept: gruntly diff {rid}, gruntly discard {rid}"]
+    if r.get("child"):
+        lines.append(cost_line(r["child"]))
     if r.get("child_trace"):
         lines.append(r["child_trace"])
     if flags:

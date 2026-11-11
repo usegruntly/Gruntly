@@ -221,12 +221,22 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
     def progress(**kw) -> None:
         _write(d, "state.json", {"state": "running", **kw})
 
+    def account(res: dict) -> None:
+        """What the children used, summed over every run of this task (the plan, each step, each fix)."""
+        c = res.get("child") or {}
+        costs["child_runs"] = costs.get("child_runs", 0) + 1
+        for k in ("tokens", "requests", "s"):
+            costs["child_" + k] = costs.get("child_" + k, 0) + (c.get(k) or 0)
+        costs.update({"child_" + k: c[k] for k in ("model", "harness", "provider") if c.get(k)})
+        _write(d, "costs.json", costs)
+
     # 1. the child's plan, read-only
     progress(phase="plan")
     rules = rulesmod.person_rules(root)
     ask = PLAN_ASK + task["request"] + (f"\n\nThe check that must pass at the end: {task['check']}" if task.get("check") else "")
     planned = _child(root, {"kind": "research", "brief": ask, "allowed_paths": [], "acceptance": [], "max_attempts": 1,
                             "apply_on_pass": False, "budget_s": STEP_BUDGET_S})
+    account(planned["res"])
     plan = parse_steps(planned["answer"])
     if not plan:
         return _finish(root, d, sid, task, "failed", "the child did not produce a plan", [], [], costs)
@@ -253,6 +263,7 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
             progress(phase="step", step=k, of=len(plan), attempt=attempt + 1)
             c = _child(root, _step_raw(task, plan, done, k, feedback, applied_before, root))
             res = c["res"]
+            account(res)
             status = res.get("status")
             if status != "passed" and (res.get("failure_bundle") or {}).get("reason") == "empty diff":
                 status = "no change"       # nothing left to do (an earlier attempt or step did it): the reviewer decides
@@ -313,6 +324,10 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
         lines.append(f"step {s['step']}: {s['status']} after {s.get('runs', 1)} run(s): {s['summary']}")
     for i, p in enumerate(plan[len(steps):], len(steps) + 1):
         lines.append(f"step {i}: not started: {p[:160]}")
+    if costs.get("child_runs"):
+        from .agent import cost_line
+        lines.append(cost_line({k: costs.get("child_" + k) for k in ("model", "harness", "provider", "tokens", "requests", "s")},
+                               runs=costs["child_runs"]))
     lines.append(f"reviewer: {costs['reviewer_calls']} calls, ${costs['reviewer_cost_usd']:.4f} (outside your session; "
                  f"plan: {task.get('plan_model') or PLAN_REVIEWER_MODEL}, steps: {task.get('model') or REVIEWER_MODEL})")
     if patch.strip():

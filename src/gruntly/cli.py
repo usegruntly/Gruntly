@@ -781,7 +781,14 @@ def cmd_stats(a) -> int:
                  pass_rate=round(b["passed"] / n, 2), mean_attempts=round(b["attempts"] / n, 2),
                  recommend=("unknown (need 10+ runs)" if n < 10 else "delegate" if b["passed"] / n >= 0.7 else "avoid"),
                  mean_wall_s=round(b["wall_s"] / n, 1), mean_result_bytes=round(b["result_bytes"] / n))
-    out({"total_runs": len(rows), "by_harness_model": by}, a.human)
+    # the only dollars gruntly spends are reviewers' (supervised runs); children are local tokens or the person's own hosted key
+    paid = 0.0
+    for f in (_root() / ".gruntly" / "supervised").glob("*/costs.json"):
+        try:
+            paid += float(json.loads(f.read_text(encoding="utf8")).get("reviewer_cost_usd") or 0)
+        except (OSError, ValueError):
+            pass
+    out({"total_runs": len(rows), "reviewer_usd_this_project": round(paid, 4), "by_harness_model": by}, a.human)
     return 0
 
 

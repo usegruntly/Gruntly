@@ -461,6 +461,9 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
         session = out.session_id or session
         if out.usage.get("available"):
             usage = out.usage
+            tot = st.read_json("child_usage.json", {})        # all attempts together: what the block's cost line reports
+            st.write_json("child_usage.json", {"tokens": tot.get("tokens", 0) + (out.usage.get("total_tokens") or 0),
+                                               "requests": tot.get("requests", 0) + (out.usage.get("requests") or 0)})
         context_hit = bool(CONTEXT.search(cr.stderr + out.final_message))
 
         if cr.breach:
@@ -579,7 +582,11 @@ def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_s
                        child_tokens=(usage or {}).get("total_tokens"), next_cmds=nxt, untrusted=untrusted,
                        applied=ok_applied if applied else None, verify=applied.get("verify"),
                        review_hint=review_hint, warnings=warnings, error=error,
-                       child_trace=tracemod.line(st.read_json("trace.json", {})))
+                       child_trace=tracemod.line(st.read_json("trace.json", {})),
+                       child={k: v for k, v in {"harness": spec.harness, "model": spec.model, "provider": spec.provider,
+                                                "tokens": st.read_json("child_usage.json", {}).get("tokens"),
+                                                "requests": st.read_json("child_usage.json", {}).get("requests"),
+                                                "s": round(child_s)}.items() if v not in (None, "", 0)})
     st.save_result(res, meta={"wall_s": res["wall_s"], "child_usage": usage})
     progress.Feed(st.dir / progress.NAME).emit("gruntly", "done", status=status, reason=(bundle or {}).get("reason") or error)
     return res

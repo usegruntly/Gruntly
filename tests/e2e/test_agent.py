@@ -240,3 +240,19 @@ def test_explore_gives_the_whole_project_but_not_the_tests_or_the_check(proj):
     assert not any(t.startswith("test_") for t in raw["deny_paths"])      # a rename must reach the tests too
     assert "find where this has to change yourself" in raw["brief"]
     assert raw["acceptance"][0]["cmd"] == "python check_names.py && python -m pytest -q"
+
+
+def test_the_cost_line_names_what_the_child_used_and_never_turns_it_into_dollars():
+    local = {"harness": "opencode", "model": "qwen3.5-9b", "provider": "local", "requests": 12, "tokens": 9870, "s": 74}
+    line = agent.cost_line(local)
+    assert line == ("cost: the child ran on your machine, no paid tokens (qwen3.5-9b via opencode, 12 requests, 9,870 tokens, 74 s); "
+                    "you pay for this call and your reply")
+    hosted = agent.cost_line({"harness": "hermes", "model": "poolside/laguna-xs-2.1", "provider": "nvidia", "s": 90}, runs=3)
+    assert "ran on nvidia with your own key, not in your Claude usage" in hosted and "3 runs" in hosted and "$" not in hosted + line
+    r = {"run_id": "r1", "status": "passed", "applied": True, "diff_stat": {"paths": ["a.py"]}, "child": local}
+    assert line in agent.block(r, None, patch="+x")
+
+
+def test_a_real_run_reports_its_child_in_the_result(run_task, make_spec):
+    res, _ = run_task(make_spec("pass"))
+    assert res["child"]["harness"] == "generic" and res["child"]["provider"] == "local"
