@@ -317,12 +317,19 @@ def main():
     ap.add_argument("--arms", default="alone,forced,policy")
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--budget-usd", type=float, default=1.5, help="per-run cap for the parent")
+    ap.add_argument("--max-total-usd", type=float, default=0,
+                    help="stop before a run whose expected cost (the dearest run so far, at least $0.15) would pass this total; 0 = no cap")
     ap.add_argument("--resume", action="store_true", help="continue from the saved .json next to --out")
     ap.add_argument("--report-only", action="store_true", help="re-render the saved .json next to --out with the current report; run nothing")
     ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmarks" / "benchmark-v2.md"))
     a = ap.parse_args()
     names = [n for n in a.tasks.split(",") if n] or sorted(p.name for p in (HERE / "tasks").iterdir() if p.is_dir())
     if a.real:        # the tasks from real repositories, without the ones whose problem statement is a one-line changelog entry
+        # click's pytest config turns warnings into errors, and the pytest on this machine (9.2) deprecates something its older tests
+        # do: the unmodified suite then fails to collect (tests/test_basic.py), and gruntly's whole-suite gate could never pass. Every
+        # arm, the hidden-test judge and gruntly's gate see the same pytest options, set here.
+        opt = "-W ignore::pytest.PytestRemovedIn10Warning"
+        os.environ["PYTEST_ADDOPTS"] = (os.environ.get("PYTEST_ADDOPTS", "") + " " + opt).strip()
         names = sorted(p.name for p in (HERE / "tasks-real").iterdir()
                        if p.is_dir() and not yaml.safe_load((p / "task.yaml").read_text(encoding="utf8")).get("vague"))
     raw = Path(a.out).with_suffix(".json")
@@ -332,18 +339,29 @@ def main():
         return
     rows = json.loads(raw.read_text(encoding="utf8")) if raw.exists() and a.resume else []
     done = {(r["task"], r["arm"], r["rep"]) for r in rows}
+    stopped = False
     for rep in range(1, a.reps + 1):
         for n in names:
             for arm in a.arms.split(","):
                 if (n, arm, rep) in done:
                     continue
+                spent = sum(r["cost_usd"] or 0 for r in rows)
+                expect = max([r["cost_usd"] or 0 for r in rows] + [0.15])
+                if a.max_total_usd and spent + expect > a.max_total_usd:
+                    print(f"stopped: ${spent:.2f} spent, the next run (about ${expect:.2f}) would pass --max-total-usd {a.max_total_usd}", flush=True)
+                    stopped = True
+                    break
                 print(f"[{n} / {arm} / rep {rep}] ...", flush=True)
                 r = run_one(task_dir_of(n), arm, rep, a)
                 rows.append(r)
                 print(f"  pass={r['passed']} ${r['cost_usd']} turns={r['turns']} wall={r['wall_s']}s gruntly={r['gruntly_status']}", flush=True)
                 raw.write_text(json.dumps(rows, indent=1), encoding="utf8")
                 Path(a.out).write_text(report(rows, vars(a)), encoding="utf8")
-    print(f"wrote {a.out}")
+            if stopped:
+                break
+        if stopped:
+            break
+    print(f"wrote {a.out}  (total ${sum(r['cost_usd'] or 0 for r in rows):.2f})")
 
 
 if __name__ == "__main__":
