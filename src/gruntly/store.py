@@ -11,6 +11,21 @@ RETENTION_DAYS = 14
 RETENTION_RUNS = 50
 
 
+def atomic_write(p: Path, text: str) -> None:
+    """Write beside the file, then replace it: a poller (`gruntly wait`, the live view) never reads a half-written record. On
+    Windows the replace fails while a reader has the file open, and that lasts microseconds, so it is retried."""
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")
+    tmp.write_text(text, encoding="utf8")
+    for i in range(12):
+        try:
+            os.replace(tmp, p)
+            return
+        except PermissionError:
+            time.sleep(0.02 * (i + 1))
+    tmp.unlink(missing_ok=True)
+    p.write_text(text, encoding="utf8")
+
+
 def state_dir() -> Path:
     base = os.environ.get("GRUNTLY_STATE_DIR")
     return Path(base) if base else Path.home() / ".local" / "state" / "gruntly"
@@ -60,11 +75,19 @@ class Store:
 
     # json helpers
     def write_json(self, name: str, data) -> None:
-        (self.dir / name).write_text(json.dumps(data, indent=2), encoding="utf8")
+        atomic_write(self.dir / name, json.dumps(data, indent=2))
 
     def read_json(self, name: str, default=None):
         p = self.dir / name
-        return json.loads(p.read_text(encoding="utf8")) if p.exists() else default
+        for i in range(6):                      # a writer on an older gruntly may still truncate first: look again, briefly
+            try:
+                return json.loads(p.read_text(encoding="utf8"))
+            except FileNotFoundError:
+                return default
+            except (ValueError, PermissionError):      # PermissionError: Windows, while a writer swaps the file in
+                if i == 5:
+                    raise
+                time.sleep(0.03)
 
     def write_text(self, name: str, text: str) -> None:
         p = self.dir / name
