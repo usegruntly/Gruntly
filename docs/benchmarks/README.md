@@ -16,6 +16,7 @@ says they are. The reasoning that came out of them is in `../decisions.md` and `
 | `benchmark-haiku-alone` | Haiku 5.5 alone in Claude Code on all 15 tasks: cost and hidden-test pass (2026-11-11). |
 | `benchmark-forced-oneflow` | Sonnet delegating through the one-call `agent-run` flow to Hermes + Laguna, 5 small tasks: parent turns and cost (2026-11-11). |
 | `benchmark-subagent` | Sonnet delegating to one Haiku sub-agent through Claude Code's Agent tool, 4 tasks (2026-11-11). |
+| `benchmark-real-alone` | Sonnet alone in Claude Code on the 8 non-vague real click fixes of `bench/tasks-real/`, one run each: parent turns, cost and hidden-test pass (2026-11-12). The turn counts decide which tasks are worth delegating (8+ turns). |
 | `child-bench`, `child-bench-precise`, `child-bench-vague` | Which child profile (typist, worker, default) does best, with precise and with vague briefs. |
 
 To rerun one, see the matching script in `bench/` (`run_bench.py`, `run_child_bench.py`, `run_local_alone.py`); each writes here by default.

@@ -333,13 +333,12 @@ REVIEW_MODEL = "sonnet:low"
 
 
 def _sized(root: Path, wait_s: int) -> dict:
-    """Time budgets from this child's own recorded speed (speed.py), kept inside what this call can wait; empty until it has history."""
+    """Time budgets from this child's own recorded speed (speed.py); empty until it has history. They are not cut to what this call
+    can wait: a slow child that finishes after `running` costs one `gruntly wait`, a child killed at the end of the wait costs the
+    whole run (a smoke test on 2026-11-12 showed the cut-off turning a slow run into a failure)."""
     from . import speed
     s = build_spec({"brief": "x", "acceptance": ["true"]}, root)
-    out = speed.for_project(root, s.harness, s.model)
-    if "budget_s" in out:
-        out["budget_s"] = int(min(out["budget_s"], max(wait_s - 30, 120)))
-    return out
+    return speed.for_project(root, s.harness, s.model)
 
 
 PARALLEL_MAX = 4

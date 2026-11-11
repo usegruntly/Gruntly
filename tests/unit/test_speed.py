@@ -43,3 +43,11 @@ def test_the_persons_own_non_default_budget_wins(tmp_path):
     assert "budget_s" not in speed.for_project(tmp_path, "opencode", "m", rows)
     (tmp_path / ".gruntly.toml").write_text("budget_s = 900\n", encoding="utf8")          # the init template's value: not a choice
     assert speed.for_project(tmp_path, "opencode", "m", rows)["budget_s"] == 1500
+
+
+def test_agent_run_does_not_cut_a_childs_budget_to_the_calls_wait(tmp_path, monkeypatch):
+    """A slow child that outlives the wait costs one `gruntly wait`; killing it at the end of the wait costs the whole run."""
+    from gruntly import cli
+    monkeypatch.setattr(speed, "for_project", lambda *a, **k: {"budget_s": 1500, "no_progress_s": 200})
+    monkeypatch.setattr(cli, "build_spec", lambda raw, root=None: type("S", (), {"harness": "opencode", "model": "m"})())
+    assert cli._sized(tmp_path, 540) == {"budget_s": 1500, "no_progress_s": 200}
