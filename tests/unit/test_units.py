@@ -185,3 +185,11 @@ def test_a_silent_child_that_keeps_calling_its_model_is_not_idle(tmp_path):
     assert busy.breach is None                   # silent for 5 s, but its model requests kept counting
     idle = runner.run_child(GenericAdapter(), argv, None, None, tmp_path, 30, 3.5, activity=lambda: 0)
     assert idle.breach == "idle"
+
+
+def test_python_cmd_honours_gruntly_python_then_the_projects_venv_then_plain_python(monkeypatch, tmp_path):
+    from gruntly import do
+    monkeypatch.delenv("GRUNTLY_PYTHON", raising=False)
+    assert do.python_cmd(tmp_path) == "python"
+    monkeypatch.setenv("GRUNTLY_PYTHON", "/opt/py312/bin/python")
+    assert do.python_cmd(tmp_path) == '"/opt/py312/bin/python"'

@@ -1,0 +1,17 @@
+brief: "fix ParamType.to_info_dict() with no name\n\nWhat the maintainers wrote about\
+  \ the intended behaviour:\n-   ``to_info_dict`` will not fail if a ``ParamType``\
+  \ doesn't define a\n    ``name``."
+source:
+  url: https://github.com/pallets/click
+  base: 19be092b6db4e4300e31906498e354ec0adf870c
+  fix: e0033315510510acdba14e880a361ccca091fb4b
+allowed_paths:
+- src/click/**
+acceptance:
+- cmd: python -m pytest -q -p no:cacheprovider tests/test_info_dict.py
+  timeout_s: 300
+tests_writable: false
+vague: true
+fix_size:
+  source_files: 1
+  test_files: 1

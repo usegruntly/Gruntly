@@ -1,0 +1,20 @@
+brief: 'Fix `copy`, `deepcopy` and `pickle` of `Sentinel` members
+
+
+  What the maintainers wrote about the intended behaviour:
+
+  - Fix `copy.deepcopy()` and `pickle` on a `Parameter`, `Option` or `Command`.'
+source:
+  url: https://github.com/pallets/click
+  base: 420c8fb44eeadb537cae69d2fee3796e808558dd
+  fix: f58ca3e81424a35626c8a475eb59ab95589008ce
+allowed_paths:
+- src/click/**
+acceptance:
+- cmd: python -m pytest -q -p no:cacheprovider tests/test_utils/test_sentinel.py
+  timeout_s: 300
+tests_writable: false
+vague: true
+fix_size:
+  source_files: 1
+  test_files: 1

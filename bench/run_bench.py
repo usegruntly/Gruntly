@@ -27,6 +27,8 @@ from pathlib import Path
 import yaml
 
 HERE = Path(__file__).parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))          # real_tasks.py sits beside this file, also when this file is loaded by path
 PLUGIN = HERE.parent / "plugin"
 TOOLS = ["Bash", "Write", "Read", "Edit", "Glob", "Grep", "Skill"]
 LARGE = {"bugs_batch", "rename_domain", "cli_json", "inventory_reorder", "settings_refactor"}
@@ -47,13 +49,24 @@ def sh(args, cwd, **kw):
     return subprocess.run(args, cwd=cwd, capture_output=True, text=True, encoding="utf8", errors="replace", **kw)
 
 
+def task_dir_of(name: str) -> Path:
+    """Synthetic tasks live in bench/tasks, tasks from real repositories in bench/tasks-real (see real_tasks.py)."""
+    return HERE / "tasks" / name if (HERE / "tasks" / name).is_dir() else HERE / "tasks-real" / name
+
+
 def bucket(task: str) -> str:
-    return "L" if task in LARGE else "S"
+    return "R" if (HERE / "tasks-real" / task).is_dir() else "L" if task in LARGE else "S"
 
 
 def prepare(task_dir: Path, work: Path, harness: str, model: str, extra: str = "", provider: str = "") -> dict:
     spec = yaml.safe_load((task_dir / "task.yaml").read_text(encoding="utf8"))
-    shutil.copytree(task_dir / "repo", work)
+    if (task_dir / "repo").is_dir():
+        shutil.copytree(task_dir / "repo", work)
+    else:                                       # a task from a real repository: the starter is the parent commit
+        import real_tasks
+        real_tasks.materialize(spec["source"], work)
+        for a_ in spec.get("acceptance", []):       # the check must run on the interpreter the benchmark controls
+            a_["cmd"] = a_["cmd"].replace("python ", f'"{Path(sys.executable).as_posix()}" ', 1)
     (work / ".gruntly.toml").write_text(
         f'harness = "{harness}"\nmodel = "{model}"\n' + (f'provider = "{provider}"\n' if provider else "")
         + 'budget_s = 900\nno_progress_s = 300\nmax_attempts = 2\n' + extra, encoding="utf8")
@@ -104,6 +117,9 @@ def prompt_for(arm: str, spec: dict) -> str:
 
 
 def judge(task_dir: Path, work: Path) -> bool:
+    if not (task_dir / "hidden" / "test_hidden.py").is_file():       # real task: the fix commit's own tests
+        import real_tasks
+        return real_tasks.judge_files(task_dir, work)
     shutil.copy(task_dir / "hidden" / "test_hidden.py", work / "test_hidden.py")
     r = sh([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"], work, timeout=180)
     (work / "test_hidden.py").unlink()
@@ -184,6 +200,10 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
             cmd += ["--plugin-dir", str(PLUGIN)]
         t0 = time.time()
         err = None
+        if bucket(task_dir.name) == "R":            # real repositories: gruntly runs their tests on the interpreter the benchmark controls
+            os.environ["GRUNTLY_PYTHON"] = sys.executable
+        else:
+            os.environ.pop("GRUNTLY_PYTHON", None)
         try:
             env = ({**os.environ, "BASH_DEFAULT_TIMEOUT_MS": "600000", "BASH_MAX_TIMEOUT_MS": "600000"} if arm == LEAN else
                    {**os.environ, "BASH_MAX_TIMEOUT_MS": "3600000"} if arm == SUPERVISED else None)   # one blocking call, not many waits
@@ -234,12 +254,12 @@ def report(rows: list[dict], meta: dict) -> str:
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "
-         "S = ten small tasks the parent solves in ~4 turns; L = three larger tasks (six bugs, a 15-file rename, a CLI feature). "
+         "S = ten small tasks the parent solves in ~4 turns; L = three larger tasks (six bugs, a 15-file rename, a CLI feature); R = real fix commits of public repositories (hidden tests = the fix's own). "
          "Arms: `alone`; `forced` (told to delegate through the one-call flow); `policy` (may delegate if the skill's triage rule says so).", "",
          "## Totals by bucket (means over tasks and repetitions)", "",
          "| bucket | arm | runs | pass rate | cost $/run | reviewer $ | vs alone | marginal $ (after the $0.045 floor) | vs alone, marginal | cost of a pass $ | turns | takeover edits | session splits | wall s | parent output tok | tool-output KB in context | delegated | child tok |",
          "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
-    for b in ("S", "L"):
+    for b in ("S", "L", "R"):
         base = [total(r) for r in rows if r["bucket"] == b and r["arm"] == "alone"]
         for arm in arms:
             rs = [r for r in rows if r["bucket"] == b and r["arm"] == arm]
@@ -293,6 +313,7 @@ def main():
     ap.add_argument("--provider", default="", help="hosted provider for the child (e.g. nvidia); default: the local server")
     ap.add_argument("--parent-model", default="sonnet", help="Claude model for the parent (alias or id)")
     ap.add_argument("--tasks", default="")
+    ap.add_argument("--real", action="store_true", help="run the tasks from real repositories (bench/tasks-real, see real_tasks.py)")
     ap.add_argument("--arms", default="alone,forced,policy")
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--budget-usd", type=float, default=1.5, help="per-run cap for the parent")
@@ -301,6 +322,9 @@ def main():
     ap.add_argument("--out", default=str(HERE.parent / "docs" / "benchmarks" / "benchmark-v2.md"))
     a = ap.parse_args()
     names = [n for n in a.tasks.split(",") if n] or sorted(p.name for p in (HERE / "tasks").iterdir() if p.is_dir())
+    if a.real:        # the tasks from real repositories, without the ones whose problem statement is a one-line changelog entry
+        names = sorted(p.name for p in (HERE / "tasks-real").iterdir()
+                       if p.is_dir() and not yaml.safe_load((p / "task.yaml").read_text(encoding="utf8")).get("vague"))
     raw = Path(a.out).with_suffix(".json")
     if a.report_only:
         Path(a.out).write_text(report(json.loads(raw.read_text(encoding="utf8")), vars(a)), encoding="utf8")
@@ -314,7 +338,7 @@ def main():
                 if (n, arm, rep) in done:
                     continue
                 print(f"[{n} / {arm} / rep {rep}] ...", flush=True)
-                r = run_one(HERE / "tasks" / n, arm, rep, a)
+                r = run_one(task_dir_of(n), arm, rep, a)
                 rows.append(r)
                 print(f"  pass={r['passed']} ${r['cost_usd']} turns={r['turns']} wall={r['wall_s']}s gruntly={r['gruntly_status']}", flush=True)
                 raw.write_text(json.dumps(rows, indent=1), encoding="utf8")

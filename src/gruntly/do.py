@@ -10,6 +10,7 @@ Anything unclear is a refusal with a reason, which costs nothing: the caller jus
 from __future__ import annotations
 
 import ast
+import os
 import re
 import tomllib
 from dataclasses import dataclass
@@ -219,6 +220,11 @@ def find_tests(root: Path, files: list[str], targets: list[str], names: list[str
 
 
 def python_cmd(root: Path) -> str:
+    """The interpreter that runs the project's tests: GRUNTLY_PYTHON if set (a conda env, a pinned version), else the project's
+    own .venv, else `python`."""
+    override = os.environ.get("GRUNTLY_PYTHON")
+    if override:
+        return f'"{Path(override).as_posix()}"'
     for rel in (".venv/Scripts/python.exe", ".venv/bin/python"):
         if (root / rel).is_file():
             return f'"{(root / rel).as_posix()}"'

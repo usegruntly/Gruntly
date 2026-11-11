@@ -9,3 +9,5 @@ bench/runs/
 bench/runs-opus/
 logs/
 bench/runs-*/
+
+bench/.cache/
