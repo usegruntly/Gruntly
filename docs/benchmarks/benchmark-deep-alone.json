@@ -1,0 +1,74 @@
+[
+ {
+  "arm": "alone",
+  "prime": {
+   "cost_usd": 0.9631,
+   "turns": 83,
+   "peak_ctx": 226169,
+   "error": null
+  },
+  "tasks": [
+   {
+    "wall_s": 16,
+    "error": null,
+    "session": "bb29bcbd-9553-47ad-baab-a21c70180624",
+    "cost_usd": 1.4672,
+    "turns": 6,
+    "reply": "`flatten` is implemented in `tasks/flatten/flat.py` (iterative, expands only lists, strings stay whole), and `python -m pytest -q tasks/flatten` passes (1 passed).\nMy extra deep-nesting probe crashed in Python's own parser (`eval` of 5000 brackets), so it never reached `flatten`, and I did not re-run it or the other edge cases.",
+    "tools": {
+     "Glob": 1,
+     "Read": 2,
+     "Write": 1,
+     "Bash": 1
+    },
+    "sessions": 1,
+    "background_calls": 0,
+    "takeover_edits": 0,
+    "tool_output_bytes": 10421,
+    "peak_ctx": 313758,
+    "tokens": {
+     "input": 10,
+     "cache_write": 87589,
+     "cache_read": 1440648,
+     "output": 972
+    },
+    "task": "flatten",
+    "n": 1,
+    "arm": "alone",
+    "passed": true,
+    "gruntly_status": [],
+    "reviewer_cost_usd": 0.0
+   },
+   {
+    "wall_s": 15,
+    "error": null,
+    "session": "bb29bcbd-9553-47ad-baab-a21c70180624",
+    "cost_usd": 1.6107,
+    "turns": 5,
+    "reply": "`LRUCache` is implemented in `tasks/lru_cache/lru.py` using an `OrderedDict`. `python -m pytest -q tasks/lru_cache` passes (1 passed).\nI also ran eviction by hand: `get` refreshes recency, `put` on an existing key refreshes it too, the least recently used key is evicted, and capacity 0 stores nothing.",
+    "tools": {
+     "Read": 2,
+     "Write": 1,
+     "Bash": 1
+    },
+    "sessions": 1,
+    "background_calls": 0,
+    "takeover_edits": 0,
+    "tool_output_bytes": 635,
+    "peak_ctx": 316124,
+    "tokens": {
+     "input": 8,
+     "cache_write": 1947,
+     "cache_read": 1259636,
+     "output": 966
+    },
+    "task": "lru_cache",
+    "n": 2,
+    "arm": "alone",
+    "passed": true,
+    "gruntly_status": [],
+    "reviewer_cost_usd": 0.0
+   }
+  ]
+ }
+]

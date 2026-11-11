@@ -15,7 +15,12 @@ priming turn is reported separately and not charged to either arm's tasks.
   python bench/run_deep_bench.py --dry-run                      # builds the repository and prints the plan; no claude call, no cost
   python bench/run_deep_bench.py --arms alone,delegated --harness hermes --provider nvidia --model poolside/laguna-xs-2.1
 
-Cost: about $0.60 per session to prime plus the ten tasks (about $3.50 for both arms in all). `--max-total-usd` stops the run.
+WARNING, measured 2026-11-12 (docs/benchmarks/benchmark-deep-alone.md): this design does NOT measure a long interactive session.
+Each `claude -p --resume` call re-wrote about 300k tokens of the primed context to the cache (modelUsage: 299k and 301k cache-creation
+tokens, about $1.2 a call at $4/M), so a 5-turn task cost $1.47 and $1.61 against about $0.46 for the same turns in the user's real
+sessions ($0.076 a turn above 300k tokens). The priming also overshot (83 turns, 226k tokens of context for a 150k target). Redesign
+before running again: one process that takes several user messages (`--input-format stream-json`), so the cache stays warm the way it
+does interactively. The guards below stop an arm early; they do not fix the artifact.
 """
 from __future__ import annotations
 
@@ -160,13 +165,18 @@ def run_arm(arm: str, tasks: list[str], a, bench) -> dict:
         (out_dir / f"deep.{arm}.prime.jsonl").write_text(prime["raw"], encoding="utf8")
         print(f"  primed: ${prime['cost_usd']} turns={prime['turns']} context={prime['peak_ctx']:,} {prime['error'] or ''}", flush=True)
         rows, session, spent = [], prime["session"], prime["cost_usd"]
+        if prime["peak_ctx"] > 1.3 * a.context_tokens + 40_000:      # 40k: Claude Code's own prompt and tools
+            print(f"  stopped: the priming left {prime['peak_ctx']:,} tokens of context for a {a.context_tokens:,} target", flush=True)
+            return {"arm": arm, "prime": {k: prime[k] for k in ("cost_usd", "turns", "peak_ctx", "error")}, "tasks": rows}
+        last = 0.0
         for i, name in enumerate(tasks, 1):
-            if spent >= a.max_total_usd:
-                print(f"  stopped: ${spent:.2f} spent (--max-total-usd)", flush=True)
+            if spent + max(last, 0.05) > a.max_total_usd:      # the next call is expected to cost about what the last one did
+                print(f"  stopped: ${spent:.2f} spent, the next call would pass --max-total-usd ({a.max_total_usd})", flush=True)
                 break
             r = call(work, task_prompt(arm, name, specs[name]), session, arm, a, bench)
             session = r["session"] or session
             spent += r["cost_usd"]
+            last = r["cost_usd"]
             (out_dir / f"deep.{arm}.{i:02d}.{name}.jsonl").write_text(r.pop("raw"), encoding="utf8")
             grs = gruntly_runs(work)
             r.update(task=name, n=i, arm=arm, passed=judge(work, name), gruntly_status=[g["status"] for g in grs][-1:],
