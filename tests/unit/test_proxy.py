@@ -166,3 +166,16 @@ def test_a_repeated_key_in_a_request_body_is_repaired_and_a_clean_body_is_untouc
     clean = b'{"model": "m",  "messages": []}'
     assert dedupe_keys(clean) is clean                      # same bytes, spacing included
     assert dedupe_keys(b"not json") == b"not json"
+
+
+
+
+def test_a_field_a_model_refuses_is_dropped_for_that_provider_and_model_only():
+    from gruntly.proxy import drop_rejected_fields
+    body = b'{"model":"deepseek-ai/deepseek-v4.1-flash","reasoning_effort":"medium","messages":[]}'
+    assert json.loads(drop_rejected_fields(body, "nvidia")) == {"model": "deepseek-ai/deepseek-v4.1-flash", "messages": []}
+    other_model = b'{"model":"poolside/laguna-xs-2.1","reasoning_effort":"medium"}'
+    assert drop_rejected_fields(other_model, "nvidia") is other_model             # Laguna takes it: untouched, same bytes
+    assert drop_rejected_fields(body, "gemini") is body                           # another provider: untouched
+    assert drop_rejected_fields(b"not json", "nvidia") == b"not json"
+    assert drop_rejected_fields(b"[1]", "nvidia") == b"[1]"

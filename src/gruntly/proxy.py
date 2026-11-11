@@ -130,6 +130,30 @@ def dedupe_keys(body: bytes) -> bytes:
     return json.dumps(obj, ensure_ascii=False).encode("utf8") if repeated else body
 
 
+# Request fields a hosted model answers with HTTP 400 "Invalid request", though Hermes sends them to every model it thinks can reason.
+# Measured 2026-11-12: deepseek-ai/deepseek-v4.1-flash on NVIDIA takes Hermes's exact request once `reasoning_effort` is removed (the
+# model page's own sample code never sets it), and refuses it with `reasoning_effort: "medium"`. Keyed by (provider, model prefix).
+REJECTED_FIELDS = {("nvidia", "deepseek-ai/"): ("reasoning_effort",)}
+
+
+def drop_rejected_fields(body: bytes, provider: str) -> bytes:
+    """Remove the fields REJECTED_FIELDS lists for this provider and model. Any other body is returned untouched, byte for byte."""
+    try:
+        obj = json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        return body
+    if not isinstance(obj, dict):
+        return body
+    model = str(obj.get("model", ""))
+    drop = [f for (p, prefix), fields in REJECTED_FIELDS.items() if p == provider and model.startswith(prefix)
+            for f in fields if f in obj]
+    if not drop:
+        return body
+    for f in drop:
+        del obj[f]
+    return json.dumps(obj, ensure_ascii=False).encode("utf8")
+
+
 def retry_after(headers, body: bytes) -> float:
     """Seconds a 429 asks us to wait: Retry-After, else 'retry in 12.3s' / retryDelay '12s' in the body, else 20."""
     v = headers.get("Retry-After") if headers else None
@@ -159,8 +183,9 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _forward(self, method: str) -> None:
         n = int(self.headers.get("Content-Length") or 0)
-        body = dedupe_keys(self.rfile.read(n)) if n and method == "POST" else (self.rfile.read(n) if n else b"")
         srv = self.server
+        body = drop_rejected_fields(dedupe_keys(self.rfile.read(n)), srv.name) if n and method == "POST" \
+            else (self.rfile.read(n) if n else b"")
         path = self.path.split("?", 1)[0]
         if path.startswith("/v1"):
             path = path[3:]                           # the client's base URL ends in /v1; the provider's base has its own
