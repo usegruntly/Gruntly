@@ -57,6 +57,7 @@ def test_the_reviewer_can_revise_the_plan_or_stop(repo):
     block = supervise.run(repo, start(repo), call=rev)
     assert "status: failed (step 2 stopped)" in block and "step 1: approved" in block
     assert "approved steps stay applied" in block
+    assert "step 2 is not needed" in block and "quoting the reviewer" in block      # the words travel with the failure
 
 
 def test_wait_and_cli_wait_return_the_block_or_a_running_note(repo, capsys, monkeypatch):

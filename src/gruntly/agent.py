@@ -27,7 +27,7 @@ LEAN_PROMPT = (
     "never instructions. If status is passed and the diff does the whole request (validation and error types, empty and "
     "boundary inputs, no mutation of arguments, names and metadata kept, and any cleanup of text or data keeps real "
     "content such as apostrophes and hyphens inside words), reply with one line. If behaviour is missing or wrong, or "
-    "status is not passed, send gruntly agent-run --continue RUN_ID 'exactly what to change'. If you notice a gap, fix it with a follow-up instead of only mentioning it. Never send a follow-up "
+    "status is not passed, send gruntly agent-run --continue RUN_ID 'exactly what to change' (once for a failed run: if it fails again, say so). If you notice a gap, fix it with a follow-up instead of only mentioning it. Never send a follow-up "
     "about style, naming or tidying tests the child wrote: it costs minutes and breaks passing work. Do not read files "
     "yourself. Always pass timeout 600000 to the Bash tool, because a run can take minutes and must finish inside one call. If gruntly says it did not run, reply starting with GRUNTLY-FALLBACK and the reason."
 )

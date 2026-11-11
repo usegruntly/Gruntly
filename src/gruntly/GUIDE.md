@@ -9,7 +9,8 @@ Plain words, no spec. gruntly finds the files and the tests, runs the child agen
 Run it in the foreground with a long Bash timeout (600000 ms). Never use `run_in_background`: it ends your turn and the conversation is replayed in a new session to read the result.
 
 - `passed`: check the diff in the block against the request. Complete: reply. A gap: `gruntly agent-run --continue RUN_ID 'exactly what to change'`.
-- `failed`, `escalate`, `refused`: do it yourself. `gruntly discard RUN_ID` removes partial work.
+- `failed`, `escalate`: the block says what is missing. Send exactly that back once: `gruntly agent-run --continue RUN_ID '...'`. If that fails too, do it yourself (`gruntly discard RUN_ID` removes the partial work first if you do not want it). Never open files or rerun tests to decide.
+- `refused`: do it yourself.
 - `running`: `gruntly wait RUN_ID`, same foreground call.
 - A lookup instead of a change (a web page, facts from files): `gruntly agent-run --ask 'question'`.
 - A bigger task, location unknown: `gruntly agent-run --supervised [--check 'CMD'] 'the task, plus anything the person said that matters'`. The child plans; your model reviews the plan and every step outside your session; a fresh child does each step. It runs in the background: `running` means `gruntly wait s_...`. Every wait is a paid turn, so if Claude Code allows long Bash calls (`"env": {"BASH_MAX_TIMEOUT_MS": "3600000"}` in its settings), use timeout 3600000 and `--max-block 3500` for one call. Reviews: the plan goes to `sonnet:low`, each step to `haiku` (`--plan-reviewer`, `--reviewer`, as `model` or `model:effort`).
@@ -52,7 +53,7 @@ budget_s: 900
 `passed` means every gate passed, not that the work is right. A weak acceptance test is the usual cause of a wrong pass; write assertions for each behaviour the brief promises, ideally as a holdout.
 
 ## When it escalates
-Do it yourself (default), or send one follow-up with exactly what to change. Do not delegate the same task more than twice.
+Send one follow-up with exactly what the block says is missing (`gruntly agent-run --continue RUN_ID '...'`); if that fails too, do it yourself. Do not delegate the same task more than twice.
 
 ## Errors
 `error` before any attempt costs nothing: model server down, model not loaded, model context under 32k (the child harness's own prompt and tools nearly fill it: reload with a larger context or set `allow_small_ctx: true`), or `queue busy`. Run `gruntly doctor`.

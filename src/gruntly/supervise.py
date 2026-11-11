@@ -291,7 +291,7 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
                 done.append(f"{k}. {outcome['summary']}")
                 break
             if kind == "STOP":
-                outcome = {"step": k, "status": "stopped", "summary": rest[:300], "runs": attempt + 1, "run_id": c["run_id"]}
+                outcome = {"step": k, "status": "stopped", "summary": rest[:600], "runs": attempt + 1, "run_id": c["run_id"]}
                 break
             if status not in ("passed", "no change"):
                 wtmod.remove(root, c["run_id"])              # its changes were never applied; start the fix from the tree
@@ -301,7 +301,7 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
             if kind == "APPROVE":                            # approved but the check failed: the check wins
                 feedback = "The check failed:\n" + gate_out[-1200:]
         if outcome is None:
-            outcome = {"step": k, "status": "not approved", "summary": feedback[:300], "runs": MAX_FIXES + 1}
+            outcome = {"step": k, "status": "not approved", "summary": feedback[:600], "runs": MAX_FIXES + 1}
         steps_out.append(outcome)
         if outcome["status"] != "approved":
             return _finish(root, d, sid, task, "failed", f"step {k} {outcome['status']}", plan, steps_out, costs)
@@ -340,7 +340,7 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
     if status == "passed":
         lines.append("next: nothing to open or rerun; read the steps and the diff, then reply")
     else:
-        lines.append("next: approved steps stay applied; do the rest yourself or send a new request")
+        lines.append("next: approved steps stay applied. Send the unfinished steps back once as one request (gruntly agent-run --supervised ...) quoting the reviewer's words above; if that fails too, do them yourself")
     block = f"{OPEN}\n" + "\n".join(lines) + f"\n{CLOSE}"
     _write(d, "block.txt", block)
     _write(d, "state.json", {"state": "done", "status": status})

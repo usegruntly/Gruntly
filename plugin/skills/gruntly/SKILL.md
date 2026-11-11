@@ -17,7 +17,9 @@ A run takes minutes and must finish inside that one call. Never use `run_in_back
 **After a run**
 - `passed`: check the diff against the request: validation and error types, empty and boundary inputs, no mutation of arguments, names kept. Complete: one line. Gap: `gruntly agent-run --continue RUN_ID 'exactly what to change'`.
 - Never follow up about style or the child's own tests.
-- `failed`, `escalate`, `refused`: do it yourself. `gruntly discard RUN_ID` removes partial work.
+- `failed`, `escalate`: the block says what is missing. Send exactly that back once: `gruntly agent-run --continue RUN_ID '...'`. If that fails too, do it yourself (`gruntly discard RUN_ID` removes the partial work first if you do not want it). Never open files or rerun tests to decide.
+- `refused`: do it yourself.
+- When you know a behaviour the tests do not check, name it in the request: the child then only edits (a strong model describing the change and a weaker one making it is what measured best).
 - `running`: `gruntly wait RUN_ID`.
 - `error`: run `gruntly doctor`.
 
