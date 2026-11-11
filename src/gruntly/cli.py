@@ -880,7 +880,7 @@ def build_parser() -> argparse.ArgumentParser:
     add("gc", cmd_gc)
     d = add("do", cmd_do)
     d.add_argument("request", nargs="*", help="what to change, in plain words (or read from stdin)")
-    d.add_argument("--max-block", type=int, default=100, help="seconds to wait before returning `still running` (0 = in this process)")
+    d.add_argument("--max-block", type=int, default=540, help="seconds to wait before returning `still running` (0 = in this process)")
     d.add_argument("--json", action="store_true")
     g = add("agent-run", cmd_agent_run)
     g.add_argument("request", nargs="*", help="what to change (or the follow-up when --continue is given)")
