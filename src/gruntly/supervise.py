@@ -299,10 +299,13 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
 
 def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str, plan: list[str], steps: list[dict],
             costs: dict) -> str:
-    from .agent import CLOSE, DIFF_CHARS as BLOCK_DIFF_CHARS, DIFF_LINES, OPEN, code_first
+    from .agent import CLOSE, DIFF_CHARS as BLOCK_DIFF_CHARS, DIFF_LINES, OPEN, UNPROVEN, adds_test_file, code_first
     from . import do
+    patch = "".join(s.get("patch", "") for s in steps if s["status"] == "approved")
+    # no check was named, so the whole existing suite was the check: if the child also wrote its own tests, the green is its own
+    unproven = status == "passed" and not task.get("check") and adds_test_file(patch)
     lines = [f"run: {sid} (supervised: the child planned and did each step; a reviewer checked every step)",
-             f"status: {status}" + (f" ({reason})" if reason else "")]
+             f"status: {status}" + (f" ({reason})" if reason else "") + (", " + UNPROVEN if unproven else "")]
     if task.get("check"):
         r = run_cmd(task["check"], root, 600, purge=False)
         lines.append(f"check in your working tree: {'pass' if r['ok'] else 'FAIL'} ({task['check']})")
@@ -312,7 +315,6 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
         lines.append(f"step {i}: not started: {p[:160]}")
     lines.append(f"reviewer: {costs['reviewer_calls']} calls, ${costs['reviewer_cost_usd']:.4f} (outside your session; "
                  f"plan: {task.get('plan_model') or PLAN_REVIEWER_MODEL}, steps: {task.get('model') or REVIEWER_MODEL})")
-    patch = "".join(s.get("patch", "") for s in steps if s["status"] == "approved")
     if patch.strip():
         files = sorted(set(re.findall(r"^diff --git a/\S+ b/(\S+)", patch, re.M)))
         lines.append("files: " + ", ".join(files) + ", applied to the working tree, not committed")

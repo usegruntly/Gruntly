@@ -101,3 +101,17 @@ def test_the_plan_and_the_steps_go_to_different_reviewers(repo):
     rev = Reviewer("APPROVE", "APPROVE: done")
     supervise.run(repo, start(repo), call=lambda text, model: (models.append(model), rev(text, model))[1])
     assert models == [supervise.PLAN_REVIEWER_MODEL, supervise.REVIEWER_MODEL] == ["sonnet:low", "haiku"]
+
+
+NEW_TEST = "diff --git a/test_new.py b/test_new.py\nnew file mode 100644\n--- /dev/null\n+++ b/test_new.py\n+def test_x():\n+    pass\n"
+
+
+def test_a_pass_checked_by_the_whole_suite_with_child_written_tests_is_unproven(repo):
+    costs = {"reviewer_calls": 1, "reviewer_cost_usd": 0.001}
+    steps = [{"step": 1, "status": "approved", "summary": "added a test", "runs": 1, "patch": NEW_TEST}]
+    sid = start(repo)
+    unnamed = supervise._finish(repo, supervise.sup_dir(repo, sid), sid, {"request": "r", "check": None}, "passed", "", ["x"], steps, costs)
+    assert "status: passed, UNPROVEN:" in unnamed
+    sid = start(repo, check="python -c pass")
+    named = supervise._finish(repo, supervise.sup_dir(repo, sid), sid, {"request": "r", "check": "python -c pass"}, "passed", "", ["x"], steps, costs)
+    assert "UNPROVEN" not in named                    # the person's own check decided, not the child's test

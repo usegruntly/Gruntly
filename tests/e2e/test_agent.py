@@ -82,6 +82,27 @@ def test_a_flag_is_not_listed_twice():
     assert agent.block(r, None).count("tests pass first") == 1
 
 
+NEW_TEST_PATCH = ("diff --git a/test_new.py b/test_new.py\nnew file mode 100644\n--- /dev/null\n+++ b/test_new.py\n+def test_x():\n+    pass\n"
+                  "diff --git a/util.py b/util.py\n--- a/util.py\n+++ b/util.py\n-return 1\n+return 2\n")
+
+
+def test_a_pass_proved_only_by_the_childs_own_test_says_so_on_the_status_line():
+    r = {"run_id": "r1", "status": "passed", "applied": True, "diff_stat": {"paths": ["util.py", "test_new.py"]},
+         "warnings": ["acceptance already passes before any change: it cannot prove the task was done"],
+         "review_hint": ["weak acceptance: acceptance already passes before any change: it cannot prove the task was done"]}
+    out = agent.block(r, None, patch=NEW_TEST_PATCH, note=agent.LOOSE_NOTE)
+    assert out.splitlines()[2].startswith("status: passed, UNPROVEN:")
+    assert agent.LOOSE_NOTE not in out and "acceptance already passes" not in out     # not repeated as a flag
+
+
+def test_a_pass_with_a_found_test_or_no_new_test_file_is_not_called_unproven():
+    r = {"run_id": "r1", "status": "passed", "applied": True, "diff_stat": {"paths": ["util.py"]}}
+    assert "UNPROVEN" not in agent.block(r, None, patch=NEW_TEST_PATCH)                   # a test covered the code
+    weak = dict(r, warnings=["acceptance already passes before any change: x"])
+    assert "UNPROVEN" not in agent.block(weak, None, patch=NEW_TEST_PATCH.split("diff --git a/util.py")[1])   # child added no test
+    assert agent.block(weak, None, patch="+x").splitlines()[2] == "status: passed"
+
+
 def commit(repo, *names):
     import subprocess
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
