@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "gruntly": {
-      "command": "uvx",
-      "args": ["--from", "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly@v0.3.0", "gruntly-mcp"]
-    }
-  }
-}

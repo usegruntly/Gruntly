@@ -34,7 +34,7 @@ Delegation does not save money on tasks the parent finishes in 3 to 5 turns: the
 - Python bytecode: the child and every gate command run with `PYTHONDONTWRITEBYTECODE=1`, and `__pycache__` is purged before gates, because a same-size same-second edit reused a stale `.pyc` (found when the Linux run reproduced a flaky test).
 - Apply re-checks path scope but not the main-tree fingerprint: the parent legitimately edits files after a run.
 - MCP SDK 2.x renamed `FastMCP` to `MCPServer`; the server imports whichever exists.
-- The MCP `.mcp.json` launches the server with `uvx --from "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly"` until the package is on PyPI.
+- The plugin no longer ships a `.mcp.json` (removed 2026-11-11: it launched a server pinned to an old tag of a private repository, so it failed for anyone but the owner and exposed a stale tool). The skill plus Bash is the Claude Code path; the MCP server (`gruntly mcp`, extra `gruntly[mcp]`) stays for other agents, started by hand (see the README).
 - Benchmark tasks are synthetic and small (the brief wants tasks from the user's own repos); `bench/validate_tasks.py` proves each starter fails and a reference solution passes the hidden tests.
 - Not done in v1: PyPI publish (name re-check needed first), a live sandbox level 1 run, a live Hermes run, ACP adapter (not clearly simpler), research tasks (kind exists, no research path).
 

@@ -46,7 +46,7 @@ acceptance:
 /plugin install gruntly@gruntly
 ```
 
-This installs the skill (when to delegate, how to write briefs, what to inspect, the escalation playbook) and the MCP server. For other agents run `gruntly init --snippet` and paste the block into `AGENTS.md` or `CLAUDE.md`.
+This installs the skill (when to delegate, how to write briefs, what to inspect, the escalation playbook); Claude Code reaches gruntly through a Bash call, so the plugin starts no server. For other agents run `gruntly init --snippet` and paste the block into `AGENTS.md` or `CLAUDE.md`.
 
 ## Commands
 
@@ -61,6 +61,8 @@ This installs the skill (when to delegate, how to write briefs, what to inspect,
 | `gruntly continue <run> --guidance "..."` | Relay to a fresh child with the previous child's notes and your guidance. |
 | `gruntly apply / discard <run>` | Apply the patch (no commit, `--branch` available) / remove the worktree. |
 | `gruntly doctor / init / stats / gc / mcp` | Environment check, project config, aggregate stats, cleanup, MCP server. |
+
+**MCP, for agents other than Claude Code.** Start the server by hand with `gruntly mcp` (stdio; it needs the `mcp` extra from step 3). Example client config: `{"mcpServers": {"gruntly": {"command": "gruntly", "args": ["mcp"]}}}`. Its `gruntly_delegate(request)` takes plain words, like `gruntly agent-run`.
 
 `gruntly guide` prints the full manual. Every command prints JSON (`--human` for text). Exit code is non-zero only when the tool itself errors; a failed gate is a normal result.
 
