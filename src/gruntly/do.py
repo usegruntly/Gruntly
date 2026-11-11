@@ -172,8 +172,11 @@ def locate(request: str, root: Path, files: list[str]) -> tuple[list[str], list[
         hit = [f for f in files if f == p or f.endswith("/" + p)]
         if len(hit) == 1 and not is_test_path(hit[0]):
             targets.append(hit[0])
+    named = list(targets)        # files the request names by path: that is the scope, the person (or the parent) already chose it
     for n in strong:
         defs = {f for f in idx.get(n, ()) if not is_test_path(f)}
+        if named:
+            defs &= set(named)   # a function defined elsewhere too (write, get_metavar...) must not widen a scope that is named
         if defs:
             names.append(n)
             targets += sorted(defs)

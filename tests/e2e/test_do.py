@@ -235,3 +235,14 @@ def test_hints_can_be_switched_off_and_the_do_table_does_not_break_spec_parsing(
 def test_the_command_file_asks_for_a_review_without_forcing_extra_requests():
     text = (Path(__file__).parents[2] / "plugin" / "commands" / "gd.md").read_text(encoding="utf8")
     assert "Review the diff against the request" in text and "functools.wraps" in text and "reply with one line" in text
+
+
+def test_a_file_named_in_the_request_is_the_scope_even_if_the_function_exists_elsewhere(repo):
+    for n in range(5):
+        (repo / f"m{n}.py").write_text("def helper():\n    return 1\n")
+    sh(repo, "git", "add", "-A")
+    from gruntly import do
+    files = do.tracked(repo)
+    targets, names = do.locate("In m2.py, change helper() so it returns 2", repo, files)
+    assert targets == ["m2.py"] and names == ["helper"]
+    assert isinstance(do.locate("change helper()", repo, files), do.Refusal)       # no path named: still ambiguous
