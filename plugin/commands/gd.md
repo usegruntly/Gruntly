@@ -5,7 +5,7 @@ allowed-tools: Bash(gruntly *)
 disable-model-invocation: true
 ---
 ```!
-gruntly do --max-block 540 <<'GRUNTLY_END_OF_REQUEST'
+gruntly do <<'GRUNTLY_END_OF_REQUEST'
 $ARGUMENTS
 GRUNTLY_END_OF_REQUEST
 ```

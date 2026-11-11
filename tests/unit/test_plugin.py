@@ -11,10 +11,25 @@ def test_plugin_starts_no_mcp_server():
     assert "mcpServers" not in manifest
 
 
-def test_gd_waits_as_long_as_agent_run():
-    """/gd is one parent turn only if the injected command outlives the child; `still running` costs a second turn."""
+def test_gd_lets_gruntly_size_its_wait_to_what_claude_code_allows():
+    """/gd is one parent turn only while the injected command stays in the foreground: Claude Code backgrounds it after its Bash
+    default timeout, and the model then never sees the block (measured 2026-11-12). So gd.md names no wait and gruntly picks it."""
     text = (PLUGIN / "commands" / "gd.md").read_text(encoding="utf8")
-    assert "--max-block 540" in text
+    assert "gruntly do <<" in text and "--max-block" not in text
+
+
+def test_the_wait_inside_a_slash_command_follows_the_bash_default_timeout(monkeypatch):
+    from gruntly import cli
+    monkeypatch.delenv("BASH_DEFAULT_TIMEOUT_MS", raising=False)
+    assert cli._auto_block() == 100                       # under Claude Code's 120 s default: stays one turn
+    monkeypatch.setenv("BASH_DEFAULT_TIMEOUT_MS", "120000")
+    assert cli._auto_block() == 100
+    monkeypatch.setenv("BASH_DEFAULT_TIMEOUT_MS", "600000")
+    assert cli._auto_block() == 540                       # the person allowed long injected commands: one long call
+    monkeypatch.setenv("BASH_DEFAULT_TIMEOUT_MS", "300000")
+    assert cli._auto_block() == 270
+    monkeypatch.setenv("BASH_DEFAULT_TIMEOUT_MS", "soon")
+    assert cli._auto_block() == 100
 
 
 def test_every_page_that_teaches_the_parent_sends_a_failed_run_back_once_before_taking_over():

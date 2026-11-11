@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -98,6 +99,18 @@ def _wait(root: Path, rid: str, timeout_s: float) -> dict:
         time.sleep(1)
 
 
+def _auto_block() -> int:
+    """How long `gruntly do` may wait inside a slash command's injected block. Claude Code moves such a command to the background
+    once it passes its Bash default timeout (120 s, or BASH_DEFAULT_TIMEOUT_MS if the person raised it), and then the model never
+    sees the block. Measured 2026-11-12 with a Haiku probe: 5, 30 and 100 s stayed one turn, 150 s was backgrounded (the model got
+    only "the background command finished"), and with BASH_DEFAULT_TIMEOUT_MS=600000 the same 150 s stayed one turn."""
+    try:
+        ms = int(os.environ.get("BASH_DEFAULT_TIMEOUT_MS") or 0)
+    except ValueError:
+        ms = 0
+    return min(540, ms // 1000 - 30) if ms > 150_000 else 100
+
+
 def cmd_do(a) -> int:
     """Plain request in, one short verdict out. Always exits 0: an injected slash-command aborts on exit >= 2."""
     from . import do
@@ -116,9 +129,10 @@ def cmd_do(a) -> int:
             text, payload = do.render(None, None, refusal=p), {"status": "refused", "reason": p.reason}
         else:
             rid = runner.prepare(build_spec(do.spec_for(request, p, root), root), root)
-            if a.max_block > 0:
+            block_s = _auto_block() if a.max_block is None else a.max_block
+            if block_s > 0:
                 _spawn_worker(root, rid)
-                res = _wait(root, rid, a.max_block)
+                res = _wait(root, rid, block_s)
             else:
                 res = runner.execute(root, rid)
             patch = ""
@@ -1018,7 +1032,8 @@ def build_parser() -> argparse.ArgumentParser:
     add("gc", cmd_gc)
     d = add("do", cmd_do)
     d.add_argument("request", nargs="*", help="what to change, in plain words (or read from stdin)")
-    d.add_argument("--max-block", type=int, default=540, help="seconds to wait before returning `still running` (0 = in this process)")
+    d.add_argument("--max-block", type=int, default=None, help="seconds to wait before returning `still running` (0 = in this process; "
+                   "default: 100, or up to 540 when BASH_DEFAULT_TIMEOUT_MS allows a longer injected command)")
     d.add_argument("--json", action="store_true")
     g = add("agent-run", cmd_agent_run)
     g.add_argument("request", nargs="*", help="what to change (or the follow-up when --continue is given)")

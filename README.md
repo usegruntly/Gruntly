@@ -84,7 +84,7 @@ gruntly never replaces the child harness's system prompt or tools: OpenCode, Qwe
 
 `gruntly do "fix the off-by-one in paginate()"` resolves the request with code, not a model: it finds the function in the repo (Python `ast`), finds the test that covers it, checks that the test **fails now** (a passing test cannot verify a change), and only then delegates to the local model and applies on pass. If it cannot do this safely it refuses and says why, at no cost.
 
-The plugin's `/gruntly:gd <request>` command runs it *before* Claude is called, so the whole task is **one model request** (measured: 1 request, no tool calls, 31 s with the real local model). On a refusal or failure Claude gets the reason and does the task itself with its normal tools. Python and pytest projects only; set `harness` and `model` in `.gruntly.toml` first. For a bare `/gd`, copy `plugin/commands/gd.md` to `.claude/commands/`.
+The plugin's `/gruntly:gd <request>` command runs it *before* Claude is called, so the whole task is **one model request** (measured: 1 request, no tool calls, 31 s with the real local model). On a refusal or failure Claude gets the reason and does the task itself with its normal tools. Python and pytest projects only; set `harness` and `model` in `.gruntly.toml` first. For a bare `/gd`, copy `plugin/commands/gd.md` to `.claude/commands/`. It stays one request while the local model answers within about 100 s: Claude Code moves a longer injected command to the background and Claude never sees the result (measured: 100 s stayed one turn, 150 s did not). For slower models add `"env": {"BASH_DEFAULT_TIMEOUT_MS": "600000"}` to Claude Code's settings and `gruntly do` waits up to 9 minutes.
 
 ## Waiting
 
