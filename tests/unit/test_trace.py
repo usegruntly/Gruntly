@@ -57,3 +57,17 @@ def test_a_shell_command_that_failed_counts_as_failed():
           _oc("bash", {"command": "ls"}, metadata={"exit": 0})]
     t = trace.summarize(trace.calls_from("\n".join(ev)))
     assert t["failed"] == 2 and t["calls"] == 3
+
+
+def _calls(*kinds):
+    return [trace.Call(tool=k, kind=k, ok=True, sig=k) for k in kinds]
+
+
+def test_narrated_work_needs_a_trace_no_edit_no_change_and_a_claim():
+    said = "Done: I changed add() to return a + b."
+    assert trace.narrated_work(_calls("read"), said, 0)
+    assert not trace.narrated_work(_calls("read", "edit"), said, 0)          # it did edit
+    assert not trace.narrated_work(_calls("read", "run"), said, 2)           # a shell command changed files
+    assert not trace.narrated_work([], said, 0)                              # no trace (Hermes): the empty diff says it
+    assert not trace.narrated_work(_calls("read"), "I could not find add().", 0)
+    assert not trace.narrated_work(_calls("read"), "It is already done, nothing to change.", 0)

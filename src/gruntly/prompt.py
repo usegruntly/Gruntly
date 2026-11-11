@@ -44,9 +44,17 @@ def first(spec, rules: str = "") -> str:
     return f"{preamble(spec)}{_rules(rules)}\n\nTASK:\n{spec.brief}{c}"
 
 
+NARRATED = "narrated"        # the pseudo-gate of a run that described its change instead of making it
+
+
 def retry(spec, gate: str, output: str, handoff: str = "", guidance: str = "", context_hit: bool = False) -> str:
-    parts = [f"Your previous attempt did not pass the '{gate}' check. Fix only that.",
-             f"Last output:\n{output}", _paths(spec)]
+    if gate == NARRATED:
+        parts = ["Your previous reply said the work was done, but you made no edit calls and no file changed. Describing a "
+                 "change does nothing. Make the change with REAL tool calls (edit or write), then run the check.",
+                 f"Your last reply:\n{output}", _paths(spec)]
+    else:
+        parts = [f"Your previous attempt did not pass the '{gate}' check. Fix only that.",
+                 f"Last output:\n{output}", _paths(spec)]
     if handoff:
         parts.append(f"Notes from the previous run (it may have been cut off):\n{handoff}")
     if guidance:

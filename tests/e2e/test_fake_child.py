@@ -160,3 +160,22 @@ def test_apply_allows_parent_edits_made_after_the_run(repo, run_task, make_spec,
     monkeypatch.chdir(repo)
     cli.main(["apply", res["run_id"]])
     assert json.loads(capsys.readouterr().out)["applied"] is True
+
+
+def test_a_child_that_describes_its_change_instead_of_making_it_is_failed_without_running_the_gates(run_task, make_spec):
+    res, _ = run_task(make_spec("narrate", max_attempts=3))
+    assert res["status"] == "escalate"
+    assert res["failure_bundle"]["reason"].startswith("narrated work")
+    assert res["attempts"] == 2                       # one more go with the tip, then stopped: not all three attempts
+    assert res["gates"] == {}                         # the gates never ran on a run that changed nothing
+
+
+def test_the_narrating_child_gets_one_retry_that_says_to_make_real_edits(run_task, make_spec):
+    res, _ = run_task(make_spec("narrate_then_edit", max_attempts=3))
+    assert res["status"] == "passed", res
+    assert res["attempts"] == 2
+
+
+def test_already_done_is_not_a_claim_of_work(run_task, make_spec):
+    res, _ = run_task(make_spec("already_done", max_attempts=1))
+    assert not (res.get("failure_bundle") or {}).get("reason", "").startswith("narrated work")

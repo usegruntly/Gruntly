@@ -11,6 +11,7 @@ diff itself is not taken from here: events are agent-reported, and the worktree'
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass
 
@@ -119,6 +120,18 @@ def calls_from(stdout: str) -> list[Call]:
         elif e.get("type") == "tool_result" and "name" in e and e.get("is_error") and calls:
             calls[-1].ok = False
     return calls
+
+
+CLAIM = re.compile(r"(?i)\b(done|complete[d]?|implemented|fixed|added|updated|changed|finished|resolved)\b")
+NO_CLAIM = re.compile(r"(?i)\b(already|no changes?|nothing to (?:do|change|fix))\b")
+
+
+def narrated_work(calls: list[Call], message: str, files_changed: int) -> bool:
+    """The child's trace shows tool calls but no edit, nothing changed on disk, and its final message says the work is done:
+    it described the change instead of making it. (`already done` and `no change needed` are not claims.) With no trace
+    (Hermes in quiet mode) this is never true: the empty diff and the failing check say the same thing a turn later."""
+    return (bool(calls) and files_changed == 0 and not any(c.kind == "edit" for c in calls)
+            and bool(CLAIM.search(message or "")) and not NO_CLAIM.search(message or ""))
 
 
 def summarize(calls: list[Call]) -> dict:

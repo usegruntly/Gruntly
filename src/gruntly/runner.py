@@ -476,6 +476,16 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
             status, error = "error", "model server error during run: " + redact(resmod.tail_lines(cr.stderr or cr.stdout, 3), secrets)
             break
 
+        if tracemod.narrated_work(tracemod.calls_from(cr.stdout), out.final_message, stats["files"]):
+            # it said it was done and touched nothing: do not spend the gates on it, say so, and give it one more go
+            reason = "narrated work: the child reported success but made no edits"
+            emit_diff(attempt_no, final=True, ok=False)
+            attempts_log.append({"n": attempt_no, "files": 0, "ins": 0, "del": 0, "failed_gate": prompt.NARRATED})
+            if last_gate == prompt.NARRATED:
+                break
+            last_gate, last_text = prompt.NARRATED, resmod.head_chars(summary, 500)
+            continue
+
         st.set_state("gating", attempt=attempt_no)
         tg = time.monotonic()
         gates = run_gates(spec, wt, base, root, main_fp, secrets)
