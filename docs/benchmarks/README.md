@@ -13,6 +13,9 @@ says they are. The reasoning that came out of them is in `../decisions.md` and `
 | `benchmark-lean3` to `benchmark-lean11` | One round each of the longer-task work, with the fixes made between rounds. Narrative in `../lean-long-tasks.md`. |
 | `benchmark-local-alone`, `benchmark-local-gruntly` | The local model with no Claude involved: alone, and through gruntly. |
 | `benchmark-cost`, `benchmark-cost-laguna`, `benchmark-cost-laguna-summary` | Cost of Claude alone against Claude with gruntly on ten small tasks, paired runs, child counted as free (2026-11-10). `benchmark-cost`: OpenCode with nemotron-bolt (alone, plugin policy, and two lean runs). `benchmark-cost-laguna`: Hermes with Laguna (alone, policy, forced delegation); the summary has the paired comparison. |
+| `benchmark-haiku-alone` | Haiku 5.5 alone in Claude Code on all 15 tasks: cost and hidden-test pass (2026-11-11). |
+| `benchmark-forced-oneflow` | Sonnet delegating through the one-call `agent-run` flow to Hermes + Laguna, 5 small tasks: parent turns and cost (2026-11-11). |
+| `benchmark-subagent` | Sonnet delegating to one Haiku sub-agent through Claude Code's Agent tool, 4 tasks (2026-11-11). |
 | `child-bench`, `child-bench-precise`, `child-bench-vague` | Which child profile (typist, worker, default) does best, with precise and with vague briefs. |
 
 To rerun one, see the matching script in `bench/` (`run_bench.py`, `run_child_bench.py`, `run_local_alone.py`); each writes here by default.

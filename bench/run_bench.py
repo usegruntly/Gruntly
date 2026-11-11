@@ -37,6 +37,7 @@ GD_ARMS = tuple(DO_TOML)
 LEAN_ALONE_PROMPT = ("You are a coding agent working in this repository. Do the task yourself with your tools, run the check "
                      "to confirm it passes, then reply in one line.")
 LEAN_ALONE = "lean_alone"   # the same stripped-down Claude doing the task itself: the matched baseline for `lean`
+SUBAGENT = "subagent"   # Claude Code's own answer: the edit done by a Haiku sub-agent inside the session
 SUPERVISED = "supervised"   # one call; the child plans and works in steps, a reviewer (outside the session) checks each
 PLANNER = "planner"   # Claude plans and supervises; the child finds the code and does the work (`agent-run --explore`)
 LEAN = "lean"   # a stripped-down Claude (one Bash tool, one-line system prompt) directing gruntly via `gruntly agent-run`
@@ -67,6 +68,11 @@ def prompt_for(arm: str, spec: dict) -> str:
     paths = ", ".join(spec["allowed_paths"])
     extra = " You may edit the existing tests." if spec.get("tests_writable") else ""
     base = spec["brief"] + f"\n\nThe check is `{cmd}`; edit only {paths}.{extra}"
+    if arm == SUBAGENT:
+        return (base + "\nDo not read or edit the files yourself. Delegate the implementation to ONE sub-agent on the haiku model: "
+                "call the Agent tool with model set to haiku and a prompt that names the files, every behaviour that must hold "
+                "and the check command, and tells it to run the check before it finishes. When its report comes back, run "
+                "the check once yourself and reply in two lines.")
     if arm == SUPERVISED:
         return (" ".join(spec["brief"].split()) + f"\n\nThe check is `{cmd}`.\n"
                 "Delegate the whole task with one foreground Bash call (timeout 3600000): gruntly agent-run --supervised "
@@ -163,6 +169,8 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
             cmd = [c for c in cmd if c not in TOOLS]
             cmd[cmd.index("--allowedTools") + 1:cmd.index("--allowedTools") + 1] = ["Bash(gruntly *)"]
             cmd += ["--system-prompt", LEAN_PROMPT, "--tools", "Bash", "--strict-mcp-config", "--disable-slash-commands"]
+        elif arm == SUBAGENT:
+            cmd[cmd.index("--allowedTools") + 1:cmd.index("--allowedTools") + 1] = ["Agent"]
         elif arm == LEAN_ALONE:
             cmd = [c for c in cmd if c not in TOOLS]
             cmd[cmd.index("--allowedTools") + 1:cmd.index("--allowedTools") + 1] = ["Bash", "Read", "Edit", "Write"]
@@ -181,7 +189,7 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
         except subprocess.TimeoutExpired:
             raw, err = "", "timeout"
         wall = round(time.time() - t0)
-        runs_dir = HERE / "runs"
+        runs_dir = HERE / (a.runs_dir or "runs")
         runs_dir.mkdir(exist_ok=True)
         (runs_dir / f"{task_dir.name}.{arm}.{rep}.jsonl").write_text(raw, encoding="utf8")
         info = analyse(raw)
@@ -201,7 +209,7 @@ def mean(xs):
 
 
 def report(rows: list[dict], meta: dict) -> str:
-    arms = [x for x in ("alone", "forced", "policy", "planner", "supervised", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
+    arms = [x for x in ("alone", "forced", "policy", "planner", "supervised", "subagent", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "
@@ -247,6 +255,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--harness", default="opencode")
     ap.add_argument("--model", default="qwen/qwen3.5-9b")
+    ap.add_argument("--runs-dir", default="", help="folder under bench/ for the transcripts (default: runs)")
     ap.add_argument("--vague", action="store_true", help="use bench/vague_briefs.yaml (intent only) where a task has one")
     ap.add_argument("--provider", default="", help="hosted provider for the child (e.g. nvidia); default: the local server")
     ap.add_argument("--parent-model", default="sonnet", help="Claude model for the parent (alias or id)")
