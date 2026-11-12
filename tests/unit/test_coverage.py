@@ -120,3 +120,21 @@ def test_a_child_that_edited_without_running_a_test_is_a_concern():
     assert any("ran no test" in c for c in trace.concerns(t))
     assert not any("ran no test" in c for c in trace.concerns({**t, "test_runs": 1}))
     assert not any("ran no test" in c for c in trace.concerns({**t, "kinds": {"read": 3}}))
+
+
+def test_gaps_say_what_kind_of_gap_each_fact_is(proj):
+    kinds = [k for k, _ in coverage.gaps("Add a level. (1) a (2) b (3) c", patch("app/a.py"), proj)]
+    assert kinds == ["parts"] and set(kinds) <= coverage.STRONG
+    assert [k for k, _ in coverage.gaps("Change app/a.py to read its setting", patch("app/b.py"), proj)] == ["named"]
+    assert "named" not in coverage.STRONG                       # a named file may be only a reference: never grounds to escalate
+
+
+def test_the_cumulative_patch_has_edits_and_new_files_since_the_base(proj):
+    base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=proj, check=True, capture_output=True, text=True).stdout.strip()
+    (proj / "app" / "a.py").write_text("import os\nX_a = 2\n")               # an edit
+    (proj / "app" / "new_mod.py").write_text("def load():\n    return 1\n")   # a new, untracked file
+    (proj / ".gruntly").mkdir()
+    (proj / ".gruntly" / "noise.json").write_text("{}")                      # gruntly's own state is not the child's work
+    out = coverage.cumulative_patch(proj, base)
+    assert coverage.patch_files(out) == ["app/a.py", "app/new_mod.py"]
+    assert "def load():" in coverage.added_text(out)

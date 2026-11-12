@@ -157,8 +157,10 @@ def patch(wt: Path, base: str, paths: list[str] | None = None) -> str:
 
 
 def live_patch(wt: Path, base: str) -> str:
-    """The worktree's changes so far as a text diff, for the live view. Uses a throwaway copy of the index so the child's own
-    git state is never touched while it is running."""
+    """The worktree's changes so far as a text diff, for the live view (and the stall clock, which counts new diffs). Uses a throwaway
+    copy of the index so the child's own git state is never touched while it is running. Git for Windows compares modification times to
+    the second, so an edit to a file of the same size within the second of its checkout reads as unchanged here until the file changes
+    again; a child's edits come seconds after its worktree is made, so this only shows up in tests that write twice in a row."""
     import tempfile
     idx = git(["rev-parse", "--git-path", "index"], wt, check=False).stdout.strip()
     with tempfile.TemporaryDirectory() as td:

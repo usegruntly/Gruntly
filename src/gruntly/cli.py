@@ -188,8 +188,9 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
         if cont:
             st = store.Store.existing(root, cont)
             if (root / ".gruntly" / "worktrees" / cont).is_dir():
-                if ho:
-                    st.write_json("spec.json", {**st.read_json("spec.json"), "holdout": ho})
+                sj = st.read_json("spec.json")
+                st.write_json("spec.json", {**sj, **({"holdout": ho} if ho else {}),
+                                            "allowed_paths": agent.widen_scope(sj.get("allowed_paths") or ["**"], request, root)})
                 st.write_json("continue.json", {"guidance": request, "attempts": a.attempts})
                 (st.dir / "result.json").unlink(missing_ok=True)
                 st.set_state("queued")
@@ -207,7 +208,10 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 if held and all((root / f).is_file() for f in held["files"]):
                     raw["holdout"] = held
                 raw.update(_sized(root, budget_s))
+                if raw.get("allowed_paths"):
+                    raw["allowed_paths"] = agent.widen_scope(raw["allowed_paths"], request, root)
                 rid = runner.prepare(build_spec(raw, root), root)
+                _note_request(root, rid, request, cont)
                 _spawn_worker(root, rid)
                 out["res"] = _wait(root, rid, budget_s)
         elif getattr(a, "explore", False):
@@ -218,6 +222,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 raw["holdout"] = ho
             raw.update(_sized(root, budget_s))
             rid = runner.prepare(build_spec(raw, root), root)
+            _note_request(root, rid, request)
             _spawn_worker(root, rid)
             out["res"] = _wait(root, rid, budget_s)
         else:
@@ -234,6 +239,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 raw = do.spec_for(request, p, root)
             if raw is not None:
                 out["p"] = p
+                agent.open_scope(raw, request)
                 raw["apply_on_pass"] = apply_on_pass
                 if ho:
                     raw["holdout"] = ho
@@ -241,12 +247,41 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 if concurrency > 1:
                     raw["max_concurrency"] = concurrency
                 rid = runner.prepare(build_spec(raw, root), root)
+                _note_request(root, rid, request)
                 _spawn_worker(root, rid)
                 out["res"] = _wait(root, rid, budget_s)
         _part_details(root, out)
     except Exception as e:  # noqa: BLE001 - the caller must still get a readable block
         out["error"] = f"{type(e).__name__}: {e}"
     return out
+
+
+def _note_request(root: Path, rid: str, request: str, cont: str | None = None) -> None:
+    """What the first request was and where the work started, carried along a chain of follow-ups: the original request is what the
+    work so far is measured against when deciding whether the child will ever get there."""
+    st = store.Store.existing(root, rid)
+    if not cont:
+        st.write_json("request.json", {"request": request})
+        return
+    old = store.Store.existing(root, cont)
+    state = old.read_json("state.json", {})
+    st.write_json("request.json", {"request": (old.read_json("request.json", {}) or {}).get("request") or request})
+    st.write_json("lineage.json", {"from": cont, "rounds": state.get("rounds", 1),
+                                   "base": (old.read_json("lineage.json", {}) or {}).get("base") or state.get("base")})
+
+
+def _gap_strong(root: Path, rid: str) -> list[str]:
+    """What the work so far still leaves uncovered of the ORIGINAL request, counted (gruntly.coverage). Only after a follow-up."""
+    from . import coverage
+    try:
+        st = store.Store.existing(root, rid)
+        orig = (st.read_json("request.json", {}) or {}).get("request")
+        base = (st.read_json("lineage.json", {}) or {}).get("base") or (st.read_json("state.json", {}) or {}).get("base")
+        if not orig or not base:
+            return []
+        return [t for k, t in coverage.gaps(orig, coverage.cumulative_patch(root, base), root) if k in coverage.STRONG]
+    except Exception:  # noqa: BLE001 - the block must always come out
+        return []
 
 
 def _part_details(root: Path, out: dict) -> None:
@@ -260,6 +295,13 @@ def _part_details(root: Path, out: dict) -> None:
             out["holdout"] = (spec.get("holdout") or {}).get("files") or None
         except (OSError, ValueError):
             pass
+        try:
+            out["rounds"] = json.loads((root / ".gruntly" / "runs" / str(res["run_id"]) / "state.json").read_text(encoding="utf8")).get("rounds")
+        except (OSError, ValueError):
+            pass
+        from . import escalation
+        if (out.get("rounds") or 0) >= escalation.MIN_ROUNDS and escalation.when(root) == "hard":
+            out["gap_strong"] = _gap_strong(root, str(res["run_id"]))
     if res and res.get("applied"):
         pf = root / ".gruntly" / "runs" / str(res.get("run_id", "")) / "apply.patch"
         if pf.is_file():
@@ -428,7 +470,8 @@ def cmd_agent_run(a) -> int:
             for o in outs:
                 _apply_later(root, o)
                 blocks.append(agent.block(o["res"], o["p"], refusal=o["refusal"], error=o["error"], patch=o["patch"],
-                                          request=o["request"], contract=o["contract"], note=o["note"], holdout=o["holdout"], root=root))
+                                          request=o["request"], contract=o["contract"], note=o["note"], holdout=o["holdout"], root=root,
+                                          rounds=o.get("rounds"), gap_strong=o.get("gap_strong")))
             parts = []
         for i, (req, cont) in enumerate(parts):
             left = int(a.max_block - (time.time() - t0))
@@ -438,7 +481,8 @@ def cmd_agent_run(a) -> int:
             o = _agent_one(root, req, a, max(left, 30), cont)
             rv = _review_one(root, o, req, a, a.max_block - (time.time() - t0)) if getattr(a, "review", False) and len(parts) == 1 else None
             blocks.append(agent.block(o["res"], o["p"], refusal=o["refusal"], error=o["error"], patch=o["patch"],
-                                      request=req, contract=o["contract"], note=o["note"], holdout=o["holdout"], review=rv, root=root))
+                                      request=req, contract=o["contract"], note=o["note"], holdout=o["holdout"], review=rv, root=root,
+                                      rounds=o.get("rounds"), gap_strong=o.get("gap_strong")))
             if (o["res"] or {}).get("status") == "running":
                 for rest, _ in parts[i + 1:]:
                     blocks.append(agent.block(None, None, error="not started (an earlier part is still running): " + rest[:160]))

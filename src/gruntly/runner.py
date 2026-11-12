@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import doctor, progress, prompt, result as resmod, sandbox, trace as tracemod, worktree as wtmod
+from . import doctor, escalation, progress, prompt, result as resmod, sandbox, trace as tracemod, worktree as wtmod
 from .apply import apply_run
 from .adapters.base import get_adapter, scrub_env
 from .gates import acceptance, deps, diff_size, scope, test_weakening
@@ -37,7 +37,7 @@ class ChildRun:
     stdout: str
     stderr: str
     exit_code: int | None
-    breach: str | None  # wall | idle | output | None
+    breach: str | None  # wall | idle | output | loop | calls | stall | noedit | None
     secs: float
 
 
@@ -58,10 +58,11 @@ def _tree_mtime(path: Path, limit: int = 20000) -> float:
 
 LOOP_LINE_MIN, LOOP_REPEATS, LOOP_WINDOW = 60, 6, 24   # a long identical line seen 6 times in the last 24 lines = a loop
 TOOL_REPEATS, TOOL_WINDOW = 6, 12                       # the same tool call (same input) 6 times in the last 12 calls = a loop
+DIFF_POLL_S = 10                                        # how often the worktree's diff is looked at for new progress
 
 
 def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float, beat=None, on_event=None, on_tick=None,
-              activity=None) -> ChildRun:
+              activity=None, stall=None, diff_state=None, max_calls: int = 0) -> ChildRun:
     kw = {}
     if os.name == "nt":
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -71,7 +72,7 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
     proc = subprocess.Popen(argv, cwd=str(cwd), env=env, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kw)
     bufs = {"out": [], "err": []}
-    state = {"last": time.monotonic(), "size": 0, "loop": False}
+    state = {"last": time.monotonic(), "size": 0, "loop": False, "calls": 0, "over": False}
     recent: list[int] = []
     tools: list[int] = []
     carry = [b""]               # a line may arrive split over two reads
@@ -92,6 +93,9 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
                 for line in chunk.decode("utf8", "replace").splitlines():
                     if line.startswith("{"):          # structured events: the same call over and over, even with new ids
                         for c in tracemod.calls_from(line):
+                            state["calls"] += 1
+                            if max_calls and state["calls"] > max_calls:
+                                state["over"] = True
                             tools.append(hash(c.sig))
                             del tools[:-TOOL_WINDOW]
                             if tools.count(tools[-1]) >= TOOL_REPEATS:
@@ -115,9 +119,16 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
         threads.append(threading.Thread(target=feed, daemon=True))
     for t in threads:
         t.start()
-    breach, last_scan, last_tick, mt = None, 0.0, 0.0, _tree_mtime(cwd)
+    breach, last_scan, last_tick, last_diff, mt = None, 0.0, 0.0, 0.0, _tree_mtime(cwd)
     while proc.poll() is None:
         now = time.monotonic()
+        stalled = None
+        if stall is not None and diff_state is not None and now - last_diff > DIFF_POLL_S:
+            last_diff = now
+            try:
+                stalled = stall.observe(diff_state(), now)
+            except Exception:  # noqa: BLE001 - watching for progress must never break a run
+                stalled = None
         if now - t0 > wall_s:
             breach = "wall"
         elif state["size"] > OUTPUT_CAP:
@@ -126,6 +137,10 @@ def run_child(adapter, argv, env, stdin, cwd: Path, wall_s: float, idle_s: float
             breach = "idle"
         elif state["loop"]:
             breach = "loop"
+        elif state["over"]:
+            breach = "calls"
+        elif stalled:
+            breach = stalled
         if breach:
             adapter.cancel(proc)
             break
@@ -408,6 +423,10 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
     child_s = gates_s = 0.0
     attempts_log: list[dict] = prior.get("attempts_log", [])
     last_sig, last_gate, last_text = None, None, ""
+    breach_last = None
+    # how many times the child has been run on this task: the first run and each follow-up (a follow-up after an applied run is a
+    # new run, so its lineage file carries the count over)
+    rounds = max(prior.get("rounds", 0), st.read_json("lineage.json", {}).get("rounds", 0)) + 1
     usage = {"available": False}
     summary = ""
     context_hit = False
@@ -450,11 +469,21 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
              "prompt_via_stdin": cmd.stdin is not None}, indent=2), secrets))
         st.set_state("running", attempt=attempt_no)
         feed.emit("gruntly", "attempt", n=attempt_no)
+        stall = None
+        if spec.stall_s or spec.first_edit_s:        # progress = a diff the child has not produced before (gruntly.escalation.Stall)
+            try:
+                start = escalation.digest(wtmod.live_patch(wt, base))
+            except Exception:  # noqa: BLE001
+                start = escalation.EMPTY
+            stall = escalation.Stall(max(spec.stall_s, 2 * spec.no_progress_s) if spec.stall_s else 0,
+                                     max(spec.first_edit_s, 3 * spec.no_progress_s) if spec.first_edit_s else 0, start=start)
         cr = run_child(adapter, cmd.argv, env, cmd.stdin, wt, min(remaining, spec.budget_s), spec.no_progress_s,
+                       stall=stall, diff_state=lambda: escalation.digest(wtmod.live_patch(wt, base)), max_calls=spec.max_calls,
                        activity=getattr(spec, "_activity", None),
                        beat=lambda info, a=attempt_no: st.set_state("running", attempt=a, **info), on_event=child_event,
                        on_tick=lambda a=attempt_no: emit_diff(a))
         child_s += cr.secs
+        breach_last = cr.breach
         st.append_text("child.log", redact(f"\n=== attempt {attempt_no} exit={cr.exit_code} breach={cr.breach} ===\n"
                                            f"{cr.stdout}\n--- stderr ---\n{cr.stderr}\n", secrets))
         out = adapter.parse(cr.stdout, cr.stderr, cr.exit_code if cr.exit_code is not None else -1)
@@ -476,7 +505,10 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
             status = "timeout"
             reason = {"wall": "wall-clock budget exceeded", "idle": f"no progress for {spec.no_progress_s}s",
                       "output": "child output size cap exceeded",
-                      "loop": "the child repeated the same output over and over"}[cr.breach]
+                      "loop": "the child went round in circles (the same output or call, or edits it undid)",
+                      "calls": f"more than {spec.max_calls} tool calls in one attempt",
+                      "stall": f"no new change to the code for {int(stall.stall_s) if stall else 0}s",
+                      "noedit": f"no edit after {int(stall.first_edit_s) if stall else 0}s"}[cr.breach]
             st.write_text(f"attempts/{attempt_no}/diff.patch", redact(wtmod.patch(wt, base), secrets))
             emit_diff(attempt_no, final=True, ok=False)
             break
@@ -530,7 +562,7 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
     notes = redact(handoff_path.read_text(encoding="utf8", errors="replace")[:1500], []) \
         if status in ("escalate", "timeout") and handoff_path.exists() else ""
     st.write_json("state.json", {"base": base, "main_fp": main_fp, "attempts": attempt_no, "session": session,
-                                 "attempts_log": attempts_log, "warnings": warnings})
+                                 "attempts_log": attempts_log, "warnings": warnings, "rounds": rounds})
     applied = hint = None
     if status == "passed":
         hint = _review_hint(gates, stats, warnings, st.read_json("trace.json", {}))
@@ -544,9 +576,14 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
                           "files_touched": stats["paths"], "attempts": attempts_log[-4:]}
                 last_text = applied.get("gate_output") or "\n".join(
                     applied.get("violations") or applied.get("conflicts") or [])
+    # classified last: a run whose tests passed but whose patch the apply step refused (an empty diff) is an escalate by now
+    esc = escalation.classify(status, (bundle or {}).get("reason") or reason, breach_last, stats["files"], attempt_no)
+    if esc:
+        esc["rounds"] = rounds
+        esc["eligible"] = escalation.recommend(esc["class"], escalation.when(root), rounds)   # the block adds the last condition
     return _finish(st, spec, root, status, attempt_no, gates, stats, summary, bundle, t_start, child_s, gates_s,
                    usage, error=error, last_text=last_text, handoff=notes, applied=applied, review_hint=hint,
-                   warnings=warnings)
+                   warnings=warnings, escalation=esc)
 
 
 def _review_hint(gates: dict, stats: dict, warnings: list[str], trace: dict | None = None) -> list[str]:
@@ -565,7 +602,7 @@ def _review_hint(gates: dict, stats: dict, warnings: list[str], trace: dict | No
 
 
 def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_start, child_s, gates_s, usage,
-            error=None, last_text="", handoff="", applied=None, review_hint=None, warnings=None) -> dict:
+            error=None, last_text="", handoff="", applied=None, review_hint=None, warnings=None, escalation=None) -> dict:
     rid = st.run_id
     applied = applied or {}
     ok_applied = bool(applied.get("applied"))
@@ -587,7 +624,7 @@ def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_s
                        failure_bundle=bundle, wall_s=round(time.monotonic() - t_start),
                        child_tokens=(usage or {}).get("total_tokens"), next_cmds=nxt, untrusted=untrusted,
                        applied=ok_applied if applied else None, verify=applied.get("verify"),
-                       review_hint=review_hint, warnings=warnings, error=error,
+                       review_hint=review_hint, warnings=warnings, error=error, escalation=escalation,
                        child_trace=tracemod.line(st.read_json("trace.json", {})),
                        child={k: v for k, v in {"harness": spec.harness, "model": spec.model, "provider": spec.provider,
                                                 "tokens": st.read_json("child_usage.json", {}).get("tokens"),

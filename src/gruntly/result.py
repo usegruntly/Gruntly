@@ -62,7 +62,7 @@ def build(*, run_id: str, status: str, attempts: int, gates: dict, diff_stat: di
           wall_s: int, child_tokens: int | None, next_cmds: list[str], untrusted: dict | None = None,
           applied: bool | None = None, verify: str | None = None, review_hint: list[str] | None = None,
           warnings: list[str] | None = None, error: str | None = None,
-          child_trace: str = "", child: dict | None = None) -> dict:
+          child_trace: str = "", child: dict | None = None, escalation: dict | None = None) -> dict:
     r: dict = {"schema_version": SCHEMA_VERSION, "run_id": run_id, "status": status, "attempts": attempts}
     if applied is not None:
         r["applied"] = applied
@@ -77,6 +77,8 @@ def build(*, run_id: str, status: str, attempts: int, gates: dict, diff_stat: di
         r["warnings"] = warnings
     if child_trace:
         r["child_trace"] = child_trace
+    if escalation:
+        r["escalation"] = escalation     # why a failed run failed, and whether a stronger model should take it over
     if child:
         r["child"] = child
     if failure_bundle:

@@ -102,9 +102,11 @@ def test_live_patch_shows_new_and_edited_files_without_touching_the_real_index(t
     (tmp_path / "a.py").write_text("x = 1\n", encoding="utf8")
     wt.git(["add", "-A"], tmp_path)
     wt.git(["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "i"], tmp_path)
-    (tmp_path / "a.py").write_text("x = 2\n", encoding="utf8")
+    # a different SIZE, not just different text: Git for Windows compares modification times to the second, so a same-size edit made in
+    # the same second as the commit reads as unchanged (seen as 14 failures in 300 runs with 12 processes at once)
+    (tmp_path / "a.py").write_text("x = 22\n", encoding="utf8")
     (tmp_path / "b.py").write_text("y = 1\n", encoding="utf8")
     staged_before = wt.git(["diff", "--cached", "--name-only"], tmp_path).stdout
     out = wt.live_patch(tmp_path, "HEAD")
-    assert "-x = 1" in out and "+x = 2" in out and "b.py" in out and "+y = 1" in out
+    assert "-x = 1" in out and "+x = 22" in out and "b.py" in out and "+y = 1" in out
     assert wt.git(["diff", "--cached", "--name-only"], tmp_path).stdout == staged_before == ""

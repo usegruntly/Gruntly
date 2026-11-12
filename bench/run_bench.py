@@ -44,6 +44,8 @@ SUBAGENT = "subagent"   # Claude Code's own answer: the edit done by a Haiku sub
 SUPERVISED = "supervised"   # one call; the child plans and works in steps, a reviewer (outside the session) checks each
 PLANNER = "planner"   # Claude plans and supervises; the child finds the code and does the work (`agent-run --explore`)
 LEAN = "lean"   # a stripped-down Claude (one Bash tool, one-line system prompt) directing gruntly via `gruntly agent-run`
+LEAN_ESC = "lean_esc"   # `lean`, and when the block recommends escalation the task goes to a normal full session (see escalate())
+ESC_TOML = '\n[escalate]\nwhen = "hard"\n'
 
 
 def sh(args, cwd, **kw):
@@ -110,7 +112,7 @@ def prompt_for(arm: str, spec: dict) -> str:
                 f"gruntly agent-run --explore --check '{cmd}' 'STEP IN PLAIN WORDS'. 3) Track each step from its result block: "
                 "passed and the diff does the step = done; a gap = gruntly agent-run --continue RUN_ID 'what to change'; "
                 "failed twice = say so and stop. Reply with each step and its outcome in a few lines.")
-    if arm == LEAN:
+    if arm in (LEAN, LEAN_ESC):
         return " ".join(spec["brief"].split())
     if arm == LEAN_ALONE:
         return base + "\nReply in one line."
@@ -246,11 +248,47 @@ def gruntly_runs(work: Path) -> list[dict]:
 VAGUE = yaml.safe_load((HERE / "vague_briefs.yaml").read_text(encoding="utf8"))
 
 
+def escalate(task_dir: Path, work: Path, spec: dict, a, runs_dir: Path, stem: str, info: dict, passed: bool, detail: dict, wall: int):
+    """The second phase of the `lean_esc` arm. The hidden tests have just run on what the lean parent and its child delivered: that is
+    what `lean` alone would have scored. If the parent replied GRUNTLY-FALLBACK (the block said `escalation: recommended`), a normal
+    Claude Code session (the normal system prompt and tools, exactly the `alone` arm's command) takes the task over from the tree as it
+    stands and the tests run again. Both outcomes and both costs stay in the row, so the escalation can be judged on its own:
+    was it needed, did it rescue the run, and what did the rescue cost."""
+    from gruntly.agent import escalation_task
+    reply = (info.get("reply") or "").strip()
+    esc = {"triggered": False, "pass_before": passed, "lean_turns": info["turns"], "lean_wall_s": wall}
+    if not reply.startswith("GRUNTLY-FALLBACK"):
+        return esc, passed, detail, info, wall
+    esc.update(triggered=True, reason=reply[len("GRUNTLY-FALLBACK"):].lstrip(" :-")[:160])
+    cmd = [shutil.which("claude") or "claude", "-p", "--allowedTools", *TOOLS, "--output-format", "stream-json", "--verbose",
+           "--max-turns", "40", "--max-budget-usd", str(a.budget_usd)]
+    if a.parent_model:
+        cmd += ["--model", a.parent_model]
+    t1 = time.time()
+    try:
+        raw = sh(cmd, work, timeout=1800, input=escalation_task(prompt_for("alone", spec), reply)).stdout
+    except subprocess.TimeoutExpired:
+        raw = ""
+    wall2 = round(time.time() - t1)
+    (runs_dir / f"{stem}.esc.jsonl").write_text(raw, encoding="utf8")
+    info2 = analyse(raw)
+    passed2 = judge(task_dir, work)
+    detail2 = judge_detail()
+    esc.update(pass_after=passed2, rescued=(not passed) and passed2, esc_cost=info2["cost_usd"], esc_turns=info2["turns"], esc_wall_s=wall2,
+               esc_edits=info2["parent_edits_total"], esc_tools=info2["tools"], esc_cold_start=info2["cold_start"])
+    merged = {**info, "cost_usd": round(info["cost_usd"] + info2["cost_usd"], 4), "turns": (info["turns"] or 0) + (info2["turns"] or 0),
+              "tokens": {k: info["tokens"].get(k, 0) + info2["tokens"].get(k, 0) for k in info["tokens"]},
+              "tools": {k: info["tools"].get(k, 0) + info2["tools"].get(k, 0) for k in {*info["tools"], *info2["tools"]}},
+              "takeover_edits": info2["parent_edits_total"], "tool_output_bytes": info["tool_output_bytes"] + info2["tool_output_bytes"]}
+    return esc, passed2, detail2, merged, wall + wall2
+
+
 def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
     with tempfile.TemporaryDirectory(prefix="bench-", ignore_cleanup_errors=True) as tmp:
         work = Path(tmp) / "repo"
         spec = prepare(task_dir, work, a.harness, a.model, ('env_allow = ["PYTEST_ADDOPTS"]\n' if bucket(task_dir.name) == "R" else "")     # the parent's shell has it, so the child's must
-                       + DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else "") + rate_limits_toml(a.rate_limits), a.provider,
+                       + DO_TOML.get(arm, DO_TOML["gdA"] if arm in (LEAN, LEAN_ESC) else "") + (ESC_TOML if arm == LEAN_ESC else "")
+                       + rate_limits_toml(a.rate_limits), a.provider,
                        getattr(a, "child_budget_s", 900), getattr(a, "child_idle_s", 300))
         if getattr(a, "vague", False) and task_dir.name in VAGUE:
             spec["brief"] = VAGUE[task_dir.name]     # intent only: no file, no function, no method
@@ -258,7 +296,7 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
                "--max-turns", "40", "--max-budget-usd", str(a.budget_usd)]
         if a.parent_model:
             cmd += ["--model", a.parent_model]
-        if arm == LEAN:
+        if arm in (LEAN, LEAN_ESC):
             from gruntly.agent import LEAN_PROMPT
             cmd = [c for c in cmd if c not in TOOLS]
             cmd[cmd.index("--allowedTools") + 1:cmd.index("--allowedTools") + 1] = ["Bash(gruntly *)"]
@@ -278,7 +316,7 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
         else:
             os.environ.pop("GRUNTLY_PYTHON", None)
         try:
-            env = ({**os.environ, "BASH_DEFAULT_TIMEOUT_MS": "600000", "BASH_MAX_TIMEOUT_MS": "600000"} if arm == LEAN else
+            env = ({**os.environ, "BASH_DEFAULT_TIMEOUT_MS": "600000", "BASH_MAX_TIMEOUT_MS": "600000"} if arm in (LEAN, LEAN_ESC) else
                    {**os.environ, "BASH_MAX_TIMEOUT_MS": "3600000"} if arm == SUPERVISED else None)   # one blocking call, not many waits
             p = sh(cmd, work, timeout=7200 if arm == SUPERVISED else max(2400, 2 * getattr(a, "child_budget_s", 900) + 600), input=prompt_for(arm, spec), env=env)  # stdin: the Windows .cmd shim mangles multi-line args
             raw = p.stdout
@@ -294,6 +332,9 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
         grs = gruntly_runs(work)
         passed = judge(task_dir, work)
         detail = judge_detail()
+        esc = None
+        if arm == LEAN_ESC:
+            esc, passed, detail, info, wall = escalate(task_dir, work, spec, a, runs_dir, f"{task_dir.name}.{arm}.{rep}", info, passed, detail, wall)
         final = save_artifacts(work, runs_dir, f"{task_dir.name}.{arm}.{rep}")
         gsum = gruntly_summary(grs)
         gwall = sum(g.get("wall_s") or 0 for g in gsum)
@@ -302,7 +343,7 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
                 "parent_model": a.parent_model, "child_harness": a.harness if arm != "alone" else None,
                 "child_model": a.model if arm != "alone" else None,
                 "gruntly_wall_s": gwall, "parent_wall_s": max(wall - gwall, 0),       # wall = whole session; the rest is the parent thinking, reading, replying
-                "wall_s": wall, "error": err, **info, "gruntly_status": [r["status"] for r in grs],
+                "wall_s": wall, "error": err, **info, **({"esc": esc} if esc else {}), "gruntly_status": [r["status"] for r in grs],
                 "gruntly_applied": [r.get("applied") for r in grs], "gruntly_attempts": [r["attempts"] for r in grs],
                 "gruntly_result_chars": [len(json.dumps(r)) for r in grs],
                 "child_tokens": sum(r.get("child_tokens") or 0 for r in grs),
@@ -353,8 +394,41 @@ def cost_of_pass(rs: list[dict]) -> str:
     return f"{mean([total(r) for r in rs]) / rate:.3f}" if rate else "inf"
 
 
+def esc_section(rows: list[dict]) -> list[str]:
+    """The escalation A/B of the `lean_esc` rows: was the escalation needed, did it rescue the run, and was the rescue worth its price."""
+    rs = [r for r in rows if r["arm"] == LEAN_ESC and r.get("esc")]
+    if not rs:
+        return []
+    es = [r["esc"] for r in rs]
+    trig = [r for r in rs if r["esc"]["triggered"]]
+    rescued = [r for r in trig if r["esc"].get("rescued")]
+    needless = [r for r in trig if r["esc"]["pass_before"]]
+    still = [r for r in trig if not r["passed"]]
+    esc_cost = sum(r["esc"].get("esc_cost", 0) for r in trig)
+    lean_cost = sum(total(r) - r["esc"].get("esc_cost", 0) for r in rs)       # the lean phase: parent, child and reviewers, before any escalation
+    before, after = sum(1 for e in es if e["pass_before"]), sum(1 for r in rs if r["passed"])
+    per = lambda c, n: f"${c / n:.3f}" if n else "n/a"      # noqa: E731
+    L = ["", "## Escalation A/B (`lean_esc`: a stuck task goes to a full session with the normal system prompt and tools)", "",
+         "Measured inside every run: the hidden tests run after the lean phase (what `lean` alone would have delivered) and again after the "
+         "escalation, so each run carries both outcomes and both costs. Needless = the run was already passing when it escalated.", "",
+         "| runs | escalated | rescued (fail to pass) | needless | still failed | pass before | pass after | lean phase $ | escalation $ | escalation $ per rescued pass | $ per correct task before | $ per correct task after |",
+         "|---|---|---|---|---|---|---|---|---|---|---|---|",
+         f"| {len(rs)} | {len(trig)} | {len(rescued)} | {len(needless)} | {len(still)} | {before}/{len(rs)} | {after}/{len(rs)} | ${lean_cost:.3f} | "
+         f"${esc_cost:.3f} | {per(esc_cost, len(rescued))} | {per(lean_cost, before)} | {per(lean_cost + esc_cost, after)} |"]
+    tasks = {r["task"] for r in rs}
+    base = [r for r in rows if r["arm"] == "alone" and r["task"] in tasks]
+    if base:
+        bp = sum(1 for r in base if r["passed"])
+        L.append(f"\nSame tasks, `alone` (this file): {bp}/{len(base)} passed, {per(sum(total(r) for r in base), bp)} per correct task.")
+    if trig:
+        L += ["", "Escalations: " + "; ".join(
+            f"{r['task']} #{r['rep']} ({r['esc'].get('reason') or '?'}): {'rescued' if r['esc'].get('rescued') else 'not rescued'}, "
+            f"+${r['esc'].get('esc_cost', 0):.3f}, {r['esc'].get('esc_turns')} turns" for r in trig)]
+    return L
+
+
 def report(rows: list[dict], meta: dict) -> str:
-    arms = [x for x in ("alone", "forced", "policy", "planner", "supervised", "subagent", "gd", "gdA", "gdAB", "lean", "lean_alone") if any(r["arm"] == x for r in rows)]
+    arms = [x for x in ("alone", "forced", "policy", "planner", "supervised", "subagent", "gd", "gdA", "gdAB", "lean", "lean_esc", "lean_alone") if any(r["arm"] == x for r in rows)]
     L = ["# gruntly benchmark (v2)", "",
          f"Local child: `{meta['harness']}` / `{meta['model']}` at 32k context. Parent: Claude Code ({meta.get('parent_model') or 'default model'}). "
          f"Run {time.strftime('%Y-%m-%d')}. Pass = hidden tests (never shown to the parent or the child) pass afterwards. "
@@ -379,6 +453,7 @@ def report(rows: list[dict], meta: dict) -> str:
                      f"{mean([max(0, r.get('sessions', 1) - 1) for r in rs]):.1f} | "
                      f"{mean([r['wall_s'] for r in rs]):.0f} | {mean([r['tokens']['output'] for r in rs]):.0f} | {mean([r['tool_output_bytes'] for r in rs]) / 1024:.1f} | "
                      f"{deleg}/{len(rs)} | {sum(r['child_tokens'] for r in rs) or '-'} |")
+    L += esc_section(rows)
     L += ["", "## Share of runs that passed within a cost cap (parent + reviewers per run; a run over the cap counts as not solved)", "",
           "| arm | runs | " + " | ".join(f"<= ${c:.2f}" for c in CAPS) + " |", "|---|---|" + "---|" * len(CAPS)]
     for arm in arms:

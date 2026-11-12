@@ -32,6 +32,11 @@ DEFAULTS: dict[str, Any] = {
     "max_attempts": 3,
     "budget_s": 900,
     "no_progress_s": 120,
+    # Stuck detection (gruntly.escalation.Stall). Progress means a diff the child has not produced before. The two clocks never run
+    # shorter than 2x and 3x no_progress_s, which gruntly already sizes to a slow model's own request time. 0 switches one off.
+    "stall_s": 240,                # no new diff for this long after the child's first edit
+    "first_edit_s": 420,           # no edit at all for this long (reading is fine, reading for ever is not)
+    "max_calls": 80,               # tool calls in one attempt
     "base": "working-tree",
     "child_cmd": None,
     "endpoint": "http://127.0.0.1:1234/v1",
@@ -89,6 +94,9 @@ class Spec:
     max_attempts: int = 3
     budget_s: int = 900
     no_progress_s: int = 120
+    stall_s: int = 240
+    first_edit_s: int = 420
+    max_calls: int = 80
     base: str = "working-tree"
     child_cmd: Any = None
     endpoint: str = "http://127.0.0.1:1234/v1"
@@ -154,6 +162,7 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
         merged = _merge(merged, _toml(repo_root / ".gruntly.toml"))
     merged = _merge(merged, raw)
     merged.pop("do", None)  # the `[do]` table in .gruntly.toml configures `gruntly do`, not a task spec
+    merged.pop("escalate", None)  # likewise `[escalate]`: the policy for handing a stuck task to the caller's own model
     for k in RETIRED_FIELDS:
         merged.pop(k, None)
     brief = merged.pop("brief", None)
