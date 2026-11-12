@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import statistics
 import subprocess
@@ -126,18 +127,66 @@ def prompt_for(arm: str, spec: dict) -> str:
 
 
 def judge(task_dir: Path, work: Path) -> bool:
+    judge.last = ""
     if not (task_dir / "hidden" / "test_hidden.py").is_file():       # real task: the fix commit's own tests
         import real_tasks
-        return real_tasks.judge_files(task_dir, work)
+        ok = real_tasks.judge_files(task_dir, work)
+        p = getattr(real_tasks.judge_files, "last", None)
+        judge.last = ((p.stdout or "") + (p.stderr or "")) if p else ""
+        return ok
     shutil.copy(task_dir / "hidden" / "test_hidden.py", work / "test_hidden.py")
     r = sh([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"], work, timeout=180)
     (work / "test_hidden.py").unlink()
+    judge.last = (r.stdout or "") + (r.stderr or "")
     return r.returncode == 0
+
+
+def judge_detail() -> dict:
+    """What the hidden tests said, beyond pass/fail: case counts (a fix that fails 2 of 36 cases is not a fix that fails 30) and the
+    names of the cases that failed."""
+    out = getattr(judge, "last", "") or ""
+    def n(word):
+        m = re.findall(rf"(\d+) {word}", out)
+        return int(m[-1]) if m else 0
+    failed = [l.split(" - ")[0].replace("FAILED ", "").strip()[:160] for l in out.splitlines() if l.startswith("FAILED ")]
+    return {"cases_passed": n("passed"), "cases_failed": n("failed"), "cases_error": n("error"), "failed": failed[:12],
+            "tail": "\n".join(out.strip().splitlines()[-6:])[:600]}
+
+
+def save_artifacts(work: Path, runs_dir: Path, stem: str) -> dict:
+    """Keep the raw material of a run so any metric can be recomputed later: gruntly's own records (result, child log, per-attempt
+    prompts, diffs and gate output) and the final patch, whoever made it. The temporary work copy is deleted afterwards."""
+    src = work / ".gruntly" / "runs"
+    if src.is_dir():
+        shutil.copytree(src, runs_dir / f"{stem}.gruntly", dirs_exist_ok=True, ignore=shutil.ignore_patterns("*.pyc", "__pycache__"))
+    sh(["git", "add", "-A"], work)
+    d = sh(["git", "diff", "--cached", "HEAD", "--", ".", ":!.gruntly", ":!.gruntly.toml", ":!**/__pycache__/**", ":!**/*.pyc",
+            ":!**/.pytest_cache/**"], work).stdout
+    (runs_dir / f"{stem}.final.patch").write_text(d, encoding="utf8")
+    add = sum(1 for l in d.splitlines() if l.startswith("+") and not l.startswith("+++"))
+    dele = sum(1 for l in d.splitlines() if l.startswith("-") and not l.startswith("---"))
+    return {"lines_added": add, "lines_removed": dele, "files": len(re.findall(r"^diff --git ", d, re.M))}
+
+
+def gruntly_summary(grs: list[dict]) -> list[dict]:
+    """One line per gruntly run of the task: what the child did, what it cost, why a run failed."""
+    out = []
+    for r in grs:
+        g = r.get("gates") or {}
+        out.append({"status": r.get("status"), "attempts": r.get("attempts"), "wall_s": r.get("wall_s"), "applied": r.get("applied"),
+                    "verify": r.get("verify"), "child": r.get("child"), "child_trace": r.get("child_trace"),
+                    "failed_gates": [k for k, v in g.items() if not (v is True or (isinstance(v, dict) and v.get("ok")))],
+                    "reason": (r.get("failure_bundle") or {}).get("reason") or r.get("error"),
+                    "files_touched": (r.get("diff_stat") or {}).get("paths"), "review_hint": r.get("review_hint"),
+                    "warnings": r.get("warnings")})
+    return out
 
 
 def analyse(raw: str) -> dict:
     """Turns, cost, context and tool-output size from a stream-json transcript."""
-    tool_bytes = peak = sessions = background = takeover = 0
+    tool_bytes = peak = sessions = background = takeover = edits_total = 0
+    first_call: dict = {}
+    gcalls: dict[str, int] = {}
     seen_gruntly = False
     tools: dict[str, int] = {}
     result: dict = {}
@@ -152,14 +201,22 @@ def analyse(raw: str) -> dict:
         if t == "assistant":
             msg = e.get("message", {})
             u = msg.get("usage") or {}
+            if not first_call and u:     # a session whose first call read nothing from the cache paid to write its whole prefix: a cold start
+                first_call = {"cache_read": u.get("cache_read_input_tokens") or 0, "cache_write": u.get("cache_creation_input_tokens") or 0}
             peak = max(peak, (u.get("input_tokens") or 0) + (u.get("cache_read_input_tokens") or 0)
                        + (u.get("cache_creation_input_tokens") or 0))
             for b in msg.get("content", []):
                 if b.get("type") == "tool_use":
                     tools[b.get("name", "?")] = tools.get(b.get("name", "?"), 0) + 1
                     background += bool((b.get("input") or {}).get("run_in_background"))
+                    if b.get("name") in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
+                        edits_total += 1
                     if b.get("name") == "Bash" and "gruntly" in str((b.get("input") or {}).get("command", "")):
                         seen_gruntly = True
+                        cmdline = str((b.get("input") or {}).get("command", ""))
+                        verb = re.search(r"gruntly\s+(agent-run|wait|continue|diff|discard|apply|doctor|stats|rules|mode|do|run)\b", cmdline)
+                        kind = "continue" if "--continue" in cmdline else (verb.group(1) if verb else "other")
+                        gcalls[kind] = gcalls.get(kind, 0) + 1
                     elif seen_gruntly and b.get("name") in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
                         takeover += 1
         elif t == "user":
@@ -171,7 +228,12 @@ def analyse(raw: str) -> dict:
             result = e
     u = result.get("usage") or {}
     return {"cost_usd": round(result.get("total_cost_usd") or 0, 4), "turns": result.get("num_turns"),
-            "reply": (result.get("result") or "")[:500], "tools": tools, "sessions": sessions, "background_calls": background, "takeover_edits": takeover, "tool_output_bytes": tool_bytes, "peak_ctx": peak,
+            "reply": (result.get("result") or "")[:500], "tools": tools, "parent_edits_total": edits_total, "gruntly_calls": gcalls,
+            "first_call": first_call, "cold_start": bool(first_call) and first_call["cache_read"] == 0,
+            "model_usage": {m: {"input": v.get("inputTokens"), "output": v.get("outputTokens"), "cache_read": v.get("cacheReadInputTokens"),
+                                "cache_write": v.get("cacheCreationInputTokens"), "cost_usd": v.get("costUSD")}
+                            for m, v in (result.get("modelUsage") or {}).items()},
+            "api_ms": result.get("duration_api_ms"), "sessions": sessions, "background_calls": background, "takeover_edits": takeover, "tool_output_bytes": tool_bytes, "peak_ctx": peak,
             "tokens": {"input": u.get("input_tokens", 0), "cache_write": u.get("cache_creation_input_tokens", 0),
                        "cache_read": u.get("cache_read_input_tokens", 0), "output": u.get("output_tokens", 0)}}
 
@@ -187,7 +249,8 @@ VAGUE = yaml.safe_load((HERE / "vague_briefs.yaml").read_text(encoding="utf8"))
 def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
     with tempfile.TemporaryDirectory(prefix="bench-", ignore_cleanup_errors=True) as tmp:
         work = Path(tmp) / "repo"
-        spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else "") + rate_limits_toml(a.rate_limits), a.provider,
+        spec = prepare(task_dir, work, a.harness, a.model, ('env_allow = ["PYTEST_ADDOPTS"]\n' if bucket(task_dir.name) == "R" else "")     # the parent's shell has it, so the child's must
+                       + DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else "") + rate_limits_toml(a.rate_limits), a.provider,
                        getattr(a, "child_budget_s", 900), getattr(a, "child_idle_s", 300))
         if getattr(a, "vague", False) and task_dir.name in VAGUE:
             spec["brief"] = VAGUE[task_dir.name]     # intent only: no file, no function, no method
@@ -229,7 +292,16 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
         (runs_dir / f"{task_dir.name}.{arm}.{rep}.jsonl").write_text(raw, encoding="utf8")
         info = analyse(raw)
         grs = gruntly_runs(work)
-        return {"task": task_dir.name, "bucket": bucket(task_dir.name), "arm": arm, "rep": rep, "passed": judge(task_dir, work),
+        passed = judge(task_dir, work)
+        detail = judge_detail()
+        final = save_artifacts(work, runs_dir, f"{task_dir.name}.{arm}.{rep}")
+        gsum = gruntly_summary(grs)
+        gwall = sum(g.get("wall_s") or 0 for g in gsum)
+        return {"task": task_dir.name, "bucket": bucket(task_dir.name), "arm": arm, "rep": rep, "passed": passed,
+                "judge": detail, "final_patch": final, "gruntly": gsum,
+                "parent_model": a.parent_model, "child_harness": a.harness if arm != "alone" else None,
+                "child_model": a.model if arm != "alone" else None,
+                "gruntly_wall_s": gwall, "parent_wall_s": max(wall - gwall, 0),       # wall = whole session; the rest is the parent thinking, reading, replying
                 "wall_s": wall, "error": err, **info, "gruntly_status": [r["status"] for r in grs],
                 "gruntly_applied": [r.get("applied") for r in grs], "gruntly_attempts": [r["attempts"] for r in grs],
                 "gruntly_result_chars": [len(json.dumps(r)) for r in grs],
@@ -238,6 +310,27 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
                 # reviewer calls made by gruntly outside the parent's session are paid too: count them
                 "reviewer_cost_usd": round(sum(json.loads(p.read_text(encoding="utf8")).get("reviewer_cost_usd", 0)
                                                for p in (work / ".gruntly" / "supervised").glob("*/costs.json")), 5)}
+
+
+def write_meta(path: Path, a) -> None:
+    """Everything needed to read the rows later: what was run, on which code, with which tools. One entry per invocation."""
+    def out(*cmd):
+        try:
+            return subprocess.run(cmd, capture_output=True, text=True, encoding="utf8", timeout=30, cwd=HERE.parent).stdout.strip()
+        except Exception:  # noqa: BLE001
+            return "?"
+    try:
+        plugin = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf8")).get("version")
+    except Exception:  # noqa: BLE001
+        plugin = None
+    entry = {"started": time.strftime("%Y-%m-%d %H:%M:%S"), "argv": sys.argv[1:], "args": vars(a),
+             "gruntly_commit": out("git", "rev-parse", "--short", "HEAD"), "tree_dirty": bool(out("git", "status", "--porcelain", "--", "src", "bench", "plugin")),
+             "claude": out(shutil.which("claude") or "claude", "--version"), "python": sys.version.split()[0], "plugin_version": plugin,
+             "pytest": out(sys.executable, "-m", "pytest", "--version"),
+             "prices_per_mtok": {"sonnet-5.5": {"input": 2.0, "output": 10.0, "cache_read": 0.10, "cache_write_1h": 4.0}},
+             "note": "costs are Claude Code's own total_cost_usd (parent) and the CLI's total_cost_usd per child attempt; API-equivalent dollars"}
+    old = json.loads(path.read_text(encoding="utf8")) if path.exists() else []
+    path.write_text(json.dumps(old + [entry], indent=1), encoding="utf8")
 
 
 def mean(xs):
@@ -345,14 +438,17 @@ def main():
         # arm, the hidden-test judge and gruntly's gate see the same pytest options, set here.
         opt = "-W ignore::pytest.PytestRemovedIn10Warning"
         os.environ["PYTEST_ADDOPTS"] = (os.environ.get("PYTEST_ADDOPTS", "") + " " + opt).strip()
+        wanted = {n for n in a.tasks.split(",") if n}            # --tasks narrows the real tasks too
         names = sorted(p.name for p in (HERE / "tasks-real").iterdir()
-                       if p.is_dir() and not yaml.safe_load((p / "task.yaml").read_text(encoding="utf8")).get("vague"))
+                       if p.is_dir() and not yaml.safe_load((p / "task.yaml").read_text(encoding="utf8")).get("vague")
+                       and (not wanted or p.name in wanted))
     raw = Path(a.out).with_suffix(".json")
     if a.report_only:
         Path(a.out).write_text(report(json.loads(raw.read_text(encoding="utf8")), vars(a)), encoding="utf8")
         print(f"wrote {a.out}")
         return
     rows = json.loads(raw.read_text(encoding="utf8")) if raw.exists() and a.resume else []
+    write_meta(Path(str(raw)[:-5] + ".meta.json"), a)
     done = {(r["task"], r["arm"], r["rep"]) for r in rows}
     stopped = False
     for rep in range(1, a.reps + 1):

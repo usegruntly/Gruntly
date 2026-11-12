@@ -1,0 +1,115 @@
+[
+ {
+  "started": "2026-11-12 16:02:23",
+  "argv": [
+   "--real",
+   "--arms",
+   "forced",
+   "--harness",
+   "claude",
+   "--model",
+   "haiku",
+   "--tasks",
+   "click_deprecated_label_formatting",
+   "--runs-dir",
+   "runs-real-claude",
+   "--budget-usd",
+   "0.6",
+   "--max-total-usd",
+   "0.5",
+   "--out",
+   "docs/benchmarks/benchmark-real-claude-child.md"
+  ],
+  "args": {
+   "harness": "claude",
+   "model": "haiku",
+   "runs_dir": "runs-real-claude",
+   "vague": false,
+   "provider": "",
+   "parent_model": "sonnet",
+   "child_budget_s": 900,
+   "child_idle_s": 300,
+   "rate_limits": "",
+   "tasks": "click_deprecated_label_formatting",
+   "real": true,
+   "arms": "forced",
+   "reps": 1,
+   "budget_usd": 0.6,
+   "max_total_usd": 0.5,
+   "resume": false,
+   "report_only": false,
+   "out": "docs/benchmarks/benchmark-real-claude-child.md"
+  },
+  "gruntly_commit": "f95b325",
+  "tree_dirty": true,
+  "claude": "2.1.322 (Claude Code)",
+  "python": "3.14.9",
+  "plugin_version": "0.12.0",
+  "pytest": "pytest 9.2.0",
+  "prices_per_mtok": {
+   "sonnet-5.5": {
+    "input": 2.0,
+    "output": 10.0,
+    "cache_read": 0.1,
+    "cache_write_1h": 4.0
+   }
+  },
+  "note": "costs are Claude Code's own total_cost_usd (parent) and the CLI's total_cost_usd per child attempt; API-equivalent dollars"
+ },
+ {
+  "started": "2026-11-12 16:07:45",
+  "argv": [
+   "--real",
+   "--resume",
+   "--arms",
+   "forced",
+   "--harness",
+   "claude",
+   "--model",
+   "haiku",
+   "--runs-dir",
+   "runs-real-claude",
+   "--budget-usd",
+   "0.6",
+   "--max-total-usd",
+   "1.4",
+   "--out",
+   "docs/benchmarks/benchmark-real-claude-child.md"
+  ],
+  "args": {
+   "harness": "claude",
+   "model": "haiku",
+   "runs_dir": "runs-real-claude",
+   "vague": false,
+   "provider": "",
+   "parent_model": "sonnet",
+   "child_budget_s": 900,
+   "child_idle_s": 300,
+   "rate_limits": "",
+   "tasks": "",
+   "real": true,
+   "arms": "forced",
+   "reps": 1,
+   "budget_usd": 0.6,
+   "max_total_usd": 1.4,
+   "resume": true,
+   "report_only": false,
+   "out": "docs/benchmarks/benchmark-real-claude-child.md"
+  },
+  "gruntly_commit": "f95b325",
+  "tree_dirty": true,
+  "claude": "2.1.322 (Claude Code)",
+  "python": "3.14.9",
+  "plugin_version": "0.12.0",
+  "pytest": "pytest 9.2.0",
+  "prices_per_mtok": {
+   "sonnet-5.5": {
+    "input": 2.0,
+    "output": 10.0,
+    "cache_read": 0.1,
+    "cache_write_1h": 4.0
+   }
+  },
+  "note": "costs are Claude Code's own total_cost_usd (parent) and the CLI's total_cost_usd per child attempt; API-equivalent dollars"
+ }
+]

@@ -83,7 +83,9 @@ def judge_files(task_dir: Path, work: Path, python: str | None = None) -> bool:
             shutil.copyfile(root / rel, dest)
         env = {**os.environ, "PYTHONPATH": str(work / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
         tests = [r.as_posix() for r in rels if r.suffix == ".py"]
-        return sh([python, "-m", "pytest", "-q", "-p", "no:cacheprovider", *tests], work, env=env, timeout=300).returncode == 0
+        p = sh([python, "-m", "pytest", "-q", "-p", "no:cacheprovider", *tests], work, env=env, timeout=300)
+        judge_files.last = p            # the caller may want more than pass/fail: how many cases, and which failed
+        return p.returncode == 0
     finally:
         for dest, old in backups.items():
             if old is None:
