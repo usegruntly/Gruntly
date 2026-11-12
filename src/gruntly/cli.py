@@ -756,11 +756,11 @@ def cmd_models(a) -> int:
     names = [a.provider] if a.provider else ["local"] + [n for n, p in providers.PROVIDERS.items() if keys.lookup(n, p.key_env)[1]]
     rc, dump = 0, {}
     for n in names:
-        if n != "local" and n not in providers.PROVIDERS:
-            print(f"unknown provider {n!r}; known: local, {', '.join(providers.PROVIDERS)}", file=sys.stderr)
+        if n != "local" and n not in providers.PROVIDERS and n not in providers.LOCAL:
+            print(f"unknown provider {n!r}; known: local, {', '.join([*providers.PROVIDERS, *providers.LOCAL])}", file=sys.stderr)
             return 2
         try:
-            ms = mm.fetch(n, _local_endpoint())
+            ms, age = mm.fetch_cached(n, _local_endpoint(), refresh=a.refresh)
         except mm.ModelsError as e:
             print(f"{n}: {e}", file=sys.stderr)
             rc = 1
@@ -771,7 +771,8 @@ def cmd_models(a) -> int:
             dump[n] = [m.raw for m in ms]
             continue
         print(f"{n}: {len(ms)} model(s) downloaded in LM Studio, whether loaded or not" if n == "local" else
-              f"{n}: {len(ms)} model(s), as the endpoint lists them (a listing does not say which are free or usable on your account)")
+              f"{n}: {len(ms)} model(s), as the endpoint lists them (a listing does not say which are free or usable on your account)"
+              + (f"; from a copy {int(age // 3600)} h old, add --refresh for a live list" if age is not None else ""))
         onboard.show_models(n, ms)
         onboard.print_docs(n)
         print()
@@ -886,25 +887,50 @@ def cmd_setup(a) -> int:
     return onboard.setup()
 
 
+def cmd_verify(a) -> int:
+    """gruntly verify [provider] [--model ID] [--json]: a live check of each provider that has a key (and each local server that answers):
+    does the model list come back, and does one tiny call work? Costs a fraction of a cent, sends none of your code, never prints a key."""
+    from . import verify
+    try:
+        checks = verify.run([a.provider] if a.provider else None, model=a.model)
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        return 2
+    verify.record(checks)
+    failed = [c for c in checks if not c.ok and (a.provider or (c.stage != "skipped" and c.kind != "local"))]     # a local server that is off is no failure
+    if a.json:
+        print(json.dumps(verify.as_dicts(checks), indent=2))
+        return 1 if failed else 0
+    print(f"{'PROVIDER':11} {'RESULT':16} {'STAGE':8} {'MS':>6}  DETAIL")
+    for c in checks:
+        result = "ok" if c.ok else ("skipped" if c.stage == "skipped" else f"FAILED ({c.error})")
+        print(f"{c.provider:11} {result:16} {c.stage:8} {c.latency_ms if c.latency_ms is not None else '-':>6}  {c.detail}")
+    return 1 if failed else 0
+
+
 def cmd_providers(a) -> int:
     """gruntly providers [--json]: every provider gruntly knows, hosted and local, whether its key is set and what the catalog says
     about it. Never prints a key; the catalog is data (see providers.py), so this is also how to check an override took."""
-    from . import keys, providers
+    import time
+    from . import keys, providers, verify
+    last = verify.last_results()
     rows = []
     for name, p in providers.ALL.items():
         src = None if p.kind == "local" else keys.lookup(name, p.key_env)[1]
+        seen = last.get(name)
+        checked = None if not seen else (("ok " if seen["ok"] else f"failed ({seen.get('error')}) ") + time.strftime("%Y-%m-%d", time.localtime(seen["ts"])))
         rows.append({"name": name, "kind": p.kind, "key": "n/a" if p.kind == "local" else ("set" if src else "missing"),
                      "key_env": p.key_env or None, "base_url": p.base_url, "default_model": p.default_model, "rpm": p.rpm,
-                     "free_tier": p.free_tier, "verified": p.verified, "note": p.note})
+                     "free_tier": p.free_tier, "verified": p.verified, "checked_here": checked, "note": p.note})
     if a.json:
         print(json.dumps({"providers": rows, "warnings": providers.LOAD_WARNINGS}, indent=2))
         return 0
     for w in providers.LOAD_WARNINGS:
         print(f"warning: {w}")
-    print(f"{'NAME':11} {'KIND':7} {'KEY':8} {'FREE':5} {'VERIFIED':9} {'DEFAULT MODEL':30} BASE URL")
+    print(f"{'NAME':11} {'KIND':7} {'KEY':8} {'FREE':5} {'VERIFIED':9} {'CHECKED HERE':19} {'DEFAULT MODEL':30} BASE URL")
     for r in rows:
         print(f"{r['name']:11} {r['kind']:7} {r['key']:8} {'yes' if r['free_tier'] else '-':5} {'yes' if r['verified'] else 'no':9} "
-              f"{(r['default_model'] or ('-' if r['kind'] == 'local' else '(choose one)'))[:30]:30} {r['base_url']}")
+              f"{r['checked_here'] or '-':19} {(r['default_model'] or ('-' if r['kind'] == 'local' else '(choose one)'))[:30]:30} {r['base_url']}")
     print("verified = a live check has passed; the rest come from the providers' documentation. Add or override entries in "
           f"{providers.user_files()[0]} or .gruntly/providers.toml.")
     return 0
@@ -1076,6 +1102,11 @@ def build_parser() -> argparse.ArgumentParser:
     mo.add_argument("provider", nargs="?", help="local or a provider name (default: local and every provider with a key)")
     mo.add_argument("--json", action="store_true", help="the endpoint's own data for each model")
     mo.add_argument("--filter", help="only models whose id or info contains this text")
+    mo.add_argument("--refresh", action="store_true", help="ignore the day-old copy of a hosted provider's list and ask the provider")
+    vf = add("verify", cmd_verify)
+    vf.add_argument("provider", nargs="?", help="one provider (default: every one with a key, and every local server)")
+    vf.add_argument("--model", help="the model to call (default: the provider's default model; without one only the model list is checked)")
+    vf.add_argument("--json", action="store_true", help="machine-readable")
     pv = add("providers", cmd_providers)
     pv.add_argument("--json", action="store_true", help="machine-readable")
     us = add("use", cmd_use)

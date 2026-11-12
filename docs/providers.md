@@ -29,6 +29,21 @@ key_env = "MY_GATEWAY_API_KEY"
 
 A file with a mistake is reported by `gruntly providers` and ignored; the packaged catalog keeps working.
 
+## Checking that a provider works
+
+```
+gruntly verify                 # every provider that has a key, and every local server that answers
+gruntly verify groq            # one provider
+gruntly verify openrouter --model meta-llama/llama-3.3-70b-instruct     # a provider with no default model needs one to test a call
+```
+
+One line per provider: `ok`, or why not (`no key`, `auth`, `rate_limit`, `not_found`, `bad_request`, `server`, `timeout`, `network`). The check lists the
+models and makes one call that sends only "Reply with the single word: ok" and asks for at most 8 tokens: a fraction of a cent, none of your code. A key is
+never printed (it is scrubbed from the messages providers send back). The last result per provider shows as `CHECKED HERE` in `gruntly providers`.
+A local server that is not running reports `not running`; that is not a failure of the default sweep, but is one when you name it.
+
+`gruntly models PROVIDER` keeps a day-old copy of a hosted provider's list (`--refresh` asks again); local servers are always live.
+
 ## Choosing a provider and a model
 
 ```

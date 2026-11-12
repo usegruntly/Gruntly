@@ -61,8 +61,31 @@ def _openai(data: dict) -> list[Model]:
         # NVIDIA sends 1993 for models that are not that old: a wrong date is worse than none (it stays in `raw`)
         if isinstance(m.get("created"), (int, float)) and m["created"] > 1_420_070_400:
             info["created"] = _date(m["created"])
-        out.append(Model(_strip(str(m.get("id", "?"))), None, info, m))
+        ctx = next((m[k] for k in ("context_length", "context_window", "max_context_length") if isinstance(m.get(k), int) and not isinstance(m.get(k), bool)), None)
+        price = _price(m.get("pricing"))
+        if price:
+            info["price"] = price
+        out.append(Model(_strip(str(m.get("id", "?"))), ctx, info, m))
     return out
+
+
+def _price(p) -> str | None:
+    """"in $0.15 / out $0.60 per Mtok" from a listing that gives per-token or per-Mtok prices (OpenRouter: dollars per token as text)."""
+    if not isinstance(p, dict):
+        return None
+    def num(*keys):
+        for k in keys:
+            try:
+                return float(p[k])
+            except (KeyError, TypeError, ValueError):
+                continue
+        return None
+    i, o = num("prompt", "input"), num("completion", "output")
+    if i is None or o is None:
+        return None
+    if "prompt" in p:                           # OpenRouter: dollars per token
+        i, o = i * 1e6, o * 1e6
+    return f"in ${i:g} / out ${o:g} per Mtok"
 
 
 def _gemini(data: dict) -> list[Model]:
@@ -172,6 +195,9 @@ def fetch(name: str, endpoint: str = "http://127.0.0.1:1234/v1") -> list[Model]:
                 if live[m.id].context:
                     m.context = live[m.id].context
         return downloaded
+    if name in providers.LOCAL:
+        srv = providers.LOCAL[name]
+        return fetch("local", srv.base_url) if name == "lmstudio" else _openai(_get(srv.base_url.rstrip("/") + "/models", {}))
     p = providers.get(name)
     key, _ = keys.lookup(name, p.key_env)
     if not key:
@@ -180,6 +206,39 @@ def fetch(name: str, endpoint: str = "http://127.0.0.1:1234/v1") -> list[Model]:
         root = p.base_url.split("/v1beta")[0]
         return _gemini(_get(f"{root}/v1beta/models?pageSize=1000", {"x-goog-api-key": key}))
     return _openai(_get(p.base_url.rstrip("/") + "/models", {"Authorization": f"Bearer {key}"}))
+
+
+CACHE_S = 24 * 3600
+
+
+def cache_path(name: str):
+    from .store import state_dir
+    return state_dir() / "models" / f"{name}.json"
+
+
+def fetch_cached(name: str, endpoint: str = "http://127.0.0.1:1234/v1", refresh: bool = False, max_age_s: int = CACHE_S,
+                 now: float | None = None) -> tuple[list[Model], float | None]:
+    """A hosted provider's list, from a day-old copy when there is one (model lists change slowly and cost a call), else live. Returns
+    (models, age in seconds or None for a live list). Local servers are always live: what is loaded changes by the minute."""
+    import time
+    now = time.time() if now is None else now
+    if name == "local" or name in providers.LOCAL:
+        return fetch(name, endpoint), None
+    path = cache_path(name)
+    if not refresh and path.is_file():
+        try:
+            d = json.loads(path.read_text(encoding="utf8"))
+            if now - d["ts"] < max_age_s:
+                return [Model(m["id"], m.get("context"), m.get("info") or {}, m.get("raw") or {}) for m in d["models"]], now - d["ts"]
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    ms = fetch(name, endpoint)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"ts": now, "models": [{"id": m.id, "context": m.context, "info": m.info, "raw": m.raw} for m in ms]}), encoding="utf8")
+    except OSError:
+        pass                                  # a cache that cannot be written is not an error
+    return ms, None
 
 
 def line(m: Model, width: int = 100) -> str:
