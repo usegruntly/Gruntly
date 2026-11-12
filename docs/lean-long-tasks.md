@@ -20,7 +20,7 @@ Tasks: `bugs_batch` (six modules, six bugs) and `cli_json` (feature in a CLI wit
 8. **Child strips apostrophes** in word counting (rounds 1-2); the prompt now tells the reviewer to check this. Round 4 kept them. This is tuned to what I saw in this task.
 
 ## Still open
-- Wall time: 100-540 s against ~17 s alone. Cost is lower (about 45-75% below alone), but the local model is slow and serial.
+- Wall time: 100-540 s against ~17 s alone. Cost is lower (about 45-75% below the full Claude Code session alone), but that is the stripped-down parent, not delegation: the matched baseline, the same lean Claude working alone, cost $0.015 against $0.046 with gruntly (`research-brief.md`, section C). The local model is slow and serial.
 - `bugs_batch` has not passed on lean yet; its visible tests do not pin the edge cases, so correctness rests on the reviewer reading diffs.
 - Hermes still has no child trace.
 
