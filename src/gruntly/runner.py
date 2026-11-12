@@ -320,6 +320,11 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
                        t_start, 0, 0, {"available": False},
                        error=f"provider {prov.name} needs an API key: set the environment variable {prov.key_env}, "
                              f"or run: gruntly auth set {prov.name}")
+    if not (spec.model or prov.default_model):
+        return _finish(st, spec, root, "error", 0, {}, {"files": 0, "insertions": 0, "deletions": 0, "paths": []}, "", None,
+                       t_start, 0, 0, {"available": False},
+                       error=f"provider {prov.name} has no default model: choose one with `gruntly models {prov.name}`, then set `model` "
+                             f"in the spec or .gruntly.toml (or run: gruntly use {prov.name} MODEL)")
     from .store import state_dir
     srv = proxymod.start(prov.name, prov.base_url, key, {"rpm": prov.rpm, "tpm": prov.tpm, "rpd": prov.rpd, **spec.rate_limits},
                          state_dir() / "providers" / f"{prov.name}.json")

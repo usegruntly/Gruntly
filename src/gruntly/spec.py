@@ -161,6 +161,8 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
     if repo_root is not None:
         merged = _merge(merged, _toml(repo_root / ".gruntly.toml"))
     merged = _merge(merged, raw)
+    from . import providers as provmod
+    merged["provider"], merged["endpoint"] = provmod.resolve_local(merged.get("provider", "local"), merged.get("endpoint"), DEFAULTS["endpoint"])
     merged.pop("do", None)  # the `[do]` table in .gruntly.toml configures `gruntly do`, not a task spec
     merged.pop("escalate", None)  # likewise `[escalate]`: the policy for handing a stuck task to the caller's own model
     for k in RETIRED_FIELDS:

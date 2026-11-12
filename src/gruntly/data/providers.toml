@@ -1,0 +1,164 @@
+# Providers gruntly can use for a child (or, later, a parent): hosted OpenAI-compatible endpoints and local model servers.
+#
+# Override or add entries in ~/.config/gruntly/providers.toml (all your projects) or <project>/.gruntly/providers.toml (one project).
+# A later file wins field by field, so a one-line override is enough:
+#
+#   [groq]
+#   rpm = 20
+#
+# `verified = true` means a live check has passed (gruntly verify) against the provider. Every other entry comes from the
+# provider's documentation and may be out of date: the limits are conservative defaults, not promises, and the model list is
+# never kept here (model ids change; `gruntly models --provider NAME` asks the provider).
+# `default_model` is only set where it was measured to work; otherwise pick one with `gruntly models`.
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# Hosted
+# ---------------------------------------------------------------------------------------------------------------------------
+
+# Gemma 4 through the Gemini API (AI Studio key). Gemma 3 is no longer listed in Google's Gemma-on-Gemini docs, and the small Gemma
+# sizes are not offered there. 26B-A4B activates about 4B parameters per token. Measured (a 429 named it): 16,000 input tokens per
+# minute on the free tier. The requests/min and daily numbers are not published: rpm is a guess. The API also answers 500 INTERNAL on
+# about half the calls; the proxy retries those.
+[gemini]
+kind = "hosted"
+base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
+key_env = "GEMINI_API_KEY"
+default_model = "gemma-4-26b-a4b-it"
+rpm = 15
+tpm = 15000
+note = "Gemma 4 via the Gemini API"
+models_api = "gemini"
+free_tier = true
+verified = true
+docs = [["Get an API key", "https://aistudio.google.com/apikey"],
+        ["Models", "https://ai.google.dev/gemini-api/docs/models"],
+        ["Rate limits and free tier", "https://ai.google.dev/gemini-api/docs/rate-limits"]]
+
+# NVIDIA NIM (build.nvidia.com). The live model list (GET /v1/models, no key needed) has google/gemma-3-4b-it, gemma-3-12b-it,
+# nvidia/nemotron-3.5-lightning-30b-a3b (about 3B active), nemotron-3.5-bolt-e4b and mistral-nemo-12b; no Qwen. Listed does not mean
+# usable: on a free account, gemma-3-4b/12b, nemotron-nano-3, mistral-nemo-12b and granite-3.0-8b answered 404 "Function not found for
+# account"; only nemotron-3.5-bolt-e4b and nemotron-3.5-lightning-30b-a3b worked (tool calls too). About 40 requests/min on the free
+# tier was reported (your account page shows the real number); no daily cap was found. Needs a phone-verified account.
+[nvidia]
+kind = "hosted"
+base_url = "https://integrate.api.nvidia.com/v1"
+key_env = "NVIDIA_API_KEY"
+default_model = "nvidia/nemotron-3.5-bolt-e4b"
+rpm = 30
+note = "NVIDIA NIM free endpoints"
+free_tier = true
+verified = true
+docs = [["Get an API key", "https://build.nvidia.com/settings/api-keys"],
+        ["Models (use the Free Endpoint filter)", "https://build.nvidia.com/models"],
+        ["Docs", "https://docs.api.nvidia.com/"]]
+
+# One key for hundreds of models from many labs. Models whose id ends in :free have tight limits; paid ones follow your credits.
+[openrouter]
+kind = "hosted"
+base_url = "https://openrouter.ai/api/v1"
+key_env = "OPENROUTER_API_KEY"
+note = "OpenRouter: many providers behind one key"
+free_tier = true
+docs = [["Get an API key", "https://openrouter.ai/keys"],
+        ["Models", "https://openrouter.ai/models"],
+        ["Docs", "https://openrouter.ai/docs"]]
+
+[openai]
+kind = "hosted"
+base_url = "https://api.openai.com/v1"
+key_env = "OPENAI_API_KEY"
+note = "OpenAI API"
+docs = [["Get an API key", "https://platform.openai.com/api-keys"],
+        ["Models", "https://platform.openai.com/docs/models"]]
+
+[deepseek]
+kind = "hosted"
+base_url = "https://api.deepseek.com/v1"
+key_env = "DEEPSEEK_API_KEY"
+note = "DeepSeek API"
+docs = [["Get an API key", "https://platform.deepseek.com/api_keys"],
+        ["Docs", "https://api-docs.deepseek.com/"]]
+
+[groq]
+kind = "hosted"
+base_url = "https://api.groq.com/openai/v1"
+key_env = "GROQ_API_KEY"
+rpm = 30
+note = "Groq: fast inference of open models; the free tier has per-model limits"
+free_tier = true
+docs = [["Get an API key", "https://console.groq.com/keys"],
+        ["Models", "https://console.groq.com/docs/models"],
+        ["Rate limits", "https://console.groq.com/docs/rate-limits"]]
+
+[together]
+kind = "hosted"
+base_url = "https://api.together.xyz/v1"
+key_env = "TOGETHER_API_KEY"
+note = "Together AI: open models, pay as you go"
+docs = [["Get an API key", "https://api.together.ai/settings/api-keys"],
+        ["Models", "https://docs.together.ai/docs/serverless-models"]]
+
+[fireworks]
+kind = "hosted"
+base_url = "https://api.fireworks.ai/inference/v1"
+key_env = "FIREWORKS_API_KEY"
+note = "Fireworks AI: open models, pay as you go"
+docs = [["Get an API key", "https://fireworks.ai/account/api-keys"],
+        ["Models", "https://fireworks.ai/models"]]
+
+[mistral]
+kind = "hosted"
+base_url = "https://api.mistral.ai/v1"
+key_env = "MISTRAL_API_KEY"
+rpm = 60
+note = "Mistral La Plateforme; the free tier is rate limited"
+free_tier = true
+docs = [["Get an API key", "https://console.mistral.ai/api-keys"],
+        ["Models", "https://docs.mistral.ai/getting-started/models/"]]
+
+[cerebras]
+kind = "hosted"
+base_url = "https://api.cerebras.ai/v1"
+key_env = "CEREBRAS_API_KEY"
+rpm = 30
+note = "Cerebras inference; the free tier is rate limited"
+free_tier = true
+docs = [["Get an API key", "https://cloud.cerebras.ai/"],
+        ["Docs", "https://inference-docs.cerebras.ai/"]]
+
+[xai]
+kind = "hosted"
+base_url = "https://api.x.ai/v1"
+key_env = "XAI_API_KEY"
+note = "xAI API"
+docs = [["Get an API key", "https://console.x.ai/"],
+        ["Docs", "https://docs.x.ai/"]]
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# Local servers (no key, no proxy: the child talks to the server directly). `provider = "ollama"` in a spec means
+# provider "local" with that server's address as the endpoint, unless the spec sets its own endpoint.
+# ---------------------------------------------------------------------------------------------------------------------------
+
+[lmstudio]
+kind = "local"
+base_url = "http://127.0.0.1:1234/v1"
+note = "LM Studio local server (the default local endpoint)"
+docs = [["LM Studio local server", "https://lmstudio.ai/docs/app/api"]]
+
+[ollama]
+kind = "local"
+base_url = "http://127.0.0.1:11434/v1"
+note = "Ollama's OpenAI-compatible endpoint"
+docs = [["Ollama OpenAI compatibility", "https://github.com/ollama/ollama/blob/main/docs/openai.md"]]
+
+[llamacpp]
+kind = "local"
+base_url = "http://127.0.0.1:8080/v1"
+note = "llama.cpp's llama-server"
+docs = [["llama-server", "https://github.com/ggml-org/llama.cpp/tree/master/tools/server"]]
+
+[vllm]
+kind = "local"
+base_url = "http://127.0.0.1:8000/v1"
+note = "vLLM's OpenAI-compatible server"
+docs = [["vLLM OpenAI-compatible server", "https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html"]]

@@ -693,7 +693,7 @@ def cmd_doctor(a) -> int:
             ms = modelsmod.fetch(hosted)
             ok = model in [m.id for m in ms]
             rep["checks"].append({"check": f"provider_models:{hosted}", "ok": True, "warn": not ok,
-                                  "detail": f"{len(ms)} models listed" + ("" if ok else f"; {model} is not in the list (a listing does not guarantee a model is usable)")})
+                                  "detail": f"{len(ms)} models listed" + ("" if ok else f"; {model or 'no model chosen'} is not in the list (a listing does not guarantee a model is usable)")})
         except modelsmod.ModelsError as e:
             rep["checks"].append({"check": f"provider_models:{hosted}", "ok": False, "warn": False, "detail": str(e)})
     from . import keys, providers
@@ -813,6 +813,9 @@ def cmd_use(a) -> int:
             pass
     if model is None and provider != "local":
         model = providers.PROVIDERS[provider].default_model
+        if not model:
+            print(f"No model chosen, and {provider} has no default: pick one with `gruntly models {provider}`, then run `gruntly use {provider} MODEL`.", file=sys.stderr)
+            return 2
         print(f"No model chosen: using {provider}'s default, {model}.")
     scope = "global" if a.global_ else "project" if a.project else (onboard.choose_scope() if live else "project")
     path = onboard.save_choice(provider, model, scope)
@@ -881,6 +884,30 @@ def cmd_mode(a) -> int:
 def cmd_setup(a) -> int:
     from . import onboard
     return onboard.setup()
+
+
+def cmd_providers(a) -> int:
+    """gruntly providers [--json]: every provider gruntly knows, hosted and local, whether its key is set and what the catalog says
+    about it. Never prints a key; the catalog is data (see providers.py), so this is also how to check an override took."""
+    from . import keys, providers
+    rows = []
+    for name, p in providers.ALL.items():
+        src = None if p.kind == "local" else keys.lookup(name, p.key_env)[1]
+        rows.append({"name": name, "kind": p.kind, "key": "n/a" if p.kind == "local" else ("set" if src else "missing"),
+                     "key_env": p.key_env or None, "base_url": p.base_url, "default_model": p.default_model, "rpm": p.rpm,
+                     "free_tier": p.free_tier, "verified": p.verified, "note": p.note})
+    if a.json:
+        print(json.dumps({"providers": rows, "warnings": providers.LOAD_WARNINGS}, indent=2))
+        return 0
+    for w in providers.LOAD_WARNINGS:
+        print(f"warning: {w}")
+    print(f"{'NAME':11} {'KIND':7} {'KEY':8} {'FREE':5} {'VERIFIED':9} {'DEFAULT MODEL':30} BASE URL")
+    for r in rows:
+        print(f"{r['name']:11} {r['kind']:7} {r['key']:8} {'yes' if r['free_tier'] else '-':5} {'yes' if r['verified'] else 'no':9} "
+              f"{(r['default_model'] or ('-' if r['kind'] == 'local' else '(choose one)'))[:30]:30} {r['base_url']}")
+    print("verified = a live check has passed; the rest come from the providers' documentation. Add or override entries in "
+          f"{providers.user_files()[0]} or .gruntly/providers.toml.")
+    return 0
 
 
 def cmd_auth(a) -> int:
@@ -1049,6 +1076,8 @@ def build_parser() -> argparse.ArgumentParser:
     mo.add_argument("provider", nargs="?", help="local or a provider name (default: local and every provider with a key)")
     mo.add_argument("--json", action="store_true", help="the endpoint's own data for each model")
     mo.add_argument("--filter", help="only models whose id or info contains this text")
+    pv = add("providers", cmd_providers)
+    pv.add_argument("--json", action="store_true", help="machine-readable")
     us = add("use", cmd_use)
     us.add_argument("provider", nargs="?")
     us.add_argument("model", nargs="?")

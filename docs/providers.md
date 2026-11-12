@@ -1,5 +1,34 @@
 # Hosted providers for the child agent
 
+## The catalog
+
+`gruntly providers` lists every provider gruntly knows, whether a key is set (never the key itself), and what the catalog says about it.
+The catalog is data: `src/gruntly/data/providers.toml`, with these entries.
+
+| Hosted (needs a key) | Local (no key) |
+|---|---|
+| gemini, nvidia, openrouter, openai, deepseek, groq, together, fireworks, mistral, cerebras, xai | lmstudio, ollama, llamacpp, vllm |
+
+- **Verified** means a live check has passed against the provider. Today that is `gemini` and `nvidia` only. Every other entry comes from the
+  provider's documentation and may be out of date; the limits are conservative defaults, not promises.
+- **No model ids are kept in the catalog** (ids change). A provider without a `default_model` asks you to pick one:
+  `gruntly models openrouter`, then `gruntly use openrouter MODEL`.
+- **Local servers**: `provider = "ollama"` means the local provider at Ollama's address (`http://127.0.0.1:11434/v1`) unless the spec sets
+  its own `endpoint`. Same for `lmstudio`, `llamacpp` and `vllm`.
+- **Add or override** an entry in `~/.config/gruntly/providers.toml` (all projects) or `<project>/.gruntly/providers.toml` (one project). A later
+  file wins field by field, so a one-line override is enough:
+
+```toml
+[groq]
+rpm = 20                       # your own limit
+
+[my-gateway]                   # a provider gruntly does not know
+base_url = "https://llm.example.com/v1"
+key_env = "MY_GATEWAY_API_KEY"
+```
+
+A file with a mistake is reported by `gruntly providers` and ignored; the packaged catalog keeps working.
+
 ## Choosing a provider and a model
 
 ```
