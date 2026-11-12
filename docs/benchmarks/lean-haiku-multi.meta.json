@@ -1,0 +1,121 @@
+[
+ {
+  "started": "2026-11-12 23:30:54",
+  "argv": [
+   "--arms",
+   "alone,lean",
+   "--harness",
+   "claude",
+   "--model",
+   "haiku",
+   "--parent-model",
+   "sonnet",
+   "--tasks",
+   "bugs_batch",
+   "--runs-dir",
+   "runs-lean-haiku",
+   "--budget-usd",
+   "0.6",
+   "--max-total-usd",
+   "0.5",
+   "--out",
+   "docs/benchmarks/lean-haiku-multi.md"
+  ],
+  "args": {
+   "harness": "claude",
+   "model": "haiku",
+   "runs_dir": "runs-lean-haiku",
+   "vague": false,
+   "provider": "",
+   "parent_model": "sonnet",
+   "child_budget_s": 900,
+   "child_idle_s": 300,
+   "rate_limits": "",
+   "tasks": "bugs_batch",
+   "real": false,
+   "arms": "alone,lean",
+   "reps": 1,
+   "budget_usd": 0.6,
+   "max_total_usd": 0.5,
+   "resume": false,
+   "report_only": false,
+   "out": "docs/benchmarks/lean-haiku-multi.md"
+  },
+  "gruntly_commit": "8eda3a8",
+  "tree_dirty": false,
+  "claude": "2.1.322 (Claude Code)",
+  "python": "3.14.9",
+  "plugin_version": "0.12.0",
+  "pytest": "pytest 9.2.0",
+  "prices_per_mtok": {
+   "sonnet-5.5": {
+    "input": 2.0,
+    "output": 10.0,
+    "cache_read": 0.1,
+    "cache_write_1h": 4.0
+   }
+  },
+  "note": "costs are Claude Code's own total_cost_usd (parent) and the CLI's total_cost_usd per child attempt; API-equivalent dollars"
+ },
+ {
+  "started": "2026-11-12 23:33:14",
+  "argv": [
+   "--arms",
+   "alone,lean",
+   "--harness",
+   "claude",
+   "--model",
+   "haiku",
+   "--parent-model",
+   "sonnet",
+   "--tasks",
+   "bugs_batch,rename_domain,cli_json,inventory_reorder,settings_refactor",
+   "--reps",
+   "2",
+   "--resume",
+   "--runs-dir",
+   "runs-lean-haiku",
+   "--budget-usd",
+   "0.6",
+   "--max-total-usd",
+   "1.8",
+   "--out",
+   "docs/benchmarks/lean-haiku-multi.md"
+  ],
+  "args": {
+   "harness": "claude",
+   "model": "haiku",
+   "runs_dir": "runs-lean-haiku",
+   "vague": false,
+   "provider": "",
+   "parent_model": "sonnet",
+   "child_budget_s": 900,
+   "child_idle_s": 300,
+   "rate_limits": "",
+   "tasks": "bugs_batch,rename_domain,cli_json,inventory_reorder,settings_refactor",
+   "real": false,
+   "arms": "alone,lean",
+   "reps": 2,
+   "budget_usd": 0.6,
+   "max_total_usd": 1.8,
+   "resume": true,
+   "report_only": false,
+   "out": "docs/benchmarks/lean-haiku-multi.md"
+  },
+  "gruntly_commit": "8eda3a8",
+  "tree_dirty": false,
+  "claude": "2.1.322 (Claude Code)",
+  "python": "3.14.9",
+  "plugin_version": "0.12.0",
+  "pytest": "pytest 9.2.0",
+  "prices_per_mtok": {
+   "sonnet-5.5": {
+    "input": 2.0,
+    "output": 10.0,
+    "cache_read": 0.1,
+    "cache_write_1h": 4.0
+   }
+  },
+  "note": "costs are Claude Code's own total_cost_usd (parent) and the CLI's total_cost_usd per child attempt; API-equivalent dollars"
+ }
+]
