@@ -1,0 +1,1596 @@
+[
+ {
+  "task": "settings_refactor",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 9,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": ".........                                                                [100%]\n9 passed in 0.05s"
+  },
+  "final_patch": {
+   "lines_added": 62,
+   "lines_removed": 15,
+   "files": 7
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 19,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 95358,
+     "requests": 11,
+     "cost_usd": 0.00456,
+     "s": 17
+    },
+    "child_trace": "child: 10 tool calls (edit x7, run x3), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "app/cache.py",
+     "app/config.py",
+     "app/db.py",
+     "app/features.py",
+     "app/http.py",
+     "app/logging_setup.py",
+     "app/mailer.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 19,
+  "parent_wall_s": 13,
+  "wall_s": 32,
+  "error": null,
+  "cost_usd": 0.0214,
+  "turns": 2,
+  "reply": "Config now lives in one place: a frozen `Settings` dataclass and `load()` in `app/config.py`, with `cache`, `db`, `features`, `http`, `logging_setup` and `mailer` all calling `load()`. The tests pass. `load()` reads the environment on each call, and a bad number raises a `ValueError` naming the variable (e.g. `APP_CACHE_TTL`). The result block cut the diff off, so I only saw `config.py`, `cache.py`, `db.py` and `features.py`. I didn't check `http.py`, `logging_setup.py` or `mailer.py`, or confir",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 2927,
+   "cache_write": 776
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 1012,
+    "cache_read": 6630,
+    "cache_write": 2644,
+    "cost_usd": 0.021367
+   }
+  },
+  "api_ms": 8056,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 3553,
+  "peak_ctx": 5573,
+  "tokens": {
+   "input": 4,
+   "cache_write": 2644,
+   "cache_read": 6630,
+   "output": 1012
+  },
+  "esc": {
+   "triggered": false,
+   "pass_before": true,
+   "lean_turns": 2,
+   "lean_wall_s": 32
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   true
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   688
+  ],
+  "child_tokens": 95358,
+  "child_cost_usd": 0.00456,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "bugs_batch",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 12,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "............                                                             [100%]\n12 passed in 0.05s"
+  },
+  "final_patch": {
+   "lines_added": 79,
+   "lines_removed": 8,
+   "files": 6
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 15,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 72843,
+     "requests": 5,
+     "cost_usd": 0.00297,
+     "s": 13
+    },
+    "child_trace": "child: 4 tool calls (edit x1, run x3), 0 failed, 2 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "intervals.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 16,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 91040,
+     "requests": 6,
+     "cost_usd": 0.00312,
+     "s": 14
+    },
+    "child_trace": "child: 5 tool calls (edit x1, run x4), 1 failed, 3 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "words.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 13,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 53815,
+     "requests": 5,
+     "cost_usd": 0.00248,
+     "s": 12
+    },
+    "child_trace": "child: 4 tool calls (edit x1, run x3), 0 failed, 2 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "stats.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 12,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 51860,
+     "requests": 4,
+     "cost_usd": 0.00261,
+     "s": 10
+    },
+    "child_trace": "child: 3 tool calls (edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "pager.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 11,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 51764,
+     "requests": 4,
+     "cost_usd": 0.00206,
+     "s": 10
+    },
+    "child_trace": "child: 3 tool calls (edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "chunks.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 11,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 51531,
+     "requests": 4,
+     "cost_usd": 0.00201,
+     "s": 9
+    },
+    "child_trace": "child: 3 tool calls (edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "limits.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 78,
+  "parent_wall_s": 19,
+  "wall_s": 97,
+  "error": null,
+  "cost_usd": 0.0289,
+  "turns": 2,
+  "reply": "All six modules are fixed and the full suite passes. Each fix also raises `ValueError` on invalid arguments, handles empty input, and leaves its inputs unmutated.\n\n- **`pager.py`:** pages are now 1-indexed, and `page` and `per_page` must be positive integers.\n- **`words.py`:** counting lowercases words, drops surrounding punctuation, and keeps apostrophes and hyphens inside words.\n- **`intervals.py`:** intervals are sorted before merging, and touching ones are merged. A malformed pair or `start ",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 2925,
+   "cache_write": 777
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 879,
+    "cache_read": 6627,
+    "cache_write": 4854,
+    "cost_usd": 0.028876699999999998
+   }
+  },
+  "api_ms": 7074,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 9152,
+  "peak_ctx": 7781,
+  "tokens": {
+   "input": 4,
+   "cache_write": 4854,
+   "cache_read": 6627,
+   "output": 879
+  },
+  "esc": {
+   "triggered": false,
+   "pass_before": true,
+   "lean_turns": 2,
+   "lean_wall_s": 97
+  },
+  "gruntly_status": [
+   "passed",
+   "passed",
+   "passed",
+   "passed",
+   "passed",
+   "passed"
+  ],
+  "gruntly_applied": [
+   true,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  "gruntly_attempts": [
+   1,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "gruntly_result_chars": [
+   581,
+   577,
+   577,
+   576,
+   577,
+   575
+  ],
+  "child_tokens": 372853,
+  "child_cost_usd": 0.01525,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "rename_domain",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 27,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "...........................                                              [100%]\n27 passed in 0.03s"
+  },
+  "final_patch": {
+   "lines_added": 109,
+   "lines_removed": 109,
+   "files": 28
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 18,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 79628,
+     "requests": 5,
+     "cost_usd": 0.00413,
+     "s": 16
+    },
+    "child_trace": "child: 4 tool calls (read x3, run x1), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "check_names.py",
+     "models.py",
+     "svc_1.py",
+     "svc_10.py",
+     "svc_11.py",
+     "svc_12.py",
+     "svc_13.py",
+     "svc_2.py",
+     "svc_3.py",
+     "svc_4.py"
+    ],
+    "review_hint": [
+     "large diff (229 lines)"
+    ],
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 17,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 122219,
+     "requests": 6,
+     "cost_usd": 0.00409,
+     "s": 15
+    },
+    "child_trace": "child: 5 tool calls (run x5), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "check_names.py",
+     "models.py",
+     "svc_1.py",
+     "svc_10.py",
+     "svc_11.py",
+     "svc_12.py",
+     "svc_13.py",
+     "svc_2.py",
+     "svc_3.py",
+     "svc_4.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 35,
+  "parent_wall_s": 36,
+  "wall_s": 71,
+  "error": null,
+  "cost_usd": 0.1253,
+  "turns": 8,
+  "reply": "GRUNTLY-FALLBACK: gruntly recommends escalation after the second round, because the request names `customer_label` and the diff never adds it. That flag looks spurious, since `customer_label` was renamed to `account_label` in `models.py`. I sent nothing more and did not verify the final working tree myself.\n\nThe rename is applied but not committed. Both runs reported the suite passing.\n\n- **Rename:** `Customer` is now `Account`, `customer_summary_N` is `account_summary_N`, and `customer_label` i",
+  "tools": {
+   "Bash": 5,
+   "Grep": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1,
+   "continue": 1
+  },
+  "first_call": {
+   "cache_read": 2955,
+   "cache_write": 774
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 1639,
+    "cache_read": 12705,
+    "cache_write": 5615,
+    "cost_usd": 0.0401325
+   }
+  },
+  "api_ms": 13221,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 16461,
+  "peak_ctx": 8572,
+  "tokens": {
+   "input": 14,
+   "cache_write": 21659,
+   "cache_read": 111351,
+   "output": 2749
+  },
+  "esc": {
+   "triggered": true,
+   "pass_before": true,
+   "lean_turns": 3,
+   "lean_wall_s": 54,
+   "reason": "gruntly recommends escalation after the second round, because the request names `customer_label` and the diff never adds it. That flag looks spurious, since `cu",
+   "pass_after": true,
+   "rescued": false,
+   "esc_cost": 0.0852,
+   "esc_turns": 5,
+   "esc_wall_s": 17,
+   "esc_edits": 0,
+   "esc_tools": {
+    "Grep": 1,
+    "Bash": 3
+   },
+   "esc_cold_start": false
+  },
+  "gruntly_status": [
+   "passed",
+   "passed"
+  ],
+  "gruntly_applied": [
+   true,
+   true
+  ],
+  "gruntly_attempts": [
+   1,
+   1
+  ],
+  "gruntly_result_chars": [
+   742,
+   690
+  ],
+  "child_tokens": 201847,
+  "child_cost_usd": 0.00822,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "cli_json",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 17,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": ".................                                                        [100%]\n17 passed in 0.04s"
+  },
+  "final_patch": {
+   "lines_added": 1,
+   "lines_removed": 1,
+   "files": 1
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 15,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 123817,
+     "requests": 9,
+     "cost_usd": 0.00366,
+     "s": 13
+    },
+    "child_trace": "child: 8 tool calls (read x5, edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "tool/cli.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 15,
+  "parent_wall_s": 16,
+  "wall_s": 31,
+  "error": null,
+  "cost_usd": 0.0253,
+  "turns": 4,
+  "reply": "`list`, `show`, `stats` and `users` now accept `--json`: the change adds them to the `JSON_COMMANDS` set in `tool/cli.py`, next to `status`. `jobs`, `logs` and `config` stay out of the set, so they still refuse `--json`, and text output is unchanged. The test run passed, but I couldn't run the CLI myself to check the JSON output. The sandbox blocked those calls.",
+  "tools": {
+   "Bash": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 2904,
+   "cache_write": 775
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 8,
+    "output": 1310,
+    "cache_read": 16024,
+    "cache_write": 2637,
+    "cost_usd": 0.0252664
+   }
+  },
+  "api_ms": 11452,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 1386,
+  "peak_ctx": 5543,
+  "tokens": {
+   "input": 8,
+   "cache_write": 2637,
+   "cache_read": 16024,
+   "output": 1310
+  },
+  "esc": {
+   "triggered": false,
+   "pass_before": true,
+   "lean_turns": 4,
+   "lean_wall_s": 31
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   true
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   589
+  ],
+  "child_tokens": 123817,
+  "child_cost_usd": 0.00366,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "inventory_reorder",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 22,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "......................                                                   [100%]\n22 passed in 0.15s"
+  },
+  "final_patch": {
+   "lines_added": 148,
+   "lines_removed": 8,
+   "files": 6
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 2,
+    "wall_s": 33,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 236544,
+     "requests": 18,
+     "cost_usd": 0.01325,
+     "s": 31
+    },
+    "child_trace": "child: 16 tool calls (read x8, edit x4, run x4), 0 failed, 2 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "inventory/cli.py",
+     "inventory/service.py",
+     "tests/test_restock_level.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 2,
+    "wall_s": 40,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 186869,
+     "requests": 9,
+     "cost_usd": 0.01392,
+     "s": 38
+    },
+    "child_trace": "child: 7 tool calls (edit x1, run x6), 0 failed, 3 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "inventory/cli.py",
+     "inventory/models.py",
+     "inventory/service.py",
+     "inventory/store.py",
+     "tests/test_reorder_level.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 73,
+  "parent_wall_s": 24,
+  "wall_s": 97,
+  "error": null,
+  "cost_usd": 0.048,
+  "turns": 3,
+  "reply": "Reorder levels are added end to end and the tests pass. Nothing is committed.\n\n- **Storage:** `reorder_level` is saved with each product. Store files from before this change load with level 0.\n- **Adding products:** `Inventory.add(name, quantity, price, reorder_level)` sets the level. A negative level raises `ValueError`, the same as a negative quantity, and nothing is changed.\n- **Low stock:** `Inventory.low_stock()` returns products with quantity at or below their level, sorted by name.\n- **CL",
+  "tools": {
+   "Bash": 2
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1,
+   "continue": 1
+  },
+  "first_call": {
+   "cache_read": 2997,
+   "cache_write": 775
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 2137,
+    "cache_read": 12906,
+    "cache_write": 6330,
+    "cost_usd": 0.047992599999999996
+   }
+  },
+  "api_ms": 16858,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 8980,
+  "peak_ctx": 9329,
+  "tokens": {
+   "input": 6,
+   "cache_write": 6330,
+   "cache_read": 12906,
+   "output": 2137
+  },
+  "esc": {
+   "triggered": false,
+   "pass_before": true,
+   "lean_turns": 3,
+   "lean_wall_s": 97
+  },
+  "gruntly_status": [
+   "passed",
+   "passed"
+  ],
+  "gruntly_applied": [
+   true,
+   true
+  ],
+  "gruntly_attempts": [
+   2,
+   2
+  ],
+  "gruntly_result_chars": [
+   653,
+   688
+  ],
+  "child_tokens": 213863,
+  "child_cost_usd": 0.02717,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "bugs_batch",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 2,
+  "passed": true,
+  "judge": {
+   "cases_passed": 12,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "............                                                             [100%]\n12 passed in 0.03s"
+  },
+  "final_patch": {
+   "lines_added": 55,
+   "lines_removed": 8,
+   "files": 6
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 14,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 71463,
+     "requests": 5,
+     "cost_usd": 0.00261,
+     "s": 12
+    },
+    "child_trace": "child: 4 tool calls (edit x1, run x3), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "intervals.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 11,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 51751,
+     "requests": 4,
+     "cost_usd": 0.00255,
+     "s": 10
+    },
+    "child_trace": "child: 3 tool calls (edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "pager.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 10,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 51398,
+     "requests": 4,
+     "cost_usd": 0.00192,
+     "s": 9
+    },
+    "child_trace": "child: 3 tool calls (edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "stats.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 11,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 51395,
+     "requests": 4,
+     "cost_usd": 0.00192,
+     "s": 9
+    },
+    "child_trace": "child: 3 tool calls (edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "limits.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 13,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 52574,
+     "requests": 4,
+     "cost_usd": 0.00231,
+     "s": 11
+    },
+    "child_trace": "child: 3 tool calls (edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "words.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 13,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 51881,
+     "requests": 4,
+     "cost_usd": 0.0021,
+     "s": 11
+    },
+    "child_trace": "child: 3 tool calls (edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "chunks.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 72,
+  "parent_wall_s": 19,
+  "wall_s": 91,
+  "error": null,
+  "cost_usd": 0.0278,
+  "turns": 2,
+  "reply": "All six modules are fixed, and each run reported its tests passing. I did not run the whole suite myself.\n\n- **`pager.py`:** pages are now 1-indexed, and a bad `page` or `per_page` raises `ValueError`.\n- **`words.py`:** words keep their inner apostrophes and hyphens, surrounding punctuation is dropped, and non-string input raises `ValueError`. I also saw it lowercases the text, so \"The\" and \"the\" count as one word.\n- **`intervals.py`:** input is sorted first, touching intervals merge, malformed ",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 2925,
+   "cache_write": 776
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 963,
+    "cache_read": 6626,
+    "cache_write": 4368,
+    "cost_usd": 0.0277726
+   }
+  },
+  "api_ms": 7640,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 7706,
+  "peak_ctx": 7295,
+  "tokens": {
+   "input": 4,
+   "cache_write": 4368,
+   "cache_read": 6626,
+   "output": 963
+  },
+  "esc": {
+   "triggered": false,
+   "pass_before": true,
+   "lean_turns": 2,
+   "lean_wall_s": 91
+  },
+  "gruntly_status": [
+   "passed",
+   "passed",
+   "passed",
+   "passed",
+   "passed",
+   "passed"
+  ],
+  "gruntly_applied": [
+   true,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  "gruntly_attempts": [
+   1,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "gruntly_result_chars": [
+   580,
+   575,
+   575,
+   575,
+   576,
+   575
+  ],
+  "child_tokens": 330462,
+  "child_cost_usd": 0.01341,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "rename_domain",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 2,
+  "passed": true,
+  "judge": {
+   "cases_passed": 27,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "...........................                                              [100%]\n27 passed in 0.03s"
+  },
+  "final_patch": {
+   "lines_added": 109,
+   "lines_removed": 109,
+   "files": 28
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 20,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 124720,
+     "requests": 8,
+     "cost_usd": 0.00523,
+     "s": 19
+    },
+    "child_trace": "child: 7 tool calls (read x4, run x3), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "check_names.py",
+     "models.py",
+     "svc_1.py",
+     "svc_10.py",
+     "svc_11.py",
+     "svc_12.py",
+     "svc_13.py",
+     "svc_2.py",
+     "svc_3.py",
+     "svc_4.py"
+    ],
+    "review_hint": [
+     "large diff (218 lines)"
+    ],
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 13,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 69987,
+     "requests": 6,
+     "cost_usd": 0.00233,
+     "s": 12
+    },
+    "child_trace": "child: 5 tool calls (read x1, edit x1, run x3), 0 failed, 2 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "check_names.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 33,
+  "parent_wall_s": 38,
+  "wall_s": 71,
+  "error": null,
+  "cost_usd": 0.1217,
+  "turns": 8,
+  "reply": "GRUNTLY-FALLBACK: the local child's rename passed the suite and I fixed `check_names.py` with a second run, but gruntly marked the work incomplete after 2 rounds and recommended escalation. Its stated reason is that the request names `customer_label`, which the diff never adds and the repo doesn't contain. That looks like a false flag, because the first diff shows `customer_label` renamed to `account_label` in `models.py`. I couldn't confirm that every `.py` file, test files included, is free of",
+  "tools": {
+   "Bash": 5,
+   "Grep": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1,
+   "continue": 1
+  },
+  "first_call": {
+   "cache_read": 2955,
+   "cache_write": 776
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 1745,
+    "cache_read": 12734,
+    "cache_write": 4606,
+    "cost_usd": 0.0371594
+   }
+  },
+  "api_ms": 14302,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 14052,
+  "peak_ctx": 7563,
+  "tokens": {
+   "input": 14,
+   "cache_write": 20541,
+   "cache_read": 111014,
+   "output": 2836
+  },
+  "esc": {
+   "triggered": true,
+   "pass_before": true,
+   "lean_turns": 3,
+   "lean_wall_s": 54,
+   "reason": "the local child's rename passed the suite and I fixed `check_names.py` with a second run, but gruntly marked the work incomplete after 2 rounds and recommended ",
+   "pass_after": true,
+   "rescued": false,
+   "esc_cost": 0.0845,
+   "esc_turns": 5,
+   "esc_wall_s": 17,
+   "esc_edits": 0,
+   "esc_tools": {
+    "Grep": 1,
+    "Bash": 3
+   },
+   "esc_cold_start": false
+  },
+  "gruntly_status": [
+   "passed",
+   "passed"
+  ],
+  "gruntly_applied": [
+   true,
+   true
+  ],
+  "gruntly_attempts": [
+   1,
+   1
+  ],
+  "gruntly_result_chars": [
+   744,
+   591
+  ],
+  "child_tokens": 194707,
+  "child_cost_usd": 0.00756,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "cli_json",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 2,
+  "passed": true,
+  "judge": {
+   "cases_passed": 17,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": ".................                                                        [100%]\n17 passed in 0.04s"
+  },
+  "final_patch": {
+   "lines_added": 1,
+   "lines_removed": 1,
+   "files": 1
+  },
+  "gruntly": [
+   {
+    "status": "escalate",
+    "attempts": 1,
+    "wall_s": 13,
+    "applied": false,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 71048,
+     "requests": 4,
+     "cost_usd": 0.0026,
+     "s": 12
+    },
+    "child_trace": "child: 3 tool calls (run x3), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": "empty diff",
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 12,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 70187,
+     "requests": 7,
+     "cost_usd": 0.00286,
+     "s": 10
+    },
+    "child_trace": "child: 6 tool calls (read x3, edit x1, run x2), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "tool/cli.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 25,
+  "parent_wall_s": 17,
+  "wall_s": 42,
+  "error": null,
+  "cost_usd": 0.0237,
+  "turns": 3,
+  "reply": "`--json` is now accepted for `list`, `show`, `stats` and `users`, but I couldn't confirm those four commands print valid JSON.\n\n- **The change:** `tool/cli.py` now has `JSON_COMMANDS = {\"status\", \"list\", \"show\", \"stats\", \"users\"}`. That is the only edit, and it is applied to the working tree but not committed. The test run passed.\n- **Why I'm unsure:** I asked the agent to check that each of the four commands emits JSON the way `status` does, and to confirm `jobs`, `logs` and `config` still refu",
+  "tools": {
+   "Bash": 2
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1,
+   "continue": 1
+  },
+  "first_call": {
+   "cache_read": 2904,
+   "cache_write": 775
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 1319,
+    "cache_read": 10947,
+    "cache_write": 2353,
+    "cost_usd": 0.0237087
+   }
+  },
+  "api_ms": 11572,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 1408,
+  "peak_ctx": 5259,
+  "tokens": {
+   "input": 6,
+   "cache_write": 2353,
+   "cache_read": 10947,
+   "output": 1319
+  },
+  "esc": {
+   "triggered": false,
+   "pass_before": true,
+   "lean_turns": 3,
+   "lean_wall_s": 42
+  },
+  "gruntly_status": [
+   "escalate",
+   "passed"
+  ],
+  "gruntly_applied": [
+   false,
+   true
+  ],
+  "gruntly_attempts": [
+   1,
+   1
+  ],
+  "gruntly_result_chars": [
+   1294,
+   587
+  ],
+  "child_tokens": 141235,
+  "child_cost_usd": 0.00546,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "inventory_reorder",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 2,
+  "passed": true,
+  "judge": {
+   "cases_passed": 22,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "......................                                                   [100%]\n22 passed in 0.10s"
+  },
+  "final_patch": {
+   "lines_added": 136,
+   "lines_removed": 5,
+   "files": 6
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 2,
+    "wall_s": 45,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 309576,
+     "requests": 13,
+     "cost_usd": 0.01677,
+     "s": 43
+    },
+    "child_trace": "child: 11 tool calls (edit x2, run x9), 0 failed, 2 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "inventory/cli.py",
+     "inventory/models.py",
+     "inventory/service.py",
+     "inventory/store.py",
+     "tests/test_reorder_level.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   },
+   {
+    "status": "passed",
+    "attempts": 2,
+    "wall_s": 40,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 295639,
+     "requests": 15,
+     "cost_usd": 0.01539,
+     "s": 38
+    },
+    "child_trace": "child: 13 tool calls (read x2, edit x3, run x8), 0 failed, 3 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "inventory/cli.py",
+     "inventory/service.py",
+     "tests/test_restock_reorder.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 85,
+  "parent_wall_s": 23,
+  "wall_s": 108,
+  "error": null,
+  "cost_usd": 0.0443,
+  "turns": 3,
+  "reply": "Reorder level is in end to end, and the tests pass. The changes are in the working tree and not committed.\n\n- **Storage:** the level is saved with each product. Store files from before this change load with level 0.\n- **`Inventory.add`:** it takes `reorder_level`. A negative level raises the same `ValueError` as a negative quantity, before anything changes. In the code the default is `None`, not the literal `0` you specified. A new product gets 0, and restocking an existing product without a lev",
+  "tools": {
+   "Bash": 2
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1,
+   "continue": 1
+  },
+  "first_call": {
+   "cache_read": 2997,
+   "cache_write": 776
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 1879,
+    "cache_read": 12947,
+    "cache_write": 6051,
+    "cost_usd": 0.0443007
+   }
+  },
+  "api_ms": 15706,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 8794,
+  "peak_ctx": 9050,
+  "tokens": {
+   "input": 6,
+   "cache_write": 6051,
+   "cache_read": 12947,
+   "output": 1879
+  },
+  "esc": {
+   "triggered": false,
+   "pass_before": true,
+   "lean_turns": 3,
+   "lean_wall_s": 108
+  },
+  "gruntly_status": [
+   "passed",
+   "passed"
+  ],
+  "gruntly_applied": [
+   true,
+   true
+  ],
+  "gruntly_attempts": [
+   2,
+   2
+  ],
+  "gruntly_result_chars": [
+   689,
+   655
+  ],
+  "child_tokens": 274718,
+  "child_cost_usd": 0.03216,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "settings_refactor",
+  "bucket": "L",
+  "arm": "lean_esc",
+  "rep": 2,
+  "passed": true,
+  "judge": {
+   "cases_passed": 9,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": ".........                                                                [100%]\n9 passed in 0.05s"
+  },
+  "final_patch": {
+   "lines_added": 62,
+   "lines_removed": 15,
+   "files": 7
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 19,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 97009,
+     "requests": 11,
+     "cost_usd": 0.00483,
+     "s": 18
+    },
+    "child_trace": "child: 10 tool calls (edit x7, run x3), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "app/cache.py",
+     "app/config.py",
+     "app/db.py",
+     "app/features.py",
+     "app/http.py",
+     "app/logging_setup.py",
+     "app/mailer.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 19,
+  "parent_wall_s": 15,
+  "wall_s": 34,
+  "error": null,
+  "cost_usd": 0.023,
+  "turns": 2,
+  "reply": "Config now lives in `app/config.py` as a frozen `Settings` dataclass with a `load()` function, and the child switched the app modules over to it. It ran the tests once and they passed. `load()` reads the environment each time it's called. The `ValueError` for an unparseable number names the variable. I saw the diffs for `cache.py`, `db.py` and `features.py`. The diff was cut off before the `http.py`, `logging_setup.py` and `mailer.py` hunks, so I haven't checked those, or that no `os.environ` re",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 2927,
+   "cache_write": 777
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 1127,
+    "cache_read": 6631,
+    "cache_write": 2766,
+    "cost_usd": 0.0230051
+   }
+  },
+  "api_ms": 9511,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 3837,
+  "peak_ctx": 5695,
+  "tokens": {
+   "input": 4,
+   "cache_write": 2766,
+   "cache_read": 6631,
+   "output": 1127
+  },
+  "esc": {
+   "triggered": false,
+   "pass_before": true,
+   "lean_turns": 2,
+   "lean_wall_s": 34
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   true
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   688
+  ],
+  "child_tokens": 97009,
+  "child_cost_usd": 0.00483,
+  "reviewer_cost_usd": 0
+ }
+]

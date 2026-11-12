@@ -138,3 +138,11 @@ def test_the_cumulative_patch_has_edits_and_new_files_since_the_base(proj):
     out = coverage.cumulative_patch(proj, base)
     assert coverage.patch_files(out) == ["app/a.py", "app/new_mod.py"]
     assert "def load():" in coverage.added_text(out)
+
+
+def test_a_name_that_a_rename_removes_is_a_hint_not_grounds_to_escalate(proj):
+    """Renaming customer_label to account_label leaves customer_label nowhere: that is success, not a gap."""
+    req = "Rename customer_label to account_label everywhere in app."
+    out = coverage.gaps(req, patch("app/a.py", "app/b.py", "app/c.py", "app/d.py", "app/e.py", added="account_label = 1"), proj)
+    assert any(k == "names" and "customer_label" in t for k, t in out)       # still shown in the flags
+    assert "names" not in coverage.STRONG and not [k for k, _ in out if k in coverage.STRONG]

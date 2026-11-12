@@ -17,7 +17,11 @@ from . import do
 from . import worktree as wtmod
 
 MAX_FACTS = 4
-STRONG = {"docs_only", "parts", "many", "names"}        # gaps that say the request is not covered; "named" may be a mere reference
+# Gaps that count as evidence the request is not covered, and so may ground an escalation: counts of files and parts. "named" may be a mere
+# reference, and "names" is a text heuristic that cannot tell a name to create from a name being renamed away (a correct rename of
+# customer_label to account_label leaves customer_label nowhere in the repo: two needless escalations in the 2026-11-13 confirmation run).
+# Both stay in the result block's flags as hints.
+STRONG = {"docs_only", "parts", "many"}
 MAX_NAMES = 5
 NON_CODE = (".md", ".rst", ".txt", ".toml", ".cfg", ".ini", ".yaml", ".yml", ".json", ".lock")
 BUILTIN = set(dir(builtins)) | set(keyword.kwlist)
