@@ -44,6 +44,23 @@ A local server that is not running reports `not running`; that is not a failure 
 
 `gruntly models PROVIDER` keeps a day-old copy of a hosted provider's list (`--refresh` asks again); local servers are always live.
 
+## What a hosted child costs
+
+For a child on a hosted provider, gruntly's local proxy reads the `usage` in every response, so the tokens are exact whatever the child harness is.
+Dollars come from, in this order: the provider's own report in the response (OpenRouter), your price file, the provider's model listing (OpenRouter and
+Together list prices; `gruntly models PROVIDER` caches them). If none has the model, the price is **unknown**: the run says so, the benchmark counts it as zero
+and lists the run as a lower bound. It is never guessed. A local server costs no API dollars (compute is not priced).
+
+```toml
+# ~/.config/gruntly/prices.toml  (or <project>/.gruntly/prices.toml; the project file wins)
+[[price]]
+provider = "groq"
+model = "llama-3.3-70b-versatile"     # an id or a glob
+input = 0.59                          # dollars per million tokens
+output = 0.79
+cache_read = 0.059                    # optional
+```
+
 ## Choosing a provider and a model
 
 ```

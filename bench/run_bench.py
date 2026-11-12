@@ -347,7 +347,8 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
                 "gruntly_applied": [r.get("applied") for r in grs], "gruntly_attempts": [r["attempts"] for r in grs],
                 "gruntly_result_chars": [len(json.dumps(r)) for r in grs],
                 "child_tokens": sum(r.get("child_tokens") or 0 for r in grs),
-                "child_cost_usd": round(sum((r.get("child") or {}).get("cost_usd") or 0 for r in grs), 5),   # a Claude child is paid
+                "child_cost_usd": round(sum((r.get("child") or {}).get("cost_usd") or 0 for r in grs), 5),   # a Claude child or a hosted one with a known price
+                "child_cost_unknown": sum(1 for r in grs if (r.get("child") or {}).get("cost_unknown")),      # a hosted child whose price is unknown: its dollars are missing, not zero
                 # reviewer calls made by gruntly outside the parent's session are paid too: count them
                 "reviewer_cost_usd": round(sum(json.loads(p.read_text(encoding="utf8")).get("reviewer_cost_usd", 0)
                                                for p in (work / ".gruntly" / "supervised").glob("*/costs.json")), 5)}
@@ -383,8 +384,9 @@ CAPS = (0.05, 0.10, 0.20, 0.50, 1.00)
 
 
 def total(r: dict) -> float:
-    """What the person pays for one run: the parent session plus the reviewers gruntly called outside it. The child is local or
-    the person's own hosted key and is never counted as money."""
+    """What the person pays for one run: the parent session, the reviewers gruntly called outside it, and the child when it is priced (a
+    Claude child, or a hosted one whose price is known). A local child costs no API dollars. A hosted child with an unknown price counts as
+    zero HERE and is listed by the report (`child_cost_unknown`), so such a total is a lower bound and says so."""
     return r["cost_usd"] + (r.get("reviewer_cost_usd") or 0) + (r.get("child_cost_usd") or 0)
 
 
@@ -471,6 +473,11 @@ def report(rows: list[dict], meta: dict) -> str:
             fp = sum(1 for r in rs if not r["passed"] and "passed" in r["gruntly_status"])
             L.append(f"| {task} | {arm} | {sum(r['passed'] for r in rs)}/{len(rs)} | {mean([total(r) for r in rs]):.3f} | "
                      f"{mean([r['turns'] or 0 for r in rs]):.1f} | {mean([r['wall_s'] for r in rs]):.0f} | {g} | {fp or '-'} |")
+    unk = [r for r in rows if r.get("child_cost_unknown")]
+    if unk:
+        L += ["", f"Child price unknown: {len(unk)} run(s) used a hosted child whose price gruntly does not know, so their totals leave the child out and are lower bounds: "
+              + ", ".join(f"{r['task']}/{r['arm']}#{r['rep']}" for r in unk)
+              + ". Add the price to ~/.config/gruntly/prices.toml (see the packaged prices.toml)."]
     errs = [r for r in rows if r.get("error")]
     if errs:
         L += ["", "Errors: " + "; ".join(f"{r['task']}/{r['arm']}#{r['rep']}: {r['error']}" for r in errs)]

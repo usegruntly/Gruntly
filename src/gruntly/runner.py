@@ -331,6 +331,7 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
     srv.limiter.on_wait = lambda secs, why: progress.Feed(st.dir / progress.NAME).emit("gruntly", "wait", secs=secs, why=why)
     spec.endpoint, spec.api_key = srv.url, "gruntly-proxy"      # the child never sees the real key
     spec._activity = lambda: srv.limiter.stats.get("requests", 0)  # model requests count as progress for the idle guard
+    spec._usage_meter = srv.meter                                   # what the responses said they used: tokens and dollars of the child
     spec.model = spec.model or prov.default_model
     try:
         return _execute_inner(st, spec, root, run_id, guidance, t_start)
@@ -620,6 +621,14 @@ def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_s
                f"gruntly discard {rid}"]
     else:
         nxt = ["gruntly doctor"]
+    meter = getattr(spec, "_usage_meter", None)
+    if meter is not None and not getattr(spec, "_usage_done", False):
+        spec._usage_done = True
+        from . import accounting
+        try:
+            accounting.finalize_child_usage(st, spec.provider, spec.model, meter.snapshot(), root)
+        except Exception:  # noqa: BLE001 - accounting must never fail a run
+            pass
     untrusted = None
     if status != "passed":
         untrusted = {k: v for k, v in {
@@ -635,6 +644,8 @@ def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_s
                                                 "tokens": st.read_json("child_usage.json", {}).get("tokens"),
                                                 "requests": st.read_json("child_usage.json", {}).get("requests"),
                                                 "cost_usd": st.read_json("child_usage.json", {}).get("cost_usd"),
+                                                "cost_source": st.read_json("child_usage.json", {}).get("cost_source"),
+                                                "cost_unknown": st.read_json("child_usage.json", {}).get("cost_unknown"),
                                                 "s": round(child_s)}.items() if v not in (None, "", 0)})
     st.save_result(res, meta={"wall_s": res["wall_s"], "child_usage": usage})
     progress.Feed(st.dir / progress.NAME).emit("gruntly", "done", status=status, reason=(bundle or {}).get("reason") or error)

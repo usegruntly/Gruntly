@@ -69,8 +69,9 @@ def _openai(data: dict) -> list[Model]:
     return out
 
 
-def _price(p) -> str | None:
-    """"in $0.15 / out $0.60 per Mtok" from a listing that gives per-token or per-Mtok prices (OpenRouter: dollars per token as text)."""
+def price_numbers(p) -> tuple[float, float] | None:
+    """(input, output) dollars per million tokens from a listing's pricing object, or None. OpenRouter gives dollars per token as text,
+    Together and others give per-million numbers."""
     if not isinstance(p, dict):
         return None
     def num(*keys):
@@ -83,9 +84,13 @@ def _price(p) -> str | None:
     i, o = num("prompt", "input"), num("completion", "output")
     if i is None or o is None:
         return None
-    if "prompt" in p:                           # OpenRouter: dollars per token
-        i, o = i * 1e6, o * 1e6
-    return f"in ${i:g} / out ${o:g} per Mtok"
+    return (i * 1e6, o * 1e6) if "prompt" in p else (i, o)           # OpenRouter: dollars per token
+
+
+def _price(p) -> str | None:
+    """"in $0.15 / out $0.60 per Mtok" from a listing that gives per-token or per-Mtok prices."""
+    n = price_numbers(p)
+    return f"in ${n[0]:g} / out ${n[1]:g} per Mtok" if n else None
 
 
 def _gemini(data: dict) -> list[Model]:

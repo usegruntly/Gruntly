@@ -1,0 +1,46 @@
+# Prices in dollars per MILLION tokens, by provider and model (an exact id or a glob such as "claude-haiku-*").
+#
+# Almost nothing is kept here on purpose: prices change and a stale price is worse than none. Where a number is not known gruntly
+# reports tokens and an UNKNOWN price, never zero. Dollar figures reach gruntly three better ways, in this order:
+#   1. the provider reports the cost in its response (OpenRouter does): used as is;
+#   2. your own file: ~/.config/gruntly/prices.toml or <project>/.gruntly/prices.toml, same format as below;
+#   3. the provider's model listing, when it carries prices (OpenRouter, Together): read from the cached `gruntly models` list.
+#
+#   [[price]]
+#   provider = "groq"
+#   model = "llama-3.3-70b-versatile"
+#   input = 0.59
+#   output = 0.79
+#   cache_read = 0.059        # optional; input tokens served from the provider's cache
+#   cache_write = 0.74        # optional
+#   as_of = "2026-11-14"      # optional, shown with the cost
+#
+# Measured, not quoted: these are the rates Claude Code's own per-model costs reproduce exactly (222 Sonnet and 29 Opus records with zero
+# residual; Haiku with web search priced separately), 5-minute cache writes verified for Haiku only.
+
+[[price]]
+provider = "anthropic"
+model = "claude-sonnet-5-5"
+input = 2.0
+output = 10.0
+cache_read = 0.10
+cache_write = 4.0
+as_of = "2026-11-12 (fitted from Claude Code's own costs; cache write is the 1-hour rate)"
+
+[[price]]
+provider = "anthropic"
+model = "claude-opus-5-5"
+input = 4.0
+output = 20.0
+cache_read = 0.20
+cache_write = 8.0
+as_of = "2026-11-12 (fitted from Claude Code's own costs; cache write is the 1-hour rate)"
+
+[[price]]
+provider = "anthropic"
+model = "claude-haiku-5-5"
+input = 0.10
+output = 0.50
+cache_read = 0.01
+cache_write = 0.20
+as_of = "2026-11-12 (fitted from Claude Code's own costs; cache write is the 1-hour rate)"

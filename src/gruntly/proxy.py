@@ -21,6 +21,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from . import usage
+
 MAX_WAIT_S = 120          # never sleep longer than this for one request; return the 429 instead
 MAX_RETRIES = 3
 RETRY_5XX = (500, 502, 503, 504)
@@ -227,6 +229,7 @@ class _Handler(BaseHTTPRequestHandler):
                     srv.limiter.on_wait(round(wait), "provider asked to slow down")
                 srv.limiter.sleep(wait + 0.5)
                 continue
+            sniff = usage.Sniffer(r.getheader("Content-Type", "")) if method == "POST" and r.status == 200 else None
             self.send_response(r.status)
             for k, v in r.getheaders():
                 if k.lower() not in ("transfer-encoding", "connection", "content-length", "content-encoding"):
@@ -237,12 +240,16 @@ class _Handler(BaseHTTPRequestHandler):
                     chunk = r.read1(8192) if hasattr(r, "read1") else r.read(8192)
                     if not chunk:
                         break
+                    if sniff is not None:
+                        sniff.feed(chunk)
                     self.wfile.write(chunk)
                     self.wfile.flush()
             except OSError:
                 pass
             finally:
                 conn.close()
+                if sniff is not None:
+                    srv.meter.record(sniff)             # what the response said it used; a response without usage counts as missing
             return
 
     def do_POST(self):
@@ -258,6 +265,7 @@ class ProxyServer(ThreadingHTTPServer):
     def __init__(self, name: str, upstream: str, key: str, limiter: Limiter):
         super().__init__(("127.0.0.1", 0), _Handler)
         self.name, self.upstream, self.key, self.limiter = name, upstream, key, limiter
+        self.meter = usage.Meter()
 
     @property
     def url(self) -> str:
@@ -266,7 +274,7 @@ class ProxyServer(ThreadingHTTPServer):
     def stop(self) -> dict:
         self.shutdown()
         self.server_close()
-        return dict(self.limiter.stats, waited_s=round(self.limiter.stats["waited_s"], 1))
+        return dict(self.limiter.stats, waited_s=round(self.limiter.stats["waited_s"], 1), usage=self.meter.snapshot())
 
 
 def start(name: str, upstream: str, key: str, limits: dict, state: Path | None = None) -> ProxyServer:
