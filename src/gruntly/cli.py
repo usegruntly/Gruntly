@@ -428,7 +428,7 @@ def cmd_agent_run(a) -> int:
             for o in outs:
                 _apply_later(root, o)
                 blocks.append(agent.block(o["res"], o["p"], refusal=o["refusal"], error=o["error"], patch=o["patch"],
-                                          request=o["request"], contract=o["contract"], note=o["note"], holdout=o["holdout"]))
+                                          request=o["request"], contract=o["contract"], note=o["note"], holdout=o["holdout"], root=root))
             parts = []
         for i, (req, cont) in enumerate(parts):
             left = int(a.max_block - (time.time() - t0))
@@ -438,7 +438,7 @@ def cmd_agent_run(a) -> int:
             o = _agent_one(root, req, a, max(left, 30), cont)
             rv = _review_one(root, o, req, a, a.max_block - (time.time() - t0)) if getattr(a, "review", False) and len(parts) == 1 else None
             blocks.append(agent.block(o["res"], o["p"], refusal=o["refusal"], error=o["error"], patch=o["patch"],
-                                      request=req, contract=o["contract"], note=o["note"], holdout=o["holdout"], review=rv))
+                                      request=req, contract=o["contract"], note=o["note"], holdout=o["holdout"], review=rv, root=root))
             if (o["res"] or {}).get("status") == "running":
                 for rest, _ in parts[i + 1:]:
                     blocks.append(agent.block(None, None, error="not started (an earlier part is still running): " + rest[:160]))

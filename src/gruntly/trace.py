@@ -175,4 +175,6 @@ def concerns(t: dict) -> list[str]:
         out.append(f"the child repeated one tool call {t['max_repeat']} times")
     if t["calls"] >= 4 and t["failed"] / t["calls"] >= FAIL_FLAG:
         out.append(f"{t['failed']} of {t['calls']} child tool calls failed")
+    if t.get("kinds", {}).get("edit") and not t.get("test_runs"):
+        out.append("the child edited files but ran no test itself (only gruntly's own check ran)")
     return out
