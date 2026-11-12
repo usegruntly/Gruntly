@@ -69,6 +69,10 @@ Limits:
 - Context length for a custom endpoint defaults to 131072 in Hermes; for a local model with a smaller window, set it in the model's entry (not wired yet).
 - One run measured per permission mode. No long-task or repeated benchmark has been done for Hermes.
 
+## Claude Code (child, 2.1.322; offline-tested only)
+
+`harness = "claude"`, `model = "haiku"` (default). Runs `claude -p --output-format stream-json --verbose` in the worktree, prompt on stdin. Isolation: `--setting-sources project,local` (not the user's plugins or hooks), `--strict-mcp-config`, `--disable-slash-commands`, `--disallowedTools "Bash(gruntly *)"`. `--bare` is deliberately not used: it ends OAuth sign-in. Permission mode follows the parent's (`GRUNTLY_PARENT_MODE`). Cost: the result event's `total_cost_usd` and `usage`, summed over attempts. A per-attempt budget of $0.50 and 40 turns bound a runaway child. Not checked live yet: sign-in inside the scrubbed environment, `bypassPermissions` in `-p` mode.
+
 ## Environment notes
 
 - WSL2 Ubuntu cannot reach `127.0.0.1:1234` on the Windows host (needs mirrored networking or the host IP) and has no Node of its own. M0 ran natively on Windows.

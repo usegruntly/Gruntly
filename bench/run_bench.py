@@ -58,7 +58,8 @@ def bucket(task: str) -> str:
     return "R" if (HERE / "tasks-real" / task).is_dir() else "L" if task in LARGE else "S"
 
 
-def prepare(task_dir: Path, work: Path, harness: str, model: str, extra: str = "", provider: str = "") -> dict:
+def prepare(task_dir: Path, work: Path, harness: str, model: str, extra: str = "", provider: str = "",
+            budget_s: int = 900, no_progress_s: int = 300) -> dict:
     spec = yaml.safe_load((task_dir / "task.yaml").read_text(encoding="utf8"))
     if (task_dir / "repo").is_dir():
         shutil.copytree(task_dir / "repo", work)
@@ -69,11 +70,19 @@ def prepare(task_dir: Path, work: Path, harness: str, model: str, extra: str = "
             a_["cmd"] = a_["cmd"].replace("python ", f'"{Path(sys.executable).as_posix()}" ', 1)
     (work / ".gruntly.toml").write_text(
         f'harness = "{harness}"\nmodel = "{model}"\n' + (f'provider = "{provider}"\n' if provider else "")
-        + 'budget_s = 900\nno_progress_s = 300\nmax_attempts = 2\n' + extra, encoding="utf8")
+        + f'budget_s = {budget_s}\nno_progress_s = {no_progress_s}\nmax_attempts = 2\n' + extra, encoding="utf8")
     sh(["git", "init", "-q", "-b", "main"], work)
     sh(["git", "add", "-A"], work)
     sh(["git", "-c", "user.name=b", "-c", "user.email=b@b", "commit", "-qm", "start"], work)
     return spec
+
+
+def rate_limits_toml(text: str) -> str:
+    """`rpm=10,tpm=250000` -> a [rate_limits] table for the work copy's .gruntly.toml ('' for no override)."""
+    pairs = [p.strip().split("=", 1) for p in text.split(",") if p.strip()]
+    if not pairs:
+        return ""
+    return "\n[rate_limits]\n" + "".join(f"{k.strip()} = {int(v)}\n" for k, v in pairs)
 
 
 def prompt_for(arm: str, spec: dict) -> str:
@@ -178,7 +187,8 @@ VAGUE = yaml.safe_load((HERE / "vague_briefs.yaml").read_text(encoding="utf8"))
 def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
     with tempfile.TemporaryDirectory(prefix="bench-", ignore_cleanup_errors=True) as tmp:
         work = Path(tmp) / "repo"
-        spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else ""), a.provider)
+        spec = prepare(task_dir, work, a.harness, a.model, DO_TOML.get(arm, DO_TOML["gdA"] if arm == LEAN else "") + rate_limits_toml(a.rate_limits), a.provider,
+                       getattr(a, "child_budget_s", 900), getattr(a, "child_idle_s", 300))
         if getattr(a, "vague", False) and task_dir.name in VAGUE:
             spec["brief"] = VAGUE[task_dir.name]     # intent only: no file, no function, no method
         cmd = [shutil.which("claude") or "claude", "-p", "--allowedTools", *TOOLS, "--output-format", "stream-json", "--verbose",
@@ -207,7 +217,7 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
         try:
             env = ({**os.environ, "BASH_DEFAULT_TIMEOUT_MS": "600000", "BASH_MAX_TIMEOUT_MS": "600000"} if arm == LEAN else
                    {**os.environ, "BASH_MAX_TIMEOUT_MS": "3600000"} if arm == SUPERVISED else None)   # one blocking call, not many waits
-            p = sh(cmd, work, timeout=7200 if arm == SUPERVISED else 2400, input=prompt_for(arm, spec), env=env)  # stdin: the Windows .cmd shim mangles multi-line args
+            p = sh(cmd, work, timeout=7200 if arm == SUPERVISED else max(2400, 2 * getattr(a, "child_budget_s", 900) + 600), input=prompt_for(arm, spec), env=env)  # stdin: the Windows .cmd shim mangles multi-line args
             raw = p.stdout
             if not raw.strip():
                 err = (p.stderr or "empty output")[-300:]
@@ -224,6 +234,7 @@ def run_one(task_dir: Path, arm: str, rep: int, a) -> dict:
                 "gruntly_applied": [r.get("applied") for r in grs], "gruntly_attempts": [r["attempts"] for r in grs],
                 "gruntly_result_chars": [len(json.dumps(r)) for r in grs],
                 "child_tokens": sum(r.get("child_tokens") or 0 for r in grs),
+                "child_cost_usd": round(sum((r.get("child") or {}).get("cost_usd") or 0 for r in grs), 5),   # a Claude child is paid
                 # reviewer calls made by gruntly outside the parent's session are paid too: count them
                 "reviewer_cost_usd": round(sum(json.loads(p.read_text(encoding="utf8")).get("reviewer_cost_usd", 0)
                                                for p in (work / ".gruntly" / "supervised").glob("*/costs.json")), 5)}
@@ -240,7 +251,7 @@ CAPS = (0.05, 0.10, 0.20, 0.50, 1.00)
 def total(r: dict) -> float:
     """What the person pays for one run: the parent session plus the reviewers gruntly called outside it. The child is local or
     the person's own hosted key and is never counted as money."""
-    return r["cost_usd"] + (r.get("reviewer_cost_usd") or 0)
+    return r["cost_usd"] + (r.get("reviewer_cost_usd") or 0) + (r.get("child_cost_usd") or 0)
 
 
 def cost_of_pass(rs: list[dict]) -> str:
@@ -312,6 +323,10 @@ def main():
     ap.add_argument("--vague", action="store_true", help="use bench/vague_briefs.yaml (intent only) where a task has one")
     ap.add_argument("--provider", default="", help="hosted provider for the child (e.g. nvidia); default: the local server")
     ap.add_argument("--parent-model", default="sonnet", help="Claude model for the parent (alias or id)")
+    ap.add_argument("--child-budget-s", type=int, default=900, help="wall-clock seconds one child run may take (a slow hosted model needs more)")
+    ap.add_argument("--child-idle-s", type=int, default=300, help="seconds without any child progress before gruntly gives up on it")
+    ap.add_argument("--rate-limits", default="",
+                    help="override the hosted provider's preset limits for the child, e.g. rpm=10,tpm=250000 (the Gemini preset is for Gemma)")
     ap.add_argument("--tasks", default="")
     ap.add_argument("--real", action="store_true", help="run the tasks from real repositories (bench/tasks-real, see real_tasks.py)")
     ap.add_argument("--arms", default="alone,forced,policy")
@@ -345,8 +360,8 @@ def main():
             for arm in a.arms.split(","):
                 if (n, arm, rep) in done:
                     continue
-                spent = sum(r["cost_usd"] or 0 for r in rows)
-                expect = max([r["cost_usd"] or 0 for r in rows] + [0.15])
+                spent = sum(total(r) for r in rows)
+                expect = max([total(r) for r in rows] + [0.15])
                 if a.max_total_usd and spent + expect > a.max_total_usd:
                     print(f"stopped: ${spent:.2f} spent, the next run (about ${expect:.2f}) would pass --max-total-usd {a.max_total_usd}", flush=True)
                     stopped = True
@@ -354,14 +369,14 @@ def main():
                 print(f"[{n} / {arm} / rep {rep}] ...", flush=True)
                 r = run_one(task_dir_of(n), arm, rep, a)
                 rows.append(r)
-                print(f"  pass={r['passed']} ${r['cost_usd']} turns={r['turns']} wall={r['wall_s']}s gruntly={r['gruntly_status']}", flush=True)
+                print(f"  pass={r['passed']} ${total(r):.4f} (child ${r.get('child_cost_usd') or 0:.4f}) turns={r['turns']} wall={r['wall_s']}s gruntly={r['gruntly_status']}", flush=True)
                 raw.write_text(json.dumps(rows, indent=1), encoding="utf8")
                 Path(a.out).write_text(report(rows, vars(a)), encoding="utf8")
             if stopped:
                 break
         if stopped:
             break
-    print(f"wrote {a.out}  (total ${sum(r['cost_usd'] or 0 for r in rows):.2f})")
+    print(f"wrote {a.out}  (total ${sum(total(r) for r in rows):.2f})")
 
 
 if __name__ == "__main__":

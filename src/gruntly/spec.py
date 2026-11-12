@@ -66,7 +66,7 @@ def permission_mode(spec) -> str:
     return m
 
 
-HARNESSES = ("auto", "qwen", "opencode", "hermes", "generic")
+HARNESSES = ("auto", "qwen", "opencode", "hermes", "claude", "generic")
 
 
 class SpecError(ValueError):

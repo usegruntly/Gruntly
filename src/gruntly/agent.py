@@ -49,6 +49,10 @@ def cost_line(c: dict, runs: int = 1) -> str:
     bits = [f"{runs} runs" if runs > 1 else "", f"{c['requests']} requests" if c.get("requests") else "",
             f"{c['tokens']:,} tokens" if c.get("tokens") else "", f"{c['s']} s" if c.get("s") else ""]
     use = ", ".join(b for b in bits if b)
+    if c.get("harness") == "claude":
+        paid = f"${c['cost_usd']:.3f}" if c.get("cost_usd") else "cost not reported"
+        return (f"cost: the child is Claude and ran in your Claude usage, {paid} ({who}{', ' + use if use else ''}); "
+                "you also pay for this call and your reply")
     where = ("ran on your machine, no paid tokens" if c.get("provider", "local") == "local"
              else f"ran on {c['provider']} with your own key, not in your Claude usage")
     return f"cost: the child {where} ({who}{', ' + use if use else ''}); you pay for this call and your reply"

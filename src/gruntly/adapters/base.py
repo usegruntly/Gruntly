@@ -100,10 +100,11 @@ def pick_installed() -> str | None:
 
 
 def get_adapter(name: str, spec=None) -> "Adapter":
+    from .claude import ClaudeAdapter
     from .generic import GenericAdapter
     from .hermes import HermesAdapter
     from .opencode import OpenCodeAdapter
     from .qwen import QwenAdapter
 
-    table = {"generic": GenericAdapter, "qwen": QwenAdapter, "opencode": OpenCodeAdapter, "hermes": HermesAdapter}
+    table = {"claude": ClaudeAdapter, "generic": GenericAdapter, "qwen": QwenAdapter, "opencode": OpenCodeAdapter, "hermes": HermesAdapter}
     return table[name]()

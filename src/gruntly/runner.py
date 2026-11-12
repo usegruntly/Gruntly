@@ -332,7 +332,12 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
     adapter = get_adapter(spec.harness)
 
     # infrastructure preflight: never spend an attempt on a down server
-    if spec.harness != "generic":
+    if spec.harness == "claude":                # talks to Anthropic with the person's own login: no model server to probe
+        det = adapter.detect()
+        if not det.installed:
+            return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
+                           error=det.detail)
+    elif spec.harness != "generic":
         det = adapter.detect()
         if not det.installed:
             return _finish(st, spec, root, "error", 0, {}, empty, "", None, t_start, 0, 0, {"available": False},
@@ -463,7 +468,8 @@ def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str
             usage = out.usage
             tot = st.read_json("child_usage.json", {})        # all attempts together: what the block's cost line reports
             st.write_json("child_usage.json", {"tokens": tot.get("tokens", 0) + (out.usage.get("total_tokens") or 0),
-                                               "requests": tot.get("requests", 0) + (out.usage.get("requests") or 0)})
+                                               "requests": tot.get("requests", 0) + (out.usage.get("requests") or 0),
+                                               "cost_usd": round(tot.get("cost_usd", 0) + (out.usage.get("cost_usd") or 0), 5)})
         context_hit = bool(CONTEXT.search(cr.stderr + out.final_message))
 
         if cr.breach:
@@ -586,6 +592,7 @@ def _finish(st, spec, root, status, attempts, gates, stats, summary, bundle, t_s
                        child={k: v for k, v in {"harness": spec.harness, "model": spec.model, "provider": spec.provider,
                                                 "tokens": st.read_json("child_usage.json", {}).get("tokens"),
                                                 "requests": st.read_json("child_usage.json", {}).get("requests"),
+                                                "cost_usd": st.read_json("child_usage.json", {}).get("cost_usd"),
                                                 "s": round(child_s)}.items() if v not in (None, "", 0)})
     st.save_result(res, meta={"wall_s": res["wall_s"], "child_usage": usage})
     progress.Feed(st.dir / progress.NAME).emit("gruntly", "done", status=status, reason=(bundle or {}).get("reason") or error)
