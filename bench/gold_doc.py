@@ -242,6 +242,10 @@ def build() -> str:
           "- Reference and child-alone rows for the code workloads come from earlier days; their cache warmth and prompts may differ.",
           "- Fresh sessions understate what the parent pays per turn in a long session; the long-session column is a model.",
           "- The Haiku child's results do not carry over to a local model or another hosted model; each needs its own run.",
+          "- The parent-alone arm is Claude Code as it behaves by default, including its own sub-agents. In 2 of the 14 parent-alone runs of the 2026-11-12 pilot it handed a page fetch "
+          "to its built-in `web-fetch` sub-agent, which ran on Haiku and cost about $0.001; it never used the `Explore` sub-agent. A run in which Claude Code is *told* to scout with "
+          "its own sub-agent is not measured yet, so these results do not show that gruntly beats Claude Code's own scouting.",
+          "- In the mixed tasks the saving came from the child doing the coding, not the reading: the parent alone wrote about 16,000 output tokens on one task, the delegated parent about 1,300. Two tasks, one run each.",
           "- Subjective work (writing, design) and side-effecting work (setup, deployment) are not measured yet, so this document says nothing about them."]
     return "\n".join(L) + "\n"
 
