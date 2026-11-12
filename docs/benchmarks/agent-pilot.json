@@ -1,0 +1,2908 @@
+[
+ {
+  "task": "control_rfc6455_opcodes",
+  "bucket": "memorised_control",
+  "workload": "memorised_control",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "0x0 continuation\n0x1 text\n0x2 binary\n0x8 close\n0x9 ping\n0xA pong",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 10,
+  "wall_s": 10,
+  "error": null,
+  "cost_usd": 0.0549,
+  "turns": 2,
+  "reply": "0x0 continuation\n0x1 text\n0x2 binary\n0x8 close\n0x9 ping\n0xA pong",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10972
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 205,
+    "cache_read": 40006,
+    "cache_write": 12222,
+    "cost_usd": 0.054946600000000005
+   }
+  },
+  "api_ms": 4426,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 1861,
+  "peak_ctx": 26741,
+  "tokens": {
+   "input": 4,
+   "cache_write": 12222,
+   "cache_read": 40006,
+   "output": 205
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "control_rfc6455_opcodes",
+  "bucket": "memorised_control",
+  "workload": "memorised_control",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "0x0 continuation\n0x1 text\n0x2 binary\n0x8 close\n0x9 ping\n0xA pong",
+  "child_answer": "0x0 continuation\n0x1 text\n0x2 binary\n0x8 close\n0x9 ping\n0xA pong\n\nSource: https://www.rfc-editor.org/rfc/rfc6455.txt, section 5.2 (Base Framing Protocol)",
+  "parent_confidence": 88,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": true,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 33,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 33656,
+     "requests": 2,
+     "cost_usd": 0.01472,
+     "s": 32
+    },
+    "child_trace": "child: 3 tool calls (read x2, other x1), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 33,
+  "parent_wall_s": 13,
+  "wall_s": 46,
+  "error": null,
+  "cost_usd": 0.0594,
+  "turns": 2,
+  "reply": "0x0 continuation\n0x1 text\n0x2 binary\n0x8 close\n0x9 ping\n0xA pong",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11071
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 703,
+    "cache_read": 40105,
+    "cache_write": 12085,
+    "cost_usd": 0.0593885
+   }
+  },
+  "api_ms": 9036,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 683,
+  "peak_ctx": 26604,
+  "tokens": {
+   "input": 4,
+   "cache_write": 12085,
+   "cache_read": 40105,
+   "output": 703
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 33656,
+  "child_cost_usd": 0.01472,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "control_rfc6455_opcodes",
+  "bucket": "memorised_control",
+  "workload": "memorised_control",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "0x0 continuation\n0x1 text\n0x2 binary\n0x8 close\n0x9 ping\n0xA pong",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 7,
+  "wall_s": 7,
+  "error": null,
+  "cost_usd": 0.0027,
+  "turns": 1,
+  "reply": "0x0 continuation\n0x1 text\n0x2 binary\n0x8 close\n0x9 ping\n0xA pong",
+  "tools": {},
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11796
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 2,
+    "output": 442,
+    "cache_read": 14517,
+    "cache_write": 11796,
+    "cost_usd": 0.00272557
+   }
+  },
+  "api_ms": 3136,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 0,
+  "peak_ctx": 26315,
+  "tokens": {
+   "input": 2,
+   "cache_write": 11796,
+   "cache_read": 14517,
+   "output": 442
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "read_invoke_callers",
+  "bucket": "code_reading",
+  "workload": "code_reading",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "Context.forward\nCommand.invoke\nCommand.main\nGroup.invoke",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 13,
+  "wall_s": 13,
+  "error": null,
+  "cost_usd": 0.0843,
+  "turns": 4,
+  "reply": "Context.forward\nCommand.invoke\nCommand.main\nGroup.invoke",
+  "tools": {
+   "Grep": 2,
+   "Read": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10949
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 853,
+    "cache_read": 69912,
+    "cache_write": 17203,
+    "cost_usd": 0.0843452
+   }
+  },
+  "api_ms": 9668,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 12246,
+  "peak_ctx": 31722,
+  "tokens": {
+   "input": 6,
+   "cache_write": 17203,
+   "cache_read": 69912,
+   "output": 853
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "read_invoke_callers",
+  "bucket": "code_reading",
+  "workload": "code_reading",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "Context.forward\nCommand.invoke\nCommand.main\nGroup.invoke",
+  "child_answer": "Context.forward\nCommand.invoke\nCommand.main\nGroup.invoke\n\nSources (all in `src/click/core.py`):\n- Context.forward: `self.invoke(cmd, ...)` at line 896, inside `def forward` (line 879).\n- Command.invoke: `ctx.invoke(self.callback, ...)` at line 1308, inside `def invoke` (line 1294).\n- Command.main: `self.invoke(ctx)` at line 1445, inside `def main` (line 1377; the body runs to line 1490).\n- Group.invoke: `ctx.invoke(...)` at line 1881, `super().invoke(ctx)` at lines 1890, 1909 and 1921, and `sub_ctx.command.invoke(sub_ctx)` at lines 1912 and 1943, all inside `def invoke` (line 1878).\n\nExcluded: lines 816, 821 and 823 are the `def invoke` lines of `Context.invoke` and its overloads, not calls. The body of `Context.invoke` (lines 823\u2013878) makes no `invoke(` call.",
+  "parent_confidence": 70,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": false,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 12,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 36852,
+     "requests": 3,
+     "cost_usd": 0.00298,
+     "s": 11
+    },
+    "child_trace": "child: 2 tool calls (read x2), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 12,
+  "parent_wall_s": 16,
+  "wall_s": 28,
+  "error": null,
+  "cost_usd": 0.0812,
+  "turns": 3,
+  "reply": "Context.forward\nCommand.invoke\nCommand.main\nGroup.invoke",
+  "tools": {
+   "Bash": 1,
+   "Grep": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11036
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 992,
+    "cache_read": 66761,
+    "cache_write": 16145,
+    "cost_usd": 0.0811881
+   }
+  },
+  "api_ms": 12560,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 9429,
+  "peak_ctx": 30664,
+  "tokens": {
+   "input": 6,
+   "cache_write": 16145,
+   "cache_read": 66761,
+   "output": 992
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 36852,
+  "child_cost_usd": 0.00298,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "read_invoke_callers",
+  "bucket": "code_reading",
+  "workload": "code_reading",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "Context.forward\nCommand.invoke\nCommand.main\nGroup.invoke",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 11,
+  "wall_s": 11,
+  "error": null,
+  "cost_usd": 0.0033,
+  "turns": 2,
+  "reply": "Context.forward\nCommand.invoke\nCommand.main\nGroup.invoke",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11776
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 4,
+    "output": 687,
+    "cache_read": 40810,
+    "cache_write": 12687,
+    "cost_usd": 0.0032894
+   }
+  },
+  "api_ms": 5582,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 142,
+  "peak_ctx": 27206,
+  "tokens": {
+   "input": 4,
+   "cache_write": 12687,
+   "cache_read": 40810,
+   "output": 687
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "fetch_rfc9995_cose_labels",
+  "bucket": "exact_fetch",
+  "workload": "exact_fetch",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "payload-hash-alg: 258\npreimage-content-type: 259\npayload-location: 260",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 14,
+  "wall_s": 14,
+  "error": null,
+  "cost_usd": 0.0869,
+  "turns": 4,
+  "reply": "payload-hash-alg: 258\npreimage-content-type: 259\npayload-location: 260",
+  "tools": {
+   "Bash": 2,
+   "Read": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10930
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 8,
+    "output": 461,
+    "cache_read": 93592,
+    "cache_write": 18236,
+    "cost_usd": 0.08692920000000001
+   }
+  },
+  "api_ms": 8276,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 17430,
+  "peak_ctx": 32755,
+  "tokens": {
+   "input": 8,
+   "cache_write": 18236,
+   "cache_read": 93592,
+   "output": 461
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "fetch_rfc9995_cose_labels",
+  "bucket": "exact_fetch",
+  "workload": "exact_fetch",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "payload-hash-alg: 258\npreimage-content-type: 259\npayload-location: 260",
+  "child_answer": "payload-hash-alg: 258\npreimage-content-type: 259\npayload-location: 260\n\nSource: https://www.rfc-editor.org/rfc/rfc9995.txt, Section 6.1 \"COSE Header Parameters\", Table 1 (fetched with curl, saved to /tmp/rfc9995.txt).",
+  "parent_confidence": 60,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": true,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 11,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 50273,
+     "requests": 3,
+     "cost_usd": 0.00226,
+     "s": 11
+    },
+    "child_trace": "child: 2 tool calls (run x2), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 11,
+  "parent_wall_s": 25,
+  "wall_s": 36,
+  "error": null,
+  "cost_usd": 0.0818,
+  "turns": 5,
+  "reply": "payload-hash-alg: 258\npreimage-content-type: 259\npayload-location: 260",
+  "tools": {
+   "Bash": 4
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11024
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 10,
+    "output": 1227,
+    "cache_read": 121314,
+    "cache_write": 14342,
+    "cost_usd": 0.08178940000000001
+   }
+  },
+  "api_ms": 18830,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 5555,
+  "peak_ctx": 28861,
+  "tokens": {
+   "input": 10,
+   "cache_write": 14342,
+   "cache_read": 121314,
+   "output": 1227
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 50273,
+  "child_cost_usd": 0.00226,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "fetch_rfc9995_cose_labels",
+  "bucket": "exact_fetch",
+  "workload": "exact_fetch",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "payload-hash-alg: 258\npreimage-content-type: 259\npayload-location: 260",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 10,
+  "wall_s": 10,
+  "error": null,
+  "cost_usd": 0.0043,
+  "turns": 2,
+  "reply": "payload-hash-alg: 258\npreimage-content-type: 259\npayload-location: 260",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11751
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 4,
+    "output": 322,
+    "cache_read": 40785,
+    "cache_write": 18707,
+    "cost_usd": 0.00431065
+   }
+  },
+  "api_ms": 3903,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 17121,
+  "peak_ctx": 33226,
+  "tokens": {
+   "input": 4,
+   "cache_write": 18707,
+   "cache_read": 40785,
+   "output": 322
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "research_oauth_audience",
+  "bucket": "web_research",
+  "workload": "web_research",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "facts_found": [
+    "rfc ?10070",
+    "issuer identifier",
+    "sole"
+   ],
+   "facts_missing": [],
+   "citations": 5,
+   "citations_valid": 5,
+   "checked": [
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "this document updates rfcs 7521, 7522, 7523, and 9126 with respect to",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "security vulnerability identified in the previous requirements for",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "issuer identifier url of the authorization server, as defined in",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "contain its own issuer identifier as the sole audience value. an",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "this includes that the token endpoint url of the authorization",
+     "found": true
+    }
+   ]
+  },
+  "answer": "```json\n[\n  {\n    \"fact\": \"The 2026 RFC is RFC 10070, \\\"Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants\\\" (November 2026). It updates RFCs 7521, 7522, 7523 and 9126.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\",\n    \"quote\": \"This document updates RFCs 7521, 7522, 7523, and 9126 with respect to\"\n  },\n  {\n    \"fact\": \"RFC 10070 exists to fix a security vulnerability in the earlier requirements for audience values in several OAuth 2.0 specifications.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\",\n    \"quote\": \"security vulnerability identified in the previous requirements for\"\n  },\n  {\n    \"fact\": \"The audience of a JWT client authentication assertion must now be the authorization server's issuer identifier URL (RFC 8414), and it must be the only audience value.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\",\n    \"quote\": \"issuer identifier URL of the authorization server, as defined in\"\n  },\n  {\n    \"fact\": \"The authorization server must reject any JWT client authentication assertion that does not contain its own issuer identifier as the sole audience value.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\",\n    \"quote\": \"contain its own issuer identifier as the sole audience value.  An\"\n  },\n  {\n    \"fact\": \"The authorization server's token endpoint URL must no longer be used as the audience value for client authentication.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\",\n    \"quote\": \"this includes that the token endpoint URL of the authorization\"\n  }\n]\n```",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 41,
+  "wall_s": 41,
+  "error": null,
+  "cost_usd": 0.1296,
+  "turns": 6,
+  "reply": "```json\n[\n  {\n    \"fact\": \"The 2026 RFC is RFC 10070, \\\"Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants\\\" (November 2026). It updates RFCs 7521, 7522, 7523 and 9126.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\",\n    \"quote\": \"This document updates RFCs 7521, 7522, 7523, and 9126 with respect to\"\n  },\n  {\n    \"fact\": \"RFC 10070 exists to fix a security vulnerability in the earlier requirements for audience values in several OA",
+  "tools": {
+   "ToolSearch": 1,
+   "Bash": 3,
+   "WebSearch": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11026
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 10,
+    "output": 2605,
+    "cache_read": 130792,
+    "cache_write": 19491,
+    "cost_usd": 0.1171132
+   },
+   "claude-haiku-5-5": {
+    "input": 20102,
+    "output": 1049,
+    "cache_read": 0,
+    "cache_write": 0,
+    "cost_usd": 0.0125347
+   }
+  },
+  "api_ms": 31291,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 16700,
+  "peak_ctx": 34010,
+  "tokens": {
+   "input": 10,
+   "cache_write": 19491,
+   "cache_read": 130792,
+   "output": 2605
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "research_oauth_audience",
+  "bucket": "web_research",
+  "workload": "web_research",
+  "arm": "forced",
+  "rep": 1,
+  "passed": false,
+  "score": 0.8333,
+  "grade": {
+   "facts_found": [
+    "rfc ?10070",
+    "issuer identifier"
+   ],
+   "facts_missing": [
+    "sole"
+   ],
+   "citations": 3,
+   "citations_valid": 3,
+   "checked": [
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.html",
+     "quote": "rfc 10070: updates to oauth 2.0 json web token (jwt) client authentica",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.html",
+     "quote": "this document updates rfcs 7521, 7522, 7523, and 9126",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.html",
+     "quote": "the \"aud\" (audience) claim value must use the issuer identifier",
+     "found": true
+    }
+   ]
+  },
+  "answer": "[\n  {\"fact\": \"The 2026 RFC is RFC 10070, titled 'Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants'.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.html\", \"quote\": \"RFC 10070: Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants\"},\n  {\"fact\": \"RFC 10070 updates RFCs 7521, 7522, 7523 and 9126.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.html\", \"quote\": \"This document updates RFCs 7521, 7522, 7523, and 9126\"},\n  {\"fact\": \"For JWT client authentication, the aud claim must be the authorization server's issuer identifier.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.html\", \"quote\": \"the \\\"aud\\\" (audience) claim value MUST use the issuer identifier\"}\n]",
+  "child_answer": "[\n  {\"fact\": \"The 2026 RFC is RFC 10070, titled 'Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants'.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.html\", \"quote\": \"RFC 10070: Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants\"},\n  {\"fact\": \"RFC 10070 updates RFCs 7521, 7522, 7523 and 9126.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.html\", \"quote\": \"This document updates RFCs 7521, 7522, 7523, and 9126\"},\n  {\"fact\": \"For JWT client authentication, the aud claim must be the authorization server's issuer identifier, and that must be its sole value.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.html\", \"quote\": \"the \\\"aud\\\" (audience) claim value MUST use the issuer identifier\"}\n]",
+  "parent_confidence": 40,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": true,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 38,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 72300,
+     "requests": 5,
+     "cost_usd": 0.01976,
+     "s": 37
+    },
+    "child_trace": "child: 5 tool calls (read x1, run x1, other x3), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 38,
+  "parent_wall_s": 16,
+  "wall_s": 54,
+  "error": null,
+  "cost_usd": 0.0663,
+  "turns": 2,
+  "reply": "[\n  {\"fact\": \"The 2026 RFC is RFC 10070, titled 'Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants'.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.html\", \"quote\": \"RFC 10070: Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants\"},\n  {\"fact\": \"RFC 10070 updates RFCs 7521, 7522, 7523 and 9126.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.html\", \"quote\": \"This document updates RFCs 75",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11116
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 1279,
+    "cache_read": 40150,
+    "cache_write": 12371,
+    "cost_usd": 0.066297
+   }
+  },
+  "api_ms": 12235,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 1343,
+  "peak_ctx": 26890,
+  "tokens": {
+   "input": 4,
+   "cache_write": 12371,
+   "cache_read": 40150,
+   "output": 1279
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 72300,
+  "child_cost_usd": 0.01976,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "research_oauth_audience",
+  "bucket": "web_research",
+  "workload": "web_research",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "facts_found": [
+    "rfc ?10070",
+    "issuer identifier",
+    "sole"
+   ],
+   "facts_missing": [],
+   "citations": 4,
+   "citations_valid": 4,
+   "checked": [
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "updates: 7521, 7522, 7523, 9126",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "contain its own issuer identifier as the sole audience value.",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "must use the issuer identifier [rfc8414] of the authorization",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10070.txt",
+     "quote": "server must not be used as an audience value.",
+     "found": true
+    }
+   ]
+  },
+  "answer": "```json\n[\n  {\"fact\": \"RFC 10070 is the 2026 document that updates RFCs 7521, 7522, 7523 and 9126 on audience values in OAuth 2.0 client assertions.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\", \"quote\": \"Updates: 7521, 7522, 7523, 9126\"},\n  {\"fact\": \"The audience of a JWT client authentication assertion must be the authorization server's issuer identifier, used as its sole audience value.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\", \"quote\": \"contain its own issuer identifier as the sole audience value.\"},\n  {\"fact\": \"For client authentication, the JWT aud claim must use the issuer identifier URL of the authorization server (as defined in RFC 8414) as its sole value.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\", \"quote\": \"MUST use the issuer identifier [RFC8414] of the authorization\"},\n  {\"fact\": \"The token endpoint URL of the authorization server must not be used as an audience value for JWT client authentication assertions.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\", \"quote\": \"server MUST NOT be used as an audience value.\"}\n]\n```",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 33,
+  "wall_s": 33,
+  "error": null,
+  "cost_usd": 0.0315,
+  "turns": 6,
+  "reply": "```json\n[\n  {\"fact\": \"RFC 10070 is the 2026 document that updates RFCs 7521, 7522, 7523 and 9126 on audience values in OAuth 2.0 client assertions.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\", \"quote\": \"Updates: 7521, 7522, 7523, 9126\"},\n  {\"fact\": \"The audience of a JWT client authentication assertion must be the authorization server's issuer identifier, used as its sole audience value.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10070.txt\", \"quote\": \"contain its own issuer identifie",
+  "tools": {
+   "WebSearch": 2,
+   "Bash": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11851
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 37413,
+    "output": 4767,
+    "cache_read": 137667,
+    "cache_write": 19888,
+    "cost_usd": 0.031479070000000005
+   }
+  },
+  "api_ms": 34008,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 16189,
+  "peak_ctx": 34407,
+  "tokens": {
+   "input": 10,
+   "cache_write": 19888,
+   "cache_read": 137667,
+   "output": 2632
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "read_paramtype_names",
+  "bucket": "code_reading",
+  "workload": "code_reading",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "UnprocessedParamType: text\nStringParamType: text\nChoice: choice\nDateTime: datetime\nBoolParamType: boolean\nUUIDParameterType: uuid\nFile: filename",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 17,
+  "wall_s": 17,
+  "error": null,
+  "cost_usd": 0.0788,
+  "turns": 5,
+  "reply": "UnprocessedParamType: text\nStringParamType: text\nChoice: choice\nDateTime: datetime\nBoolParamType: boolean\nUUIDParameterType: uuid\nFile: filename",
+  "tools": {
+   "Grep": 3,
+   "Read": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10940
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 8,
+    "output": 1233,
+    "cache_read": 95350,
+    "cache_write": 14232,
+    "cost_usd": 0.07880899999999999
+   }
+  },
+  "api_ms": 13449,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 4393,
+  "peak_ctx": 28751,
+  "tokens": {
+   "input": 8,
+   "cache_write": 14232,
+   "cache_read": 95350,
+   "output": 1233
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "read_paramtype_names",
+  "bucket": "code_reading",
+  "workload": "code_reading",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "UnprocessedParamType: text\nStringParamType: text\nChoice: choice\nDateTime: datetime\nBoolParamType: boolean\nUUIDParameterType: uuid\nFile: filename",
+  "child_answer": "UnprocessedParamType: text\nStringParamType: text\nChoice: choice\nDateTime: datetime\nBoolParamType: boolean\nUUIDParameterType: uuid\nFile: filename\n\nSource: `src/click/types.py` (class lines 216, 228, 259, 436, 704, 773, 800; `name` assignments at 217, 229, 287, 457, 705, 774, 830). Skipped, with no class-level `name` string: `CompositeParamType` (179), `FuncParamType` (191), `_NumberParamTypeBase` (505), `Path` (940).",
+  "parent_confidence": 65,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": false,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 12,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 52004,
+     "requests": 3,
+     "cost_usd": 0.00276,
+     "s": 12
+    },
+    "child_trace": "child: 2 tool calls (read x2), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 12,
+  "parent_wall_s": 19,
+  "wall_s": 31,
+  "error": null,
+  "cost_usd": 0.0746,
+  "turns": 3,
+  "reply": "UnprocessedParamType: text\nStringParamType: text\nChoice: choice\nDateTime: datetime\nBoolParamType: boolean\nUUIDParameterType: uuid\nFile: filename",
+  "tools": {
+   "Bash": 1,
+   "Grep": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11024
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 1336,
+    "cache_read": 66855,
+    "cache_write": 13630,
+    "cost_usd": 0.07457749999999999
+   }
+  },
+  "api_ms": 14328,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 2639,
+  "peak_ctx": 28149,
+  "tokens": {
+   "input": 6,
+   "cache_write": 13630,
+   "cache_read": 66855,
+   "output": 1336
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 52004,
+  "child_cost_usd": 0.00276,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "read_paramtype_names",
+  "bucket": "code_reading",
+  "workload": "code_reading",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "UnprocessedParamType: text\nStringParamType: text\nChoice: choice\nDateTime: datetime\nBoolParamType: boolean\nUUIDParameterType: uuid\nFile: filename",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 13,
+  "wall_s": 13,
+  "error": null,
+  "cost_usd": 0.0037,
+  "turns": 3,
+  "reply": "UnprocessedParamType: text\nStringParamType: text\nChoice: choice\nDateTime: datetime\nBoolParamType: boolean\nUUIDParameterType: uuid\nFile: filename",
+  "tools": {
+   "Grep": 2
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11761
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 4,
+    "output": 1454,
+    "cache_read": 40795,
+    "cache_write": 12917,
+    "cost_usd": 0.0037187500000000007
+   }
+  },
+  "api_ms": 9326,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 873,
+  "peak_ctx": 27436,
+  "tokens": {
+   "input": 4,
+   "cache_write": 12917,
+   "cache_read": 40795,
+   "output": 1454
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "fetch_rfc10075_snac_bit",
+  "bucket": "exact_fetch",
+  "workload": "exact_fetch",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"bit\": 6, \"letter\": \"S\"}",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 12,
+  "wall_s": 12,
+  "error": null,
+  "cost_usd": 0.0629,
+  "turns": 3,
+  "reply": "{\"bit\": 6, \"letter\": \"S\"}",
+  "tools": {
+   "Bash": 2
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10966
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 385,
+    "cache_read": 66834,
+    "cache_write": 13079,
+    "cost_usd": 0.0628614
+   }
+  },
+  "api_ms": 6280,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 3603,
+  "peak_ctx": 27598,
+  "tokens": {
+   "input": 6,
+   "cache_write": 13079,
+   "cache_read": 66834,
+   "output": 385
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "fetch_rfc10075_snac_bit",
+  "bucket": "exact_fetch",
+  "workload": "exact_fetch",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"bit\": 6, \"letter\": \"S\"}",
+  "child_answer": "{\"bit\": 6, \"letter\": \"S\"}",
+  "parent_confidence": 60,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": true,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 14,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 33028,
+     "requests": 2,
+     "cost_usd": 0.00279,
+     "s": 13
+    },
+    "child_trace": "child: 2 tool calls (read x1, other x1), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 14,
+  "parent_wall_s": 11,
+  "wall_s": 25,
+  "error": null,
+  "cost_usd": 0.0573,
+  "turns": 2,
+  "reply": "{\"bit\": 6, \"letter\": \"S\"}",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11059
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 605,
+    "cache_read": 40093,
+    "cache_write": 11812,
+    "cost_usd": 0.0573153
+   }
+  },
+  "api_ms": 6654,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 548,
+  "peak_ctx": 26331,
+  "tokens": {
+   "input": 4,
+   "cache_write": 11812,
+   "cache_read": 40093,
+   "output": 605
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 33028,
+  "child_cost_usd": 0.00279,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "fetch_rfc10075_snac_bit",
+  "bucket": "exact_fetch",
+  "workload": "exact_fetch",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"bit\": 6, \"letter\": \"S\"}",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 10,
+  "wall_s": 10,
+  "error": null,
+  "cost_usd": 0.0035,
+  "turns": 2,
+  "reply": "{\"bit\": 6, \"letter\": \"S\"}",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11790
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 4,
+    "output": 220,
+    "cache_read": 40824,
+    "cache_write": 15060,
+    "cost_usd": 0.0035306400000000007
+   }
+  },
+  "api_ms": 3942,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 7220,
+  "peak_ctx": 29579,
+  "tokens": {
+   "input": 4,
+   "cache_write": 15060,
+   "cache_read": 40824,
+   "output": 220
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "research_jscontact_registry",
+  "bucket": "web_research",
+  "workload": "web_research",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "facts_found": [
+    "rfc ?10050",
+    "specification required",
+    "(?=.*\\bname\\b)(?=.*\\bversion\\b)(?=.*\\breference\\b)"
+   ],
+   "facts_missing": [],
+   "citations": 7,
+   "citations_valid": 7,
+   "checked": [
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "iana has created the \"jscontact profiles\" registry within the",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "entry to this registry is \"specification required\" [rfc8126]; this",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "policy to update an existing profile is \"expert review\"; this applies",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "an entry in this registry consists of the following, all of which",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "the name must be unique among all registered profiles",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "this is the version number of the profile.",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "this refers to the specification of the protocol or use case for",
+     "found": true
+    }
+   ]
+  },
+  "answer": "[\n  {\n    \"fact\": \"RFC 10050 (\\\"Protocol-Specific Profiles for JSContact\\\", September 2026, Standards Track) is the 2026 RFC that creates the IANA \\\"JSContact Profiles\\\" registry, inside the \\\"JSContact\\\" registry group.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"IANA has created the \\\"JSContact Profiles\\\" registry within the\"\n  },\n  {\n    \"fact\": \"The registration policy for defining a new profile name or version is Specification Required (RFC 8126).\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"entry to this registry is \\\"Specification Required\\\" [RFC8126]; this\"\n  },\n  {\n    \"fact\": \"Updating an existing profile, meaning updating the references of an entry, falls under a different policy, Expert Review. It is not the policy for new names or versions.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"policy to update an existing profile is \\\"Expert Review\\\"; this applies\"\n  },\n  {\n    \"fact\": \"Every registry entry has three fields: Name, Version and Reference. All three MUST be set.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"An entry in this registry consists of the following, all of which\"\n  },\n  {\n    \"fact\": \"The Name field is the profile's name. It is immutable after creation, must be unique among all registered profiles, and must follow Section 3.1.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"The name MUST be unique among all registered profiles\"\n  },\n  {\n    \"fact\": \"The Version field is the profile's version number. It is immutable after creation and must follow Section 3.2.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"This is the version number of the profile.\"\n  },\n  {\n    \"fact\": \"The Reference field points to the specification of the protocol or use case the profile applies to. It must include the section number or name that defines or updates the profile's property entries.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"This refers to the specification of the protocol or use case for\"\n  }\n]",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 30,
+  "wall_s": 30,
+  "error": null,
+  "cost_usd": 0.1077,
+  "turns": 6,
+  "reply": "[\n  {\n    \"fact\": \"RFC 10050 (\\\"Protocol-Specific Profiles for JSContact\\\", September 2026, Standards Track) is the 2026 RFC that creates the IANA \\\"JSContact Profiles\\\" registry, inside the \\\"JSContact\\\" registry group.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"IANA has created the \\\"JSContact Profiles\\\" registry within the\"\n  },\n  {\n    \"fact\": \"The registration policy for defining a new profile name or version is Specification Required (RFC 8126).\",\n    \"url\": ",
+  "tools": {
+   "ToolSearch": 1,
+   "Bash": 4
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10981
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 10,
+    "output": 2711,
+    "cache_read": 125023,
+    "cache_write": 17022,
+    "cost_usd": 0.1077203
+   }
+  },
+  "api_ms": 21955,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 9320,
+  "peak_ctx": 31541,
+  "tokens": {
+   "input": 10,
+   "cache_write": 17022,
+   "cache_read": 125023,
+   "output": 2711
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "research_jscontact_registry",
+  "bucket": "web_research",
+  "workload": "web_research",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "facts_found": [
+    "rfc ?10050",
+    "specification required",
+    "(?=.*\\bname\\b)(?=.*\\bversion\\b)(?=.*\\breference\\b)"
+   ],
+   "facts_missing": [],
+   "citations": 6,
+   "citations_valid": 6,
+   "checked": [
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "iana has created the \"jscontact profiles\" registry within the",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "applies to defining a new profile name or version.",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "an entry in this registry consists of the following, all of which",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "this is the name of the profile.",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "this is the version number of the profile.",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "this refers to the specification of the protocol or use case for",
+     "found": true
+    }
+   ]
+  },
+  "answer": "```json\n[\n  {\n    \"fact\": \"RFC 10050 (September 2026) creates the \\\"JSContact Profiles\\\" IANA registry within the \\\"JSContact\\\" registry group.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"IANA has created the \\\"JSContact Profiles\\\" registry within the\"\n  },\n  {\n    \"fact\": \"The registration policy for defining a new profile name or version is \\\"Specification Required\\\" (RFC 8126).\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"applies to defining a new profile name or version.\"\n  },\n  {\n    \"fact\": \"Every entry in the registry must have all of the following fields set: Name, Version, and Reference.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"An entry in this registry consists of the following, all of which\"\n  },\n  {\n    \"fact\": \"The Name field is the name of the profile.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"This is the name of the profile.\"\n  },\n  {\n    \"fact\": \"The Version field is the version number of the profile; it is immutable after creation.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"This is the version number of the profile.\"\n  },\n  {\n    \"fact\": \"The Reference field refers to the specification of the protocol or use case for which the profile applies, and must include the section number or name that defines the profile's property entries.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"This refers to the specification of the protocol or use case for\"\n  }\n]\n```",
+  "child_answer": "```json\n[\n  {\n    \"fact\": \"RFC 10050 (September 2026) creates the \\\"JSContact Profiles\\\" IANA registry within the \\\"JSContact\\\" registry group.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"IANA has created the \\\"JSContact Profiles\\\" registry within the\"\n  },\n  {\n    \"fact\": \"The registration policy for defining a new profile name or version is \\\"Specification Required\\\" (RFC 8126).\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"applies to defining a new profile name or version.\"\n  },\n  {\n    \"fact\": \"Every entry in the registry must have all of the following fields set: Name, Version, and Reference.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"An entry in this registry consists of the following, all of which\"\n  },\n  {\n    \"fact\": \"The Name field is the name of the profile; it is immutable after creation and must be unique among registered profiles.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"This is the name of the profile.\"\n  },\n  {\n    \"fact\": \"The Version field is the version number of the profile; it is immutable after creation.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"This is the version number of the profile.\"\n  },\n  {\n    \"fact\": \"The Reference field refers to the specification of the protocol or use case for which the profile applies, and must include the section number or name that defines the profile's property entries.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"This refers to the specification of the protocol or use case for\"\n  }\n]\n```",
+  "parent_confidence": 55,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": true,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 38,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 112753,
+     "requests": 6,
+     "cost_usd": 0.01847,
+     "s": 37
+    },
+    "child_trace": "child: 6 tool calls (read x1, run x3, other x2), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 38,
+  "parent_wall_s": 22,
+  "wall_s": 60,
+  "error": null,
+  "cost_usd": 0.0774,
+  "turns": 3,
+  "reply": "```json\n[\n  {\n    \"fact\": \"RFC 10050 (September 2026) creates the \\\"JSContact Profiles\\\" IANA registry within the \\\"JSContact\\\" registry group.\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"IANA has created the \\\"JSContact Profiles\\\" registry within the\"\n  },\n  {\n    \"fact\": \"The registration policy for defining a new profile name or version is \\\"Specification Required\\\" (RFC 8126).\",\n    \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\",\n    \"quote\": \"applies to d",
+  "tools": {
+   "Bash": 2
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11079
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 1795,
+    "cache_read": 66997,
+    "cache_write": 13182,
+    "cost_usd": 0.0773897
+   }
+  },
+  "api_ms": 16902,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 3103,
+  "peak_ctx": 27701,
+  "tokens": {
+   "input": 6,
+   "cache_write": 13182,
+   "cache_read": 66997,
+   "output": 1795
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 112753,
+  "child_cost_usd": 0.01847,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "research_jscontact_registry",
+  "bucket": "web_research",
+  "workload": "web_research",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "facts_found": [
+    "rfc ?10050",
+    "specification required",
+    "(?=.*\\bname\\b)(?=.*\\bversion\\b)(?=.*\\breference\\b)"
+   ],
+   "facts_missing": [],
+   "citations": 6,
+   "citations_valid": 6,
+   "checked": [
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "iana has created the \"jscontact profiles\" registry within the",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "applies to defining a new profile name or version.",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "an entry in this registry consists of the following, all of which",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "this is the name of the profile. this field is immutable after",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "this is the version number of the profile. this field is",
+     "found": true
+    },
+    {
+     "url": "https://www.rfc-editor.org/rfc/rfc10050.txt",
+     "quote": "this refers to the specification of the protocol or use case for",
+     "found": true
+    }
+   ]
+  },
+  "answer": "```json\n[\n  {\"fact\": \"The RFC that creates the IANA registry named \\\"JSContact Profiles\\\" is RFC 10050, 'Protocol-Specific Profiles for JSContact' (September 2026).\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\", \"quote\": \"IANA has created the \\\"JSContact Profiles\\\" registry within the\"},\n  {\"fact\": \"The registry policy for adding an entry to the JSContact Profiles registry is Specification Required (RFC 8126), and it applies to defining a new profile name or version.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\", \"quote\": \"applies to defining a new profile name or version.\"},\n  {\"fact\": \"Every entry in the JSContact Profiles registry consists of the following fields, all of which must be set.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\", \"quote\": \"An entry in this registry consists of the following, all of which\"},\n  {\"fact\": \"Each JSContact Profiles registry entry has a Name field, which is the name of the profile and is immutable after creation.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\", \"quote\": \"This is the name of the profile.  This field is immutable after\"},\n  {\"fact\": \"Each JSContact Profiles registry entry has a Version field, which is the version number of the profile and is immutable after creation.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\", \"quote\": \"This is the version number of the profile.  This field is\"},\n  {\"fact\": \"Each JSContact Profiles registry entry has a Reference field, which refers to the specification of the protocol or use case for which the profile applies.\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\", \"quote\": \"This refers to the specification of the protocol or use case for\"}\n]\n```",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": true,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 31,
+  "wall_s": 31,
+  "error": null,
+  "cost_usd": 0.0181,
+  "turns": 5,
+  "reply": "```json\n[\n  {\"fact\": \"The RFC that creates the IANA registry named \\\"JSContact Profiles\\\" is RFC 10050, 'Protocol-Specific Profiles for JSContact' (September 2026).\", \"url\": \"https://www.rfc-editor.org/rfc/rfc10050.txt\", \"quote\": \"IANA has created the \\\"JSContact Profiles\\\" registry within the\"},\n  {\"fact\": \"The registry policy for adding an entry to the JSContact Profiles registry is Specification Required (RFC 8126), and it applies to defining a new profile name or version.\", \"url\": \"https://w",
+  "tools": {
+   "WebSearch": 1,
+   "Bash": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11807
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 14654,
+    "output": 3281,
+    "cache_read": 131544,
+    "cache_write": 18195,
+    "cost_usd": 0.01806034
+   }
+  },
+  "api_ms": 24807,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 12364,
+  "peak_ctx": 32714,
+  "tokens": {
+   "input": 10,
+   "cache_write": 18195,
+   "cache_read": 131544,
+   "output": 2464
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "summarise_incident_log",
+  "bucket": "summarise",
+  "workload": "summarise",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"fatal\": {\"payments\": \"14:07:48\", \"inventory\": \"14:08:02\", \"auth\": \"14:08:15\"}, \"root_cause\": \"E4471\"}",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 17,
+  "wall_s": 17,
+  "error": null,
+  "cost_usd": 0.0782,
+  "turns": 5,
+  "reply": "{\"fatal\": {\"payments\": \"14:07:48\", \"inventory\": \"14:08:02\", \"auth\": \"14:08:15\"}, \"root_cause\": \"E4471\"}",
+  "tools": {
+   "Bash": 3,
+   "Grep": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11001
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 8,
+    "output": 981,
+    "cache_read": 95321,
+    "cache_write": 14722,
+    "cost_usd": 0.0782461
+   }
+  },
+  "api_ms": 12068,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 4617,
+  "peak_ctx": 29241,
+  "tokens": {
+   "input": 8,
+   "cache_write": 14722,
+   "cache_read": 95321,
+   "output": 981
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "summarise_incident_log",
+  "bucket": "summarise",
+  "workload": "summarise",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"fatal\": {\"payments\": \"14:07:48\", \"inventory\": \"14:08:02\", \"auth\": \"14:08:15\"}, \"root_cause\": \"E4471\"}",
+  "child_answer": "{\"fatal\": {\"payments\": \"14:07:48\", \"inventory\": \"14:08:02\", \"auth\": \"14:08:15\"}, \"root_cause\": \"E4471\"}",
+  "parent_confidence": 60,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": false,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 11,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 68748,
+     "requests": 5,
+     "cost_usd": 0.00303,
+     "s": 11
+    },
+    "child_trace": "child: 4 tool calls (read x4), 1 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 11,
+  "parent_wall_s": 21,
+  "wall_s": 32,
+  "error": null,
+  "cost_usd": 0.079,
+  "turns": 5,
+  "reply": "{\"fatal\": {\"payments\": \"14:07:48\", \"inventory\": \"14:08:02\", \"auth\": \"14:08:15\"}, \"root_cause\": \"E4471\"}",
+  "tools": {
+   "Bash": 1,
+   "Grep": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11082
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 8,
+    "output": 1597,
+    "cache_read": 94243,
+    "cache_write": 13387,
+    "cost_usd": 0.07895830000000001
+   }
+  },
+  "api_ms": 16644,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 1461,
+  "peak_ctx": 27906,
+  "tokens": {
+   "input": 8,
+   "cache_write": 13387,
+   "cache_read": 94243,
+   "output": 1597
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 68748,
+  "child_cost_usd": 0.00303,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "summarise_incident_log",
+  "bucket": "summarise",
+  "workload": "summarise",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"fatal\": {\"payments\": \"14:07:48\", \"inventory\": \"14:08:02\", \"auth\": \"14:08:15\"}, \"root_cause\": \"E4471\"}",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 16,
+  "wall_s": 16,
+  "error": null,
+  "cost_usd": 0.0044,
+  "turns": 4,
+  "reply": "{\"fatal\": {\"payments\": \"14:07:48\", \"inventory\": \"14:08:02\", \"auth\": \"14:08:15\"}, \"root_cause\": \"E4471\"}",
+  "tools": {
+   "Bash": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11827
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 8,
+    "output": 1101,
+    "cache_read": 96151,
+    "cache_write": 14401,
+    "cost_usd": 0.00439301
+   }
+  },
+  "api_ms": 10309,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 2427,
+  "peak_ctx": 28920,
+  "tokens": {
+   "input": 8,
+   "cache_write": 14401,
+   "cache_read": 96151,
+   "output": 1101
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "summarise_changelog_breaking",
+  "bucket": "summarise",
+  "workload": "summarise",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "6.1.1\n10.7.2\n11.4.0\n17.1.0\n18.0.4\n19.1.4\n27.4.0",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 18,
+  "wall_s": 18,
+  "error": null,
+  "cost_usd": 0.0932,
+  "turns": 6,
+  "reply": "6.1.1\n10.7.2\n11.4.0\n17.1.0\n18.0.4\n19.1.4\n27.4.0",
+  "tools": {
+   "Grep": 5
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10936
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 8,
+    "output": 1504,
+    "cache_read": 99895,
+    "cache_write": 17048,
+    "cost_usd": 0.09323750000000001
+   }
+  },
+  "api_ms": 14320,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 6938,
+  "peak_ctx": 31567,
+  "tokens": {
+   "input": 8,
+   "cache_write": 17048,
+   "cache_read": 99895,
+   "output": 1504
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "summarise_changelog_breaking",
+  "bucket": "summarise",
+  "workload": "summarise",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "6.1.1\n10.7.2\n11.4.0\n17.1.0\n18.0.4\n19.1.4\n27.4.0",
+  "child_answer": "6.1.1\n10.7.2\n11.4.0\n17.1.0\n18.0.4\n19.1.4\n27.4.0\n\nSource: `CHANGELOG.md`, `[BREAKING]` tags at lines 279, 635, 719, 902, 939, 1126, 1540. Each version is the `## x.y.z` heading above its tag.",
+  "parent_confidence": 80,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": false,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 12,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 55366,
+     "requests": 4,
+     "cost_usd": 0.00302,
+     "s": 12
+    },
+    "child_trace": "child: 3 tool calls (read x3), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 12,
+  "parent_wall_s": 14,
+  "wall_s": 26,
+  "error": null,
+  "cost_usd": 0.0752,
+  "turns": 3,
+  "reply": "6.1.1\n10.7.2\n11.4.0\n17.1.0\n18.0.4\n19.1.4\n27.4.0",
+  "tools": {
+   "Bash": 1,
+   "Grep": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11019
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 712,
+    "cache_read": 66398,
+    "cache_write": 15369,
+    "cost_usd": 0.07524779999999999
+   }
+  },
+  "api_ms": 9877,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 5248,
+  "peak_ctx": 29888,
+  "tokens": {
+   "input": 6,
+   "cache_write": 15369,
+   "cache_read": 66398,
+   "output": 712
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 55366,
+  "child_cost_usd": 0.00302,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "summarise_changelog_breaking",
+  "bucket": "summarise",
+  "workload": "summarise",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "missing": [],
+   "extra": []
+  },
+  "answer": "6.1.1\n10.7.2\n11.4.0\n17.1.0\n18.0.4\n19.1.4\n27.4.0",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 9,
+  "wall_s": 9,
+  "error": null,
+  "cost_usd": 0.0086,
+  "turns": 3,
+  "reply": "6.1.1\n10.7.2\n11.4.0\n17.1.0\n18.0.4\n19.1.4\n27.4.0",
+  "tools": {
+   "Grep": 1,
+   "Read": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11755
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 4,
+    "output": 591,
+    "cache_read": 40789,
+    "cache_write": 39575,
+    "cost_usd": 0.008618790000000001
+   }
+  },
+  "api_ms": 4942,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 63150,
+  "peak_ctx": 54094,
+  "tokens": {
+   "input": 4,
+   "cache_write": 39575,
+   "cache_read": 40789,
+   "output": 591
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "wrangle_orders_revenue",
+  "bucket": "data_wrangle",
+  "workload": "data_wrangle",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"central\": 10462.36, \"east\": 14345.3, \"north\": 11960.25, \"overseas\": 12161.8, \"south\": 9457.58, \"west\": 11821.74}",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 19,
+  "wall_s": 19,
+  "error": null,
+  "cost_usd": 0.0675,
+  "turns": 4,
+  "reply": "{\"central\": 10462.36, \"east\": 14345.3, \"north\": 11960.25, \"overseas\": 12161.8, \"south\": 9457.58, \"west\": 11821.74}",
+  "tools": {
+   "Bash": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "other": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10961
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 8,
+    "output": 754,
+    "cache_read": 93005,
+    "cache_write": 12665,
+    "cost_usd": 0.06751650000000001
+   }
+  },
+  "api_ms": 13692,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 1058,
+  "peak_ctx": 27184,
+  "tokens": {
+   "input": 8,
+   "cache_write": 12665,
+   "cache_read": 93005,
+   "output": 754
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "wrangle_orders_revenue",
+  "bucket": "data_wrangle",
+  "workload": "data_wrangle",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"central\": 10462.36, \"east\": 14345.30, \"north\": 11960.25, \"overseas\": 12161.80, \"south\": 9457.58, \"west\": 11821.74}",
+  "child_answer": "{\"central\": 10462.36, \"east\": 14345.30, \"north\": 11960.25, \"overseas\": 12161.80, \"south\": 9457.58, \"west\": 11821.74}\n\nSource: `orders.csv` in the worktree root (5,000 data rows, 5 fields each, statuses exactly cancelled/pending/returned/shipped, no quoted fields). Totals computed with awk over rows where status = `shipped` and date is between 2025-07-01 and 2025-09-30 inclusive.",
+  "parent_confidence": 80,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": false,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 14,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 110662,
+     "requests": 4,
+     "cost_usd": 0.00717,
+     "s": 14
+    },
+    "child_trace": "child: 3 tool calls (read x2, run x1), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 14,
+  "parent_wall_s": 17,
+  "wall_s": 31,
+  "error": null,
+  "cost_usd": 0.07,
+  "turns": 3,
+  "reply": "{\"central\": 10462.36, \"east\": 14345.30, \"north\": 11960.25, \"overseas\": 12161.80, \"south\": 9457.58, \"west\": 11821.74}",
+  "tools": {
+   "Bash": 2
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11039
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 1210,
+    "cache_read": 66531,
+    "cache_write": 12813,
+    "cost_usd": 0.0700171
+   }
+  },
+  "api_ms": 11607,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 1205,
+  "peak_ctx": 27332,
+  "tokens": {
+   "input": 6,
+   "cache_write": 12813,
+   "cache_read": 66531,
+   "output": 1210
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 110662,
+  "child_cost_usd": 0.00717,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "wrangle_orders_revenue",
+  "bucket": "data_wrangle",
+  "workload": "data_wrangle",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"central\": 10462.36, \"east\": 14345.30, \"north\": 11960.25, \"overseas\": 12161.80, \"south\": 9457.58, \"west\": 11821.74}",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 15,
+  "wall_s": 15,
+  "error": null,
+  "cost_usd": 0.0042,
+  "turns": 4,
+  "reply": "{\"central\": 10462.36, \"east\": 14345.30, \"north\": 11960.25, \"overseas\": 12161.80, \"south\": 9457.58, \"west\": 11821.74}",
+  "tools": {
+   "Bash": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11784
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 8,
+    "output": 967,
+    "cache_read": 95809,
+    "cache_write": 13727,
+    "cost_usd": 0.00418779
+   }
+  },
+  "api_ms": 9652,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 992,
+  "peak_ctx": 28246,
+  "tokens": {
+   "input": 8,
+   "cache_write": 13727,
+   "cache_read": 95809,
+   "output": 967
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "wrangle_events_conversion",
+  "bucket": "data_wrangle",
+  "workload": "data_wrangle",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"users\": 299, \"median_hours\": 11.22}",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 14,
+  "wall_s": 14,
+  "error": null,
+  "cost_usd": 0.0674,
+  "turns": 4,
+  "reply": "{\"users\": 299, \"median_hours\": 11.22}",
+  "tools": {
+   "Bash": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10998
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 8,
+    "output": 768,
+    "cache_read": 93015,
+    "cache_write": 12603,
+    "cost_usd": 0.06740950000000001
+   }
+  },
+  "api_ms": 8220,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 804,
+  "peak_ctx": 27122,
+  "tokens": {
+   "input": 8,
+   "cache_write": 12603,
+   "cache_read": 93015,
+   "output": 768
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "wrangle_events_conversion",
+  "bucket": "data_wrangle",
+  "workload": "data_wrangle",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"users\": 299, \"median_hours\": 11.22}",
+  "child_answer": "{\"users\": 299, \"median_hours\": 11.22}",
+  "parent_confidence": 70,
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "needs_web": false,
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 12,
+    "applied": null,
+    "verify": null,
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 94239,
+     "requests": 3,
+     "cost_usd": 0.00694,
+     "s": 12
+    },
+    "child_trace": "child: 2 tool calls (read x1, run x1), 0 failed, 0 test runs",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "gruntly_wall_s": 12,
+  "parent_wall_s": 12,
+  "wall_s": 24,
+  "error": null,
+  "cost_usd": 0.0587,
+  "turns": 2,
+  "reply": "{\"users\": 299, \"median_hours\": 11.22}",
+  "tools": {
+   "Bash": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11081
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 4,
+    "output": 688,
+    "cache_read": 40115,
+    "cache_write": 11944,
+    "cost_usd": 0.058675500000000005
+   }
+  },
+  "api_ms": 7471,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 558,
+  "peak_ctx": 26463,
+  "tokens": {
+   "input": 4,
+   "cache_write": 11944,
+   "cache_read": 40115,
+   "output": 688
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   null
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 94239,
+  "child_cost_usd": 0.00694,
+  "reviewer_cost_usd": 0.0
+ },
+ {
+  "task": "wrangle_events_conversion",
+  "bucket": "data_wrangle",
+  "workload": "data_wrangle",
+  "arm": "haiku_alone",
+  "rep": 1,
+  "passed": true,
+  "score": 1.0,
+  "grade": {
+   "wrong": [],
+   "extra_keys": []
+  },
+  "answer": "{\"users\": 299, \"median_hours\": 11.22}",
+  "child_answer": "",
+  "parent_confidence": null,
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "needs_web": false,
+  "gruntly": [],
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 16,
+  "wall_s": 16,
+  "error": null,
+  "cost_usd": 0.0044,
+  "turns": 4,
+  "reply": "{\"users\": 299, \"median_hours\": 11.22}",
+  "tools": {
+   "Bash": 3
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11821
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 8,
+    "output": 1226,
+    "cache_read": 96070,
+    "cache_write": 14091,
+    "cost_usd": 0.0043927
+   }
+  },
+  "api_ms": 10004,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 1070,
+  "peak_ctx": 28610,
+  "tokens": {
+   "input": 8,
+   "cache_write": 14091,
+   "cache_read": 96070,
+   "output": 1226
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "final_patch": {
+   "lines_added": 0,
+   "lines_removed": 0,
+   "files": 0
+  },
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0.0
+ }
+]

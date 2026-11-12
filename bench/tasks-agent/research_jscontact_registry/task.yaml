@@ -1,0 +1,12 @@
+workload: web_research
+needs_web: true
+prompt: Which 2026 RFC creates an IANA registry named 'JSContact Profiles'? What registration policy applies to defining a new profile
+  name or version, and what fields must every entry in that registry have?
+format: 'Reply with only a JSON list. Each item is {"fact": "<one claim, in your words>", "url": "<the page you read it on>", "quote":
+  "<words copied exactly from that page, at least 20 characters>"}. Every claim needs its own source and quote.'
+grader:
+  type: facts_cites
+  facts:
+  - rfc ?10050
+  - specification required
+  - (?=.*\bname\b)(?=.*\bversion\b)(?=.*\breference\b)

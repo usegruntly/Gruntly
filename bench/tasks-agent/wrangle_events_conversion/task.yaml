@@ -1,0 +1,12 @@
+workload: data_wrangle
+needs_web: false
+prompt: events.jsonl has one event per line (user, event, ts in UTC). For each user with a 'signup' event, look for a 'purchase' by
+  the same user between 0 and 24 hours (inclusive) after the signup. Count the users that have at least one, and give the median, over
+  those users, of the hours between the signup and their earliest such purchase, rounded to 2 decimals.
+format: 'Reply with only one JSON object, no prose: {"users": <count>, "median_hours": <number>}'
+grader:
+  type: json
+  expected:
+    users: 299
+    median_hours: 11.22
+  tol: 0.01

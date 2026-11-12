@@ -1,0 +1,1 @@
+{"users": 299, "median_hours": 11.22}

@@ -1,0 +1,8 @@
+brief: Implement parse_content_range(value) in content_range.py following RFC 9110 section 14.4 (the Content-Range field), from https://www.rfc-editor.org/rfc/rfc9110.txt.
+  Return a dict with the keys unit, first, last, length (ints, or None for what the value does not say). Raise ValueError for a value
+  that is malformed or that the RFC defines as invalid. Read the RFC for the forms the field can take and for what makes a value invalid.
+allowed_paths:
+- content_range.py
+acceptance:
+- cmd: python -m pytest -q test_content_range.py
+  timeout_s: 120

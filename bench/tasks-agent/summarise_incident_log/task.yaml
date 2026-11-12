@@ -1,0 +1,14 @@
+workload: summarise
+needs_web: false
+prompt: 'server.log is a two-hour log from one deployment. Some services logged an entry at level FATAL. Find which services did, the
+  time (HH:MM:SS) of each service''s first FATAL entry, and the root cause: the error code of the earliest ERROR line in the whole log
+  whose code is the one the FATAL entries give up on.'
+format: 'Reply with only one JSON object, no prose: {"fatal": {"<service>": "HH:MM:SS", ...}, "root_cause": "E...."}'
+grader:
+  type: json
+  expected:
+    fatal:
+      payments: '14:07:48'
+      inventory: '14:08:02'
+      auth: '14:08:15'
+    root_cause: E4471

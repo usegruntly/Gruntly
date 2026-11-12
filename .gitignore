@@ -11,3 +11,4 @@ logs/
 bench/runs-*/
 
 bench/.cache/
+bench/tasks-agent/*/work/

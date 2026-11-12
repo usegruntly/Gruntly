@@ -1,0 +1,139 @@
+[
+ {
+  "task": "retry_after_rfc",
+  "bucket": "S",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 12,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "............                                                             [100%]\n12 passed in 0.02s"
+  },
+  "final_patch": {
+   "lines_added": 83,
+   "lines_removed": 1,
+   "files": 1
+  },
+  "gruntly": [],
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 38,
+  "wall_s": 38,
+  "error": null,
+  "cost_usd": 0.0083,
+  "turns": 7,
+  "reply": "Implemented `parse_retry_after` in `retry_after.py` per RFC 9110 \u00a710.2.3 and \u00a75.6.7: delay-seconds, plus all three HTTP-date forms (IMF-fixdate, RFC 850 with two-digit-year windowing, asctime).\n`python -m pytest -q test_retry_after.py` passes (2 passed); I also spot-checked the three date forms, past dates \u2192 0.0, and bad input raising ValueError.",
+  "tools": {
+   "Bash": 5,
+   "Write": 1
+  },
+  "parent_edits_total": 1,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11838
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 10,
+    "output": 5470,
+    "cache_read": 131160,
+    "cache_write": 21413,
+    "cost_usd": 0.0083302
+   }
+  },
+  "api_ms": 28946,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 8026,
+  "peak_ctx": 35932,
+  "tokens": {
+   "input": 10,
+   "cache_write": 21413,
+   "cache_read": 131160,
+   "output": 5470
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "content_range_rfc",
+  "bucket": "S",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 12,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "............                                                             [100%]\n12 passed in 0.02s"
+  },
+  "final_patch": {
+   "lines_added": 51,
+   "lines_removed": 1,
+   "files": 1
+  },
+  "gruntly": [],
+  "parent_model": "haiku",
+  "child_harness": null,
+  "child_model": null,
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 34,
+  "wall_s": 34,
+  "error": null,
+  "cost_usd": 0.0078,
+  "turns": 6,
+  "reply": "Implemented `parse_content_range` in `content_range.py` per RFC 9110 \u00a714.4; `python -m pytest -q test_content_range.py` passes (1 passed, one pytest warning unrelated to the code).\nIt rejects `last-pos < first-pos` and `complete-length <= last-pos`, returns `unit` lowercased (RFC 14.1 says unit names are case-insensitive), and strips surrounding spaces/tabs before parsing.",
+  "tools": {
+   "Bash": 5
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11811
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-haiku-5-5": {
+    "input": 12,
+    "output": 4260,
+    "cache_read": 162860,
+    "cache_write": 20240,
+    "cost_usd": 0.007807800000000001
+   }
+  },
+  "api_ms": 26372,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 8640,
+  "peak_ctx": 34759,
+  "tokens": {
+   "input": 12,
+   "cache_write": 20240,
+   "cache_read": 162860,
+   "output": 4260
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0
+ }
+]

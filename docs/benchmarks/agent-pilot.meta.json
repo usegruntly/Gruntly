@@ -1,0 +1,133 @@
+[
+ {
+  "started": "2026-11-12 16:49:59",
+  "argv": [
+   "--tasks",
+   "fetch_rfc6455_opcodes",
+   "--arms",
+   "alone,forced,haiku_alone",
+   "--out",
+   "docs/benchmarks/agent-pilot.md",
+   "--max-total-usd",
+   "1.0"
+  ],
+  "args": {
+   "tasks": "fetch_rfc6455_opcodes",
+   "arms": "alone,forced,haiku_alone",
+   "reps": 1,
+   "parent_model": "sonnet",
+   "child_harness": "claude",
+   "child_model": "haiku",
+   "child_budget_s": 900,
+   "child_idle_s": 300,
+   "runs_dir": "runs-agent",
+   "budget_usd": 0.8,
+   "max_total_usd": 1.0,
+   "resume": false,
+   "out": "docs/benchmarks/agent-pilot.md"
+  },
+  "gruntly_commit": "2842b29",
+  "tree_dirty": true,
+  "claude": "2.1.322 (Claude Code)",
+  "python": "3.14.9",
+  "plugin_version": "0.12.0",
+  "pytest": "pytest 9.2.0",
+  "prices_per_mtok": {
+   "sonnet-5.5": {
+    "input": 2.0,
+    "output": 10.0,
+    "cache_read": 0.1,
+    "cache_write_1h": 4.0
+   }
+  },
+  "note": "costs are Claude Code's own total_cost_usd (parent) and the CLI's total_cost_usd per child attempt; API-equivalent dollars"
+ },
+ {
+  "started": "2026-11-12 16:53:27",
+  "argv": [
+   "--resume",
+   "--tasks",
+   "read_invoke_callers,fetch_rfc9995_cose_labels,research_oauth_audience",
+   "--arms",
+   "alone,forced,haiku_alone",
+   "--out",
+   "docs/benchmarks/agent-pilot.md",
+   "--max-total-usd",
+   "2.0"
+  ],
+  "args": {
+   "tasks": "read_invoke_callers,fetch_rfc9995_cose_labels,research_oauth_audience",
+   "arms": "alone,forced,haiku_alone",
+   "reps": 1,
+   "parent_model": "sonnet",
+   "child_harness": "claude",
+   "child_model": "haiku",
+   "child_budget_s": 900,
+   "child_idle_s": 300,
+   "runs_dir": "runs-agent",
+   "budget_usd": 0.8,
+   "max_total_usd": 2.0,
+   "resume": true,
+   "out": "docs/benchmarks/agent-pilot.md"
+  },
+  "gruntly_commit": "2842b29",
+  "tree_dirty": true,
+  "claude": "2.1.322 (Claude Code)",
+  "python": "3.14.9",
+  "plugin_version": "0.12.0",
+  "pytest": "pytest 9.2.0",
+  "prices_per_mtok": {
+   "sonnet-5.5": {
+    "input": 2.0,
+    "output": 10.0,
+    "cache_read": 0.1,
+    "cache_write_1h": 4.0
+   }
+  },
+  "note": "costs are Claude Code's own total_cost_usd (parent) and the CLI's total_cost_usd per child attempt; API-equivalent dollars"
+ },
+ {
+  "started": "2026-11-12 16:57:54",
+  "argv": [
+   "--resume",
+   "--tasks",
+   "read_paramtype_names,fetch_rfc10075_snac_bit,research_jscontact_registry,summarise_incident_log,summarise_changelog_breaking,wrangle_orders_revenue,wrangle_events_conversion",
+   "--arms",
+   "alone,forced,haiku_alone",
+   "--out",
+   "docs/benchmarks/agent-pilot.md",
+   "--max-total-usd",
+   "4.5"
+  ],
+  "args": {
+   "tasks": "read_paramtype_names,fetch_rfc10075_snac_bit,research_jscontact_registry,summarise_incident_log,summarise_changelog_breaking,wrangle_orders_revenue,wrangle_events_conversion",
+   "arms": "alone,forced,haiku_alone",
+   "reps": 1,
+   "parent_model": "sonnet",
+   "child_harness": "claude",
+   "child_model": "haiku",
+   "child_budget_s": 900,
+   "child_idle_s": 300,
+   "runs_dir": "runs-agent",
+   "budget_usd": 0.8,
+   "max_total_usd": 4.5,
+   "resume": true,
+   "out": "docs/benchmarks/agent-pilot.md"
+  },
+  "gruntly_commit": "2842b29",
+  "tree_dirty": true,
+  "claude": "2.1.322 (Claude Code)",
+  "python": "3.14.9",
+  "plugin_version": "0.12.0",
+  "pytest": "pytest 9.2.0",
+  "prices_per_mtok": {
+   "sonnet-5.5": {
+    "input": 2.0,
+    "output": 10.0,
+    "cache_read": 0.1,
+    "cache_write_1h": 4.0
+   }
+  },
+  "note": "costs are Claude Code's own total_cost_usd (parent) and the CLI's total_cost_usd per child attempt; API-equivalent dollars"
+ }
+]

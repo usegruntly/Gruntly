@@ -1,0 +1,15 @@
+workload: summarise
+needs_web: false
+prompt: CHANGELOG.md has an entry per release. Some entries carry an entry tagged exactly [BREAKING]. Which versions have one? Mentions
+  of the word breaking in other entries do not count.
+format: One version number per line, for example `2.4.1`. Nothing else.
+grader:
+  type: lines
+  lines:
+  - 6.1.1
+  - 10.7.2
+  - 11.4.0
+  - 17.1.0
+  - 18.0.4
+  - 19.1.4
+  - 27.4.0

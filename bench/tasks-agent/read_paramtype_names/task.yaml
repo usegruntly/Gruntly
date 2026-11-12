@@ -1,0 +1,15 @@
+workload: code_reading
+needs_web: false
+prompt: In this repository's src/click/types.py, find every class that directly subclasses ParamType (it is named in the class's own
+  bases), and for each one the string value of its class attribute `name`. Skip classes that do not assign a string to `name`.
+format: 'One `ClassName: name` per line, nothing else.'
+grader:
+  type: lines
+  lines:
+  - 'UnprocessedParamType: text'
+  - 'StringParamType: text'
+  - 'Choice: choice'
+  - 'DateTime: datetime'
+  - 'BoolParamType: boolean'
+  - 'UUIDParameterType: uuid'
+  - 'File: filename'

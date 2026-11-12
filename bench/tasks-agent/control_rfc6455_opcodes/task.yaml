@@ -1,0 +1,24 @@
+workload: memorised_control
+needs_web: true
+prompt: RFC 6455 (the WebSocket protocol, https://www.rfc-editor.org/rfc/rfc6455.txt), section 5.2, defines the values of the frame
+  opcode. List the opcodes that the RFC gives a meaning to (leave out the ranges it only reserves).
+format: One per line as `0xN meaning`, using one of the words continuation, text, binary, close, ping, pong. Nothing else.
+grader:
+  type: regex_set
+  regex: 0x([0-9a-f]+)\W+(continuation|text|binary|close|ping|pong)
+  cast:
+  - int16
+  - lower
+  expected:
+  - - 0
+    - continuation
+  - - 1
+    - text
+  - - 2
+    - binary
+  - - 8
+    - close
+  - - 9
+    - ping
+  - - 10
+    - pong

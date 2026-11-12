@@ -1,0 +1,15 @@
+workload: data_wrangle
+needs_web: false
+prompt: orders.csv has one row per order. Compute the total amount per region for orders whose status is exactly 'shipped' and whose
+  date is between 2025-07-01 and 2025-09-30 inclusive. Round each total to 2 decimals.
+format: 'Reply with only one JSON object, no prose: {"<region>": <total>, ...} with every region of the file'
+grader:
+  type: json
+  expected:
+    north: 11960.25
+    south: 9457.58
+    east: 14345.3
+    west: 11821.74
+    central: 10462.36
+    overseas: 12161.8
+  tol: 0.01

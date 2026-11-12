@@ -1,0 +1,373 @@
+[
+ {
+  "task": "retry_after_rfc",
+  "bucket": "S",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 12,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "............                                                             [100%]\n12 passed in 0.03s"
+  },
+  "final_patch": {
+   "lines_added": 92,
+   "lines_removed": 2,
+   "files": 1
+  },
+  "gruntly": [],
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 139,
+  "wall_s": 139,
+  "error": null,
+  "cost_usd": 0.3471,
+  "turns": 18,
+  "reply": "`parse_retry_after` is in `retry_after.py`, and `python -m pytest -q test_retry_after.py` gives 2 passed. I also ran my own edge cases outside the repo, and they all passed.\n\nIt accepts digits-only delay-seconds and all three case-sensitive HTTP-date forms: IMF-fixdate, RFC 850 (with the 50-year two-digit-year rule) and asctime (including the space-padded day). It treats `:60` seconds as a leap second, floors past dates at 0.0, and raises `ValueError` for anything else. It does not check that th",
+  "tools": {
+   "Glob": 1,
+   "Read": 2,
+   "Agent": 1,
+   "WebFetch": 1,
+   "Bash": 8,
+   "Grep": 2,
+   "Write": 1,
+   "Edit": 2
+  },
+  "parent_edits_total": 3,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11018
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 30,
+    "output": 16199,
+    "cache_read": 515090,
+    "cache_write": 33143,
+    "cost_usd": 0.34613099999999997
+   },
+   "claude-haiku-5-5": {
+    "input": 4,
+    "output": 814,
+    "cache_read": 3476,
+    "cache_write": 4086,
+    "cost_usd": 0.00095291
+   }
+  },
+  "api_ms": 130737,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 13048,
+  "peak_ctx": 47662,
+  "tokens": {
+   "input": 30,
+   "cache_write": 33143,
+   "cache_read": 515090,
+   "output": 16199
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "retry_after_rfc",
+  "bucket": "S",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 12,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "............                                                             [100%]\n12 passed in 0.02s"
+  },
+  "final_patch": {
+   "lines_added": 111,
+   "lines_removed": 1,
+   "files": 1
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 25,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 57731,
+     "requests": 5,
+     "cost_usd": 0.0046,
+     "s": 23
+    },
+    "child_trace": "child: 4 tool calls (read x2, edit x1, run x1), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "retry_after.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 25,
+  "parent_wall_s": 20,
+  "wall_s": 45,
+  "error": null,
+  "cost_usd": 0.0792,
+  "turns": 3,
+  "reply": "Gruntly's child agent wrote `parse_retry_after` in `retry_after.py`, and `python -m pytest -q test_retry_after.py` passes. It accepts delay-seconds and all three HTTP-date formats, including RFC 850's two-digit year rule, and gives 0.0 for past dates.\nThe change is uncommitted, and I read the truncated part of the diff and found nothing wrong.",
+  "tools": {
+   "Bash": 1,
+   "Read": 1
+  },
+  "parent_edits_total": 0,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11038
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 6,
+    "output": 1270,
+    "cache_read": 68587,
+    "cache_write": 14897,
+    "cost_usd": 0.07915869999999998
+   }
+  },
+  "api_ms": 14078,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 5480,
+  "peak_ctx": 29416,
+  "tokens": {
+   "input": 6,
+   "cache_write": 14897,
+   "cache_read": 68587,
+   "output": 1270
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   true
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   591
+  ],
+  "child_tokens": 57731,
+  "child_cost_usd": 0.0046,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "content_range_rfc",
+  "bucket": "S",
+  "arm": "alone",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 12,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "............                                                             [100%]\n12 passed in 0.02s"
+  },
+  "final_patch": {
+   "lines_added": 51,
+   "lines_removed": 1,
+   "files": 1
+  },
+  "gruntly": [],
+  "parent_model": "sonnet",
+  "child_harness": null,
+  "child_model": null,
+  "gruntly_wall_s": 0,
+  "parent_wall_s": 60,
+  "wall_s": 60,
+  "error": null,
+  "cost_usd": 0.1523,
+  "turns": 11,
+  "reply": "`parse_content_range` is in `content_range.py`, and `python -m pytest -q test_content_range.py` passes (1 test, which only covers `bytes 0-499/1234`). I also probed it by hand: `bytes 42-1233/*` and `bytes */1234` parse correctly, and the invalid and malformed values I tried all raise `ValueError`.\nWebFetch was blocked, so I fetched the RFC with curl and read \u00a714.4 and \u00a714.1. The parser accepts the three forms (`first-last/length`, `first-last/*`, `*/length`) and rejects `last < first` and `leng",
+  "tools": {
+   "Glob": 1,
+   "Read": 2,
+   "Agent": 1,
+   "WebFetch": 1,
+   "Bash": 5,
+   "Write": 1
+  },
+  "parent_edits_total": 1,
+  "gruntly_calls": {},
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 10987
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 18,
+    "output": 4526,
+    "cache_read": 254607,
+    "cache_write": 20227,
+    "cost_usd": 0.15166469999999999
+   },
+   "claude-haiku-5-5": {
+    "input": 4,
+    "output": 837,
+    "cache_read": 5952,
+    "cache_write": 1503,
+    "cost_usd": 0.000666295
+   }
+  },
+  "api_ms": 52700,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 0,
+  "tool_output_bytes": 11464,
+  "peak_ctx": 34746,
+  "tokens": {
+   "input": 18,
+   "cache_write": 20227,
+   "cache_read": 254607,
+   "output": 4526
+  },
+  "gruntly_status": [],
+  "gruntly_applied": [],
+  "gruntly_attempts": [],
+  "gruntly_result_chars": [],
+  "child_tokens": 0,
+  "child_cost_usd": 0,
+  "reviewer_cost_usd": 0
+ },
+ {
+  "task": "content_range_rfc",
+  "bucket": "S",
+  "arm": "forced",
+  "rep": 1,
+  "passed": true,
+  "judge": {
+   "cases_passed": 12,
+   "cases_failed": 0,
+   "cases_error": 0,
+   "failed": [],
+   "tail": "............                                                             [100%]\n12 passed in 0.02s"
+  },
+  "final_patch": {
+   "lines_added": 72,
+   "lines_removed": 1,
+   "files": 1
+  },
+  "gruntly": [
+   {
+    "status": "passed",
+    "attempts": 1,
+    "wall_s": 19,
+    "applied": true,
+    "verify": "unchanged",
+    "child": {
+     "harness": "claude",
+     "model": "haiku",
+     "provider": "local",
+     "tokens": 53529,
+     "requests": 5,
+     "cost_usd": 0.00335,
+     "s": 17
+    },
+    "child_trace": "child: 4 tool calls (read x2, edit x1, run x1), 0 failed, 1 test run",
+    "failed_gates": [],
+    "reason": null,
+    "files_touched": [
+     "content_range.py"
+    ],
+    "review_hint": null,
+    "warnings": null
+   }
+  ],
+  "parent_model": "sonnet",
+  "child_harness": "claude",
+  "child_model": "haiku",
+  "gruntly_wall_s": 19,
+  "parent_wall_s": 47,
+  "wall_s": 66,
+  "error": null,
+  "cost_usd": 0.1068,
+  "turns": 8,
+  "reply": "`parse_content_range` is in `content_range.py`, written by the gruntly child, and `python -m pytest -q test_content_range.py` passes (1 test). The child accepted `bytes */*`, which RFC 9110's `unsatisfied-range = \"*/\" complete-length` doesn't allow, so I fixed that myself.\nThe function raises `ValueError` for `*/*`, last-pos below first-pos, and complete-length at or below last-pos, and the changes are uncommitted in the working tree.",
+  "tools": {
+   "Bash": 4,
+   "Edit": 2,
+   "Read": 1
+  },
+  "parent_edits_total": 2,
+  "gruntly_calls": {
+   "agent-run": 1
+  },
+  "first_call": {
+   "cache_read": 14517,
+   "cache_write": 11012
+  },
+  "cold_start": false,
+  "model_usage": {
+   "claude-sonnet-5-5": {
+    "input": 12,
+    "output": 2633,
+    "cache_read": 155808,
+    "cache_write": 16208,
+    "cost_usd": 0.1067668
+   }
+  },
+  "api_ms": 41231,
+  "sessions": 1,
+  "background_calls": 0,
+  "takeover_edits": 2,
+  "tool_output_bytes": 5867,
+  "peak_ctx": 30727,
+  "tokens": {
+   "input": 12,
+   "cache_write": 16208,
+   "cache_read": 155808,
+   "output": 2633
+  },
+  "gruntly_status": [
+   "passed"
+  ],
+  "gruntly_applied": [
+   true
+  ],
+  "gruntly_attempts": [
+   1
+  ],
+  "gruntly_result_chars": [
+   593
+  ],
+  "child_tokens": 53529,
+  "child_cost_usd": 0.00335,
+  "reviewer_cost_usd": 0
+ }
+]

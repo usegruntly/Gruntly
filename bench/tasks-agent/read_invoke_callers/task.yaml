@@ -1,0 +1,12 @@
+workload: code_reading
+needs_web: false
+prompt: In this repository's src/click/core.py, list every method of every class that calls invoke(...) anywhere in its body (a call
+  on any object counts, e.g. ctx.invoke(...) or self.invoke(...)). Do not include module-level functions or calls in other files.
+format: One `ClassName.method_name` per line, nothing else.
+grader:
+  type: lines
+  lines:
+  - Command.invoke
+  - Command.main
+  - Context.forward
+  - Group.invoke
