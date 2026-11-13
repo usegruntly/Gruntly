@@ -77,6 +77,7 @@ def test_the_registry_knows_claude_and_names_what_is_known_when_asked_for_anothe
     assert "claude" in parents.names() and isinstance(parents.get_parent("claude"), claude.ClaudeParent)
     with pytest.raises(ValueError, match="unknown parent harness 'nope'; known: claude"):
         parents.get_parent("nope")
+    monkeypatch.setattr(parents, "table", lambda: {"claude": claude.ClaudeParent})              # isolate from the other registered harnesses
     monkeypatch.setattr(claude.ClaudeParent, "detect", lambda self: Detection(False))
     assert parents.pick_installed() is None
     monkeypatch.setattr(claude.ClaudeParent, "detect", lambda self: Detection(True, "x"))

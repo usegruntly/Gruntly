@@ -354,7 +354,10 @@ def run_agent(task: str, model: str | None = None, fallback: bool = True, cwd: P
     parent runs as a working session that is told what the local child tried. `working`: the parent does the job itself, no gruntly, no fallback."""
     adapter = parents.get_parent(parent)
     parents_base.check_mode(mode)
-    r = parents_base.run(adapter, task, mode, model, provider, cwd, timeout_s)
+    r = parents_base.run(adapter, prompts.working_task(task) if mode == "working" else task, mode, model, provider, cwd, timeout_s)
+    if r.returncode == 2 and r.command is None:               # the launch could not be built (for example no key for the provider)
+        print(f"[gruntly agent] {r.outcome.final_message}", file=sys.stderr)
+        return 2
     for note in (r.command.notes if r.command else []):
         print(f"[gruntly agent] note: {note}", file=sys.stderr)
     if r.returncode == 127:                                    # the harness is not installed: say how, do not fall back to itself

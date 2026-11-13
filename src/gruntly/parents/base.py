@@ -82,7 +82,10 @@ def run(adapter: ParentAdapter, task: str, mode: str, model: str | None = None, 
         timeout_s: int = 900, structured: bool = False, env: dict | None = None) -> RunResult:
     """Launch a parent: write its files, give it the task on stdin, wait, read the result. A missing harness or a timeout is an error
     outcome with the reason in `final_message`, not an exception."""
-    cmd = adapter.command(task, mode, model, provider, structured)
+    try:
+        cmd = adapter.command(task, mode, model, provider, structured)
+    except ValueError as e:                    # a launch that cannot be built (no key for the provider, no model): say why, do not raise
+        return RunResult(ParentOutcome(str(e), True), 2, "", "", None)
     base = Path(cwd) if cwd else Path.cwd()
     for rel, text in cmd.files.items():
         p = Path(rel) if Path(rel).is_absolute() else base / rel

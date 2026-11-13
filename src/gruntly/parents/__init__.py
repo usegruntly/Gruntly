@@ -6,7 +6,8 @@ from .base import MODES, ParentAdapter, ParentCaps, ParentCommand, ParentOutcome
 
 def table() -> dict[str, type]:
     from .claude import ClaudeParent
-    return {"claude": ClaudeParent}
+    from .opencode import OpenCodeParent
+    return {"claude": ClaudeParent, "opencode": OpenCodeParent}
 
 
 def names() -> list[str]:
