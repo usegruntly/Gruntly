@@ -69,9 +69,9 @@ def build_server() -> "FastMCP":
     def gruntly_manage(run_id: str, action: str, repo: str | None = None, file: str | None = None,
                        guidance: str | None = None, branch: str | None = None) -> dict | str:
         """Operate on an earlier run. action: wait (blocks up to 240 s for a running run) | status | result | diff (stat, or one `file`) | apply (never commits;
-        `branch` applies onto a new branch) | discard | continue (needs `guidance`: relays to a fresh child in the same
+        `branch` applies onto a new branch) | discard | restore (puts back files the child changed in your own tree, only those still as it left them) | continue (needs `guidance`: relays to a fresh child in the same
         worktree seeded with the previous child's handoff notes; use once, only if untrusted.handoff exists)."""
-        if action in ("status", "result", "discard"):
+        if action in ("status", "result", "discard", "restore"):
             return _cli(repo, [action, run_id])
         if action == "wait":
             return _cli(repo, ["wait", run_id, "--timeout", "240"])

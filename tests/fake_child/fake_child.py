@@ -53,6 +53,23 @@ elif scenario == "main_tree":
     fix()
     (main_repo() / "leaked.txt").write_text("written through an absolute path\n")
     print("done")
+elif scenario == "main_tree_edit":                  # issue #6: the model found the path of the original checkout and edited a tracked file there
+    fix()
+    p = main_repo() / "calc.py"
+    p.write_text(p.read_text() + "# written into the main tree\n")
+    print("done")
+elif scenario == "main_tree_delete":
+    fix()
+    (main_repo() / "test_calc.py").unlink()
+    print("done")
+elif scenario == "stray_file":                      # issue #6: a file written next to the repository, outside it
+    fix()
+    (main_repo().parent / "stray_fix.py").write_text("x = 1\n")
+    print("done")
+elif scenario == "named_cwd":                       # the prompt must give the exact working directory
+    import re
+    m = re.search(r"Your working directory is (.+?)\. Read and write only inside it", prompt)
+    print("CWD-OK" if m and Path(m.group(1)).resolve() == Path.cwd().resolve() else "CWD-MISSING " + prompt[:160])
 elif scenario == "hang":
     time.sleep(600)
 elif scenario == "hang_noisy":
@@ -117,7 +134,7 @@ elif scenario == "already_done":
     print('{"type":"tool_use","part":{"type":"tool","tool":"read","state":{"status":"completed","input":{"filePath":"calc.py"}}}}')
     print("The task is already done: add() returns a + b, nothing to change.")
 elif scenario == "answer":
-    print("The maintainer is Aaryan Beniwal (source: https://example.test/about).")
+    print("The maintainer is Ada Example (source: https://example.test/about).")
 elif scenario == "server_down":
     print("fetch failed: ECONNREFUSED 127.0.0.1:1234", file=sys.stderr)
     sys.exit(1)

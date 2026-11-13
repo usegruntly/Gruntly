@@ -14,6 +14,10 @@ def check(spec, wt: Path, base: str, root: Path, main_fp_before: str | None) -> 
             violations.append(f"denied path: {path}")
         elif not matches_any(path, spec.allowed_paths):
             violations.append(f"outside allowed_paths: {path}")
-    touched = wtmod.changed_between(root, main_fp_before, wtmod.fingerprint(root)) if main_fp_before else []
+    after = wtmod.fingerprint(root) if main_fp_before else None
+    touched = wtmod.changed_between(root, main_fp_before, after) if main_fp_before else []
     violations += [f"main tree modified: {p}" for p in touched]
-    return {"ok": not violations, "violations": violations[:20]}
+    res = {"ok": not violations, "violations": violations[:20]}
+    if touched:             # the runner keeps both trees for `gruntly restore` and takes this key out before the result is built
+        res["main_tree"] = {"before": main_fp_before, "after": after, "paths": touched}
+    return res

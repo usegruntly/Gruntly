@@ -677,6 +677,17 @@ def cmd_apply(a) -> int:
     return 0
 
 
+def cmd_demo(a) -> int:
+    from . import demo
+    return demo.run(live=a.live, keep=a.keep)
+
+
+def cmd_restore(a) -> int:
+    from . import restore
+    out(restore.restore(_root(), a.run, a.dry_run), a.human)
+    return 0
+
+
 def cmd_discard(a) -> int:
     root = _root()
     store.Store.existing(root, a.run)
@@ -1085,7 +1096,9 @@ def cmd_stats(a) -> int:
 
 def cmd_gc(a) -> int:
     root = _root()
-    out({"removed": store.gc(root, lambda rid: wtmod.remove(root, rid))}, a.human)
+    removed = store.gc(root, lambda rid: wtmod.remove(root, rid))
+    wtmod.prune_main_trees(root, store.RETENTION_DAYS)          # the trees `gruntly restore` works from are kept as long as the run records
+    out({"removed": removed}, a.human)
     return 0
 
 
@@ -1112,6 +1125,8 @@ def _hint_on_error(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="gruntly", description="Hand the grunt work to your local model.")
     p.add_argument("--human", action="store_true", help="readable output instead of JSON")
+    from . import __version__
+    p.add_argument("--version", action="version", version=f"gruntly {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def add(name, fn, *args, **flags):
@@ -1143,6 +1158,11 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--stat", action="store_true")
     add("log", cmd_log, "run", tail={"type": int, "default": 40})
     add("apply", cmd_apply, "run", branch={})
+    dm = add("demo", cmd_demo)
+    dm.add_argument("--live", action="store_true", help="run the first task with your configured child, model and provider instead of the stand-in child")
+    dm.add_argument("--keep", action="store_true", help="keep the toy repository to look at")
+    rs = add("restore", cmd_restore, "run")
+    rs.add_argument("--dry-run", action="store_true", help="say what would be put back and change nothing")
     add("discard", cmd_discard, "run")
     add("doctor", cmd_doctor)
     wt = add("watch", cmd_watch)

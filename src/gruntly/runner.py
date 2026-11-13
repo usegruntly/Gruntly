@@ -473,6 +473,7 @@ def _execute_core(st: Store, spec: Spec, root: Path, run_id: str, guidance: str 
         if acceptance.check(spec, wt)["ok"]:
             warnings.append("acceptance already passes before any change: it cannot prove the task was done")
 
+    beside = wtmod.files_beside(root)               # files next to the repository now, to notice one the child writes by walking out of its worktree
     from . import rules as rulesmod
     rules = rulesmod.person_rules(root)             # the person's own rules, noted by the parent in .gruntly/rules.md
     for local in range(1, spec.max_attempts + 1):
@@ -483,11 +484,11 @@ def _execute_core(st: Store, spec: Spec, root: Path, run_id: str, guidance: str 
             break
         notes = redact(handoff_path.read_text(encoding="utf8", errors="replace"), [])[:1500] if handoff_path.exists() else ""
         if local == 1:
-            text = prompt.continuation(spec, notes, guidance, rules) if cont else prompt.first(spec, rules)
+            text = prompt.continuation(spec, notes, guidance, rules, cwd=wt) if cont else prompt.first(spec, rules, cwd=wt)
         elif caps.resume and session:
             text = prompt.retry(spec, last_gate, last_text, notes, "", context_hit)
         else:
-            text = prompt.resume_fresh(spec, last_gate, last_text, notes, "", context_hit, rules)
+            text = prompt.resume_fresh(spec, last_gate, last_text, notes, "", context_hit, rules, cwd=wt)
         cmd = adapter.command(spec, wt, text, session if (local > 1 and caps.resume) else None)
         try:
             cmd = sandbox.wrap(cmd, spec.sandbox_level, wt, root, spec.endpoint)
@@ -565,6 +566,7 @@ def _execute_core(st: Store, spec: Spec, root: Path, run_id: str, guidance: str 
         tg = time.monotonic()
         gates = run_gates(spec, wt, base, root, main_fp, secrets)
         gates_s += time.monotonic() - tg
+        _note_stray_changes(gates, root, run_id, beside, warnings)
         st.write_text(f"attempts/{attempt_no}/diff.patch", redact(wtmod.patch(wt, base), secrets))
         for n, g in gates.items():
             st.write_text(f"attempts/{attempt_no}/gate_{n}.txt", "" if g.get("ok") else redact(_failing_text(n, g), secrets))
@@ -618,6 +620,30 @@ def _execute_core(st: Store, spec: Spec, root: Path, run_id: str, guidance: str 
     return _finish(st, spec, root, status, attempt_no, gates, stats, summary, bundle, t_start, child_s, gates_s,
                    usage, error=error, last_text=last_text, handoff=notes, applied=applied, review_hint=hint,
                    warnings=warnings, escalation=esc)
+
+
+def _note_stray_changes(gates: dict, root: Path, run_id: str, beside: set[str] | None, warnings: list[str]) -> None:
+    """A child that edits the person's own tree (or writes next to it) instead of its worktree: keep what is needed to put it back, and say so in the
+    result (issue #6). The scope gate has already failed the run for the first; the second is only a warning, since gruntly does not look outside the repository."""
+    mt = gates.get("scope", {}).pop("main_tree", None)      # taken out so it never reaches the compact result
+    if mt:
+        try:
+            wtmod.keep_main_tree(root, run_id, mt["before"], mt["after"])
+            fix = f" If you did not edit them yourself, `gruntly restore {run_id}` puts them back."
+        except wtmod.GitError:
+            fix = ""
+        paths = mt["paths"]
+        msg = (f"the child changed {len(paths)} file(s) in your own working tree, outside its worktree: "
+               f"{', '.join(paths[:3])}{' ...' if len(paths) > 3 else ''}.{fix}")
+        if msg not in warnings:
+            warnings.append(msg)
+    now = wtmod.files_beside(root) if beside is not None else None
+    new = sorted(now - beside) if now is not None else []
+    if new:
+        msg = (f"new file(s) appeared next to your repository, outside it: {', '.join(new[:3])}{' ...' if len(new) > 3 else ''}. "
+               "gruntly never touches files outside the repository; remove them if the child made them.")
+        if msg not in warnings:
+            warnings.append(msg)
 
 
 def _review_hint(gates: dict, stats: dict, warnings: list[str], trace: dict | None = None) -> list[str]:

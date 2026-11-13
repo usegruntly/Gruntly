@@ -125,6 +125,44 @@ def remove(root: Path, run_id: str) -> None:
         force_rmtree(state)
 
 
+def keep_main_tree(root: Path, run_id: str, before: str, after: str) -> None:
+    """Hold on to your tree as it was before a run and as the scope gate saw it after the child had changed it, as refs (a bare tree hash is not
+    reachable, so `git gc` may drop it): `gruntly restore` works from these (issue #6)."""
+    for kind, tree in (("before", before), ("after", after)):
+        commit = git(["commit-tree", tree, "-m", f"gruntly main tree {kind}"], root, env=IDENT).stdout.strip()
+        git(["update-ref", f"refs/gruntly/main-{kind}/{run_id}", commit], root)
+
+
+def prune_main_trees(root: Path, days: int) -> int:
+    """Drop the refs `keep_main_tree` made once they are older than the run retention."""
+    import time
+    cutoff = time.time() - days * 86400
+    out = git(["for-each-ref", "--format=%(refname) %(committerdate:unix)", "refs/gruntly/"], root, check=False).stdout
+    n = 0
+    for line in out.splitlines():
+        ref, _, when = line.rpartition(" ")
+        if when.isdigit() and int(when) < cutoff:
+            git(["update-ref", "-d", ref], root, check=False)
+            n += 1
+    return n
+
+
+def files_beside(root: Path) -> set[str] | None:
+    """Names of the files directly in the folder that holds the repository (a child that walks up out of its worktree lands there), or None when
+    the folder is too big to be worth listing. Only a warning is made from this: gruntly never touches anything outside the repository."""
+    try:
+        names: set[str] = set()
+        with os.scandir(Path(root).parent) as it:
+            for i, e in enumerate(it):
+                if i >= 5000:
+                    return None
+                if e.is_file(follow_symlinks=False):
+                    names.add(e.name)
+        return names
+    except OSError:
+        return None
+
+
 def stage_all(wt: Path) -> None:
     git(["add", "-A", "--", ".", *NOISE], wt)
 
