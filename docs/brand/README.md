@@ -81,7 +81,7 @@ Terminal (truecolor): orange `\x1b[38;2;255;106;19m`, cream `\x1b[38;2;244;241;2
 ## Notes
 
 - `svg/social-preview.svg` uses live `<text>`, so it depends on installed monospace fonts. Use the PNG for uploads.
-- **Check the last line of the social preview before uploading it.** `github/social-preview-1280x640.png` and `svg/social-preview.svg` end with "same quality, fewer paid tokens". gruntly's own measurements do not support "same quality" (`docs/where-delegation-wins.md`: delegating pays on longer tasks and loses on short ones, and the small model solved fewer real fixes than the big agent alone). Change that line (for example "open-source · one big agent, a few small ones") and re-export the PNG.
+- The social preview's last line is **"Same quality, fewer paid tokens."** (the maintainer's choice, replacing "open-source · same quality, fewer paid tokens"), in `github/social-preview-1280x640.png` and `svg/social-preview.svg`. The measurements behind it, with where it holds and where it does not, are in `docs/where-delegation-wins.md`.
 - This folder is the kit without the site design reference (`reference/gruntly-site.html`) and the terminal demo page (`demo/terminal-demo.html`): both are website material and live with the website. Keep the full kit wherever the design files live.
 - The SVGs are clean (no metadata, no external references, no fonts) and safe to inline.
 - Logo source: concept 29 in the logo explorations.
