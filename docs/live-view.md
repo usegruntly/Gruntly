@@ -3,7 +3,7 @@
 A delegated run can take minutes. Claude Code only shows the command and then the result, so gruntly records a live feed.
 
 **What is recorded.** `.gruntly/runs/<id>/progress.jsonl`, one line per event, with three actors:
-- `child`: the local/small model: its tool calls (read, edit, run, with a short label such as a path or the start of a command), one line of what it says, and each model call.
+- `child`: the small model (local or hosted): its tool calls (read, edit, run, with a short label such as a path or the start of a command), one line of what it says, and each model call.
 - `gruntly`: its own steps: run started, attempt started, checks passed or failed, waiting on a provider's rate limit, finished.
 - The parent (Claude) is not in the feed: its steps are already in the chat.
 

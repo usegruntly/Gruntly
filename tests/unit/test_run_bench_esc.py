@@ -47,7 +47,7 @@ def test_the_second_phase_runs_a_normal_session_and_judges_again(monkeypatch, tm
     esc, passed, detail, merged, wall = rb.escalate(tmp_path, tmp_path, spec_, A(), tmp_path, "t.lean_esc.1", first, False, {"cases_failed": 3}, 40)
     cmd = seen["cmd"]
     assert "--system-prompt" not in cmd and "--tools" not in cmd and "Write" in cmd and "Edit" in cmd        # the normal session, as in `alone`
-    assert "A local model tried this first" in seen["input"] and "stuck after two rounds (run r_9)" in seen["input"] and "Fix add()." in seen["input"]
+    assert "A small model tried this first" in seen["input"] and "stuck after two rounds (run r_9)" in seen["input"] and "Fix add()." in seen["input"]
     assert esc["triggered"] and esc["pass_before"] is False and esc["pass_after"] is True and esc["rescued"] is True
     assert esc["esc_cost"] == 0.12 and esc["esc_turns"] == 9 and esc["esc_edits"] == 3 and esc["reason"].startswith("stuck after two rounds")
     assert passed is True and detail["cases_passed"] == 8                      # the final outcome is the one after the escalation

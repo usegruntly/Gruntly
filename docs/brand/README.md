@@ -1,8 +1,10 @@
 # gruntly brand kit
 
-Logo: **one big agent, a few small ones.** A charcoal terminal-prompt head (the paid agent) with three small orange heads (the local agents doing the grunt work).
+Logo: **one big agent, a few small ones.** A charcoal terminal-prompt head (the paid agent) with three small orange heads (the small agents doing the grunt work: local, free-tier or hosted).
 
-Tagline: **Hand the grunt work to your local model.**
+Tagline: **Hand the grunt work to small models.** (Working description: one big agent, a few small ones.)
+
+Note: `github/social-preview-1280x640.png` still carries the earlier tagline ("your local model" and "runs locally") as pixels. Regenerate it from the full kit with the new one and upload it by hand (repo Settings, Social preview).
 
 Everything here is final. Use the files as they are. Do not redraw, recolour, retype or add effects (no gradients, glows, shadows, outlines).
 

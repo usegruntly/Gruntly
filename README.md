@@ -4,14 +4,23 @@
     <img alt="gruntly" src="docs/brand/svg/horizontal-color.svg" height="64">
   </picture>
 </p>
-<p align="center"><b>Hand the grunt work to your local model.</b></p>
+<p align="center"><b>Hand the grunt work to small models.</b></p>
 
-Gruntly runs your AI coding agent's tasks on a local harness and checks the result before Claude Code takes it back.
+gruntly lets one big agent get its work done with a few small ones, and checks what they hand back before the big agent takes it.
 
-Your paid agent (the *parent*, e.g. Claude Code) writes a short brief. gruntly hands it to a local-model coding agent (the *child*: OpenCode, Qwen Code, Hermes, Codex CLI, Gemini CLI, Aider or Claude Code) in a throwaway git worktree, runs its **own** checks on the result, and gives back one small JSON. Exploring, code generation and test-fix loops never touch your paid context.
+Your big agent (the *parent*: Claude Code, Codex CLI, Gemini CLI, OpenCode and others) keeps the planning and the judgement. For a bounded, test-backed piece of work it writes a short brief, and gruntly hands it to a small agent (the *child*: a small model driven by a coding-agent harness: OpenCode, Qwen Code, Hermes, Codex CLI, Gemini CLI, Aider or Claude Code) in a throwaway git worktree, runs its **own** checks on the result, and gives back one small JSON. Exploring, code generation and test-fix loops stay out of the big agent's context, where every token is paid for again on each later turn.
+
+**"Small" describes the model, not where it runs.** The small agent's model can be:
+
+- **on your own machine**: LM Studio, Ollama, llama.cpp or vLLM. Free per token, and nothing leaves the machine. This is the example the quickstart below uses;
+- **on a free tier**: NVIDIA, Gemini or OpenRouter's free models. Fine for trying gruntly; their rate limits are often too tight for real work;
+- **on a cheap hosted API**: any provider in the catalog (`gruntly providers`), or any OpenAI-compatible endpoint you add;
+- **a smaller sibling of the big agent**: Claude Haiku as the child of a Claude Code parent.
+
+Each task goes to one small agent; you choose which one with `harness` and `model`. Delegating pays off on longer tasks and loses on short ones (see *When delegating is worth it*).
 
 ```
-parent -- brief --> gruntly -- worktree --> child (local model)
+parent -- brief --> gruntly -- worktree --> child (small model)
    ^                   |                        |
    +-- ~1.5k-token JSON <-- gates (acceptance, scope, diff size, test weakening, deps)
 ```
@@ -22,9 +31,9 @@ Prefer a guided version? Install gruntly (step 3), then run `gruntly setup`: it 
 
 Want to see what it does first, with no model and no key? Install gruntly (step 3 below) and run `gruntly demo`.
 
-You need: git, Python 3.11+, [uv](https://docs.astral.sh/uv/), a local model server with an OpenAI-compatible API (LM Studio, llama.cpp, Ollama) and one child CLI.
+You need: git, Python 3.11+, [uv](https://docs.astral.sh/uv/), a small model to do the work (a local server with an OpenAI-compatible API such as LM Studio, llama.cpp or Ollama, **or** a hosted provider with an API key; a free tier is enough to start) and one child CLI.
 
-1. **Local model.** In LM Studio load a coder model, set its context to **32k or more** (the child harness's own system prompt and tools take much of it), start the server (default `http://127.0.0.1:1234`).
+1. **A small model.** *Local (the example here):* in LM Studio load a coder model, set its context to **32k or more** (the child harness's own system prompt and tools take much of it), start the server (default `http://127.0.0.1:1234`). *Hosted instead:* `gruntly auth set nvidia` (or `gemini`, `openrouter`) stores a free-tier key that you paste yourself, `gruntly models nvidia` lists what it offers and `gruntly use nvidia MODEL` picks one; there is no server to run.
 2. **A child.** `npm i -g @qwen-code/qwen-code` or `npm i -g opencode-ai`.
 3. **gruntly.** `uv tool install "gruntly[mcp] @ git+https://github.com/usegruntly/Gruntly"`
 4. **Check.** `gruntly doctor` (warns about small context windows and missing children).
@@ -116,7 +125,7 @@ A child that cannot fit the task in its context writes `.gruntly-handoff.md` (fi
 
 ## Safety
 
-Level 0 (default) is a worktree, a scrubbed environment (no `ANTHROPIC_*`, `OPENAI_*`, cloud or GitHub tokens reach the child), a wall-clock and no-progress limit, process-tree kill, and a before/after fingerprint of your main tree. **It is not a security boundary**: child auto-approve flags run shell commands unattended. Level 1 (`sandbox_level = 1`, Linux with bubblewrap) makes everything but the worktree read-only. Nothing leaves your machine; logs are local.
+Level 0 (default) is a worktree, a scrubbed environment (no `ANTHROPIC_*`, `OPENAI_*`, cloud or GitHub tokens reach the child), a wall-clock and no-progress limit, process-tree kill, and a before/after fingerprint of your main tree. **It is not a security boundary**: child auto-approve flags run shell commands unattended. Level 1 (`sandbox_level = 1`, Linux with bubblewrap) makes everything but the worktree read-only. With a local small model nothing leaves your machine; with a hosted one the task and the files the model reads go to that provider (see `SECURITY.md`). gruntly itself sends no telemetry, and logs are local.
 
 ## Troubleshooting
 

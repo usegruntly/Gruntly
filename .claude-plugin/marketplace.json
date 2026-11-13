@@ -1,12 +1,12 @@
 {
   "name": "gruntly",
-  "description": "Hand the grunt work to your local model.",
+  "description": "Hand the grunt work to small models.",
   "owner": { "name": "usegruntly" },
   "plugins": [
     {
       "name": "gruntly",
       "source": "./plugin",
-      "description": "Delegate small coding tasks to a local-model agent and verify the result with gates."
+      "description": "Delegate small coding tasks to a small-model agent (local or hosted) and verify the result with gates."
     }
   ]
 }

@@ -290,7 +290,7 @@ function view($: any, e: any, rows: Row[], running: boolean) {
   return (
     <Box flexDirection="column">
       <Text dimColor>
-        {running ? '  child (local model) working' : '  child (local model) finished'}
+        {running ? '  child (small model) working' : '  child (small model) finished'}
         {start?.model ? ` · ${start.model}` : ''} · {toolCalls} tool calls
       </Text>
       {shown.map((r, i) => (

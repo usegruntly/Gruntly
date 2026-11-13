@@ -249,7 +249,7 @@ def choose_scope() -> str:
 # ------------------------------------------------------------------------------------------------------ first run
 FEATURES = """\
 What gruntly does
-  Your paid model (Claude) hands small, test-backed coding tasks to a cheaper model: a local one, or one on a hosted
+  Your big agent (Claude Code, Codex, ...) hands small, test-backed coding tasks to a small model: a local one, or one on a hosted
   endpoint. gruntly runs it in a throwaway git worktree, checks the result (tests, scope, diff size, no weakened tests,
   no new dependencies), retries if needed, and returns a compact result. Nothing is committed for you.
 
@@ -268,7 +268,7 @@ def setup() -> int:
     if not interactive():
         say("`gruntly setup` is an interactive guide: run it in a terminal.")
         return 2
-    say("Welcome to gruntly: hand the grunt work to a cheaper model.\n")
+    say("Welcome to gruntly: hand the grunt work to small models.\n")
     say("Step 1 of 3: the child agent")
     import shutil
     say(f"  git: {'found' if shutil.which('git') else 'MISSING (gruntly needs git)'}")

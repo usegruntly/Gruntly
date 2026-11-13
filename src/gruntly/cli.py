@@ -730,7 +730,7 @@ def cmd_doctor(a) -> int:
 
 
 def cmd_watch(a) -> int:
-    """gruntly watch [RUN]: a live feed of what the child (local model) and gruntly are doing. Read-only."""
+    """gruntly watch [RUN]: a live feed of what the child (small model) and gruntly are doing. Read-only."""
     import os
     from . import progress
     root = _root()
@@ -1123,7 +1123,7 @@ def _hint_on_error(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="gruntly", description="Hand the grunt work to your local model.")
+    p = argparse.ArgumentParser(prog="gruntly", description="Hand the grunt work to small models.")
     p.add_argument("--human", action="store_true", help="readable output instead of JSON")
     from . import __version__
     p.add_argument("--version", action="version", version=f"gruntly {__version__}")
@@ -1222,7 +1222,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("request", nargs="*", help="what to change (or the follow-up when --continue is given)")
     g.add_argument("--continue", dest="cont", metavar="RUN", help="send a follow-up to the same run (the child keeps its context)")
     g.add_argument("--attempts", type=int)
-    g.add_argument("--ask", action="store_true", help="research: the local agent answers a question with its own tools "
+    g.add_argument("--ask", action="store_true", help="research: the small agent answers a question with its own tools "
                    "(web, shell, files); no tests, no diff, nothing applied")
     g.add_argument("--max-block", type=int, default=540, help="seconds to wait in this one call (the caller's Bash timeout must be longer)")
     g.add_argument("--explore", action="store_true", help="the request is an intent, not a location: the child finds where to "
