@@ -294,6 +294,8 @@ def setup() -> int:
         say("  No model chosen: gruntly will use whichever model is loaded in the local server.")
     path = save_choice(provider, model, scope)
     say(f"\nSaved to {path}: provider = {provider}, model = {model or 'whatever is loaded'}.")
+    from . import onboard_parent
+    onboard_parent.step()                                    # optional: which harness is the parent (Claude Code is the default)
     mark = mark_path()
     mark.parent.mkdir(parents=True, exist_ok=True)
     mark.write_text("done\n", encoding="utf8")

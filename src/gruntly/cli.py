@@ -841,8 +841,14 @@ def cmd_use(a) -> int:
 
 
 def cmd_harness(a) -> int:
-    """gruntly harness [NAME]: list the child agents (what each is good at, weight, install, docs) or choose one."""
+    """gruntly harness [NAME]: list the child agents (what each is good at, weight, install, docs) or choose one. `gruntly harness matrix` prints
+    every harness in both roles with what was checked, and which providers each can use (`--json` for a machine)."""
     from . import harnesses, onboard
+    if a.name == "matrix":
+        from . import matrix
+        m = matrix.build()
+        print(json.dumps(m, indent=2) if getattr(a, "json", False) else matrix.render(m))
+        return 0
     cur, where = onboard.current_harness()
     if a.name and a.name != "auto" and a.name not in harnesses.HARNESSES:
         print(f"unknown harness {a.name!r}; known: auto, {', '.join(harnesses.HARNESSES)}", file=sys.stderr)
@@ -870,6 +876,12 @@ def cmd_harness(a) -> int:
         if not ok:
             print(f"  {name} is not installed here yet:  {harnesses.HARNESSES[name].install}")
     return 0
+
+
+def cmd_parent(a) -> int:
+    """gruntly parent [show | set HARNESS ... | clear]: the harness, mode, provider and model `gruntly agent` launches with."""
+    from . import onboard_parent
+    return onboard_parent.cmd_parent(a)
 
 
 def cmd_mode(a) -> int:
@@ -934,7 +946,7 @@ def cmd_providers(a) -> int:
         checked = None if not seen else (("ok " if seen["ok"] else f"failed ({seen.get('error')}) ") + time.strftime("%Y-%m-%d", time.localtime(seen["ts"])))
         rows.append({"name": name, "kind": p.kind, "key": "n/a" if p.kind == "local" else ("set" if src else "missing"),
                      "key_env": p.key_env or None, "base_url": p.base_url, "default_model": p.default_model, "rpm": p.rpm,
-                     "free_tier": p.free_tier, "verified": p.verified, "checked_here": checked, "note": p.note})
+                     "free_tier": p.free_tier, "verified": p.verified, "responses_api": p.responses_api, "checked_here": checked, "note": p.note})
     if a.json:
         print(json.dumps({"providers": rows, "warnings": providers.LOAD_WARNINGS}, indent=2))
         return 0
@@ -1129,11 +1141,19 @@ def build_parser() -> argparse.ArgumentParser:
     us.add_argument("--project", action="store_true", help="save to this project's .gruntly.toml")
     add("setup", cmd_setup)
     hn = add("harness", cmd_harness)
-    hn.add_argument("name", nargs="?", help="auto, opencode, qwen, hermes or generic (omit for the picker)")
+    hn.add_argument("name", nargs="?", help="auto, opencode, qwen, hermes, claude, codex, aider or generic (omit for the picker); `matrix` prints every harness in both roles")
+    hn.add_argument("--json", action="store_true", help="with `matrix`: machine-readable output")
     hn.add_argument("--list", action="store_true", help="print the child agents and exit")
     hn.add_argument("--fetch", action="store_true", help="also show each project's own description, read from GitHub")
     hn.add_argument("--global", dest="global_", action="store_true", help="save to your global settings")
     hn.add_argument("--project", action="store_true", help="save to this project's .gruntly.toml")
+    pa = add("parent", cmd_parent)
+    pa.add_argument("action", nargs="?", choices=["show", "set", "clear"], help="show (default), set HARNESS, or clear the [parent] table")
+    pa.add_argument("harness", nargs="?", help="with `set`: the parent harness (see `gruntly harness matrix`)")
+    pa.add_argument("--mode", choices=["delegating", "working"], help="delegating: the parent directs gruntly; working: it does the job itself")
+    pa.add_argument("--provider", help="a catalog provider the parent's model comes from (omit for the harness's own login)")
+    pa.add_argument("--model", help="the parent's model")
+    pa.add_argument("--global", dest="global_", action="store_true", help="save to your global settings (default: this project's .gruntly.toml)")
     md = add("mode", cmd_mode)
     md.add_argument("value", nargs="?", choices=["auto", "on", "off"], help="omit to show the current mode")
     md.add_argument("scope", nargs="?", choices=["session", "project"], help="same as --session / --project")

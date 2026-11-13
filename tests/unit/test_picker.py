@@ -146,7 +146,7 @@ def test_a_provider_without_a_key_asks_for_one_and_never_echoes_it(api, repo, mo
 def test_setup_walks_through_and_marks_the_person_as_onboarded(api, repo, monkeypatch, capsys):
     monkeypatch.chdir(repo)
     assert not onboard.is_onboarded()
-    script(monkeypatch, ["qwen", "p", "3", "2"])        # harness qwen, this project, then fakeo and its second model
+    script(monkeypatch, ["qwen", "p", "3", "2", "n"])   # harness qwen, this project, then fakeo and its second model; no to the optional parent step
     assert cli.main(["setup"]) == 0
     out = capsys.readouterr().out
     assert settings_file.get_value(repo / ".gruntly.toml", "harness") == "qwen"

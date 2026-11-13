@@ -73,6 +73,18 @@ Limits:
 
 `harness = "claude"`, `model = "haiku"` (default). Runs `claude -p --output-format stream-json --verbose` in the worktree, prompt on stdin. Isolation: `--setting-sources project,local` (not the user's plugins or hooks), `--strict-mcp-config`, `--disable-slash-commands`, `--disallowedTools "Bash(gruntly *)"`. `--bare` is deliberately not used: it ends OAuth sign-in. Permission mode follows the parent's (`GRUNTLY_PARENT_MODE`). Cost: the result event's `total_cost_usd` and `usage`, summed over attempts. A per-attempt budget of $0.50 and 40 turns bound a runaway child. Not checked live yet: sign-in inside the scrubbed environment, `bypassPermissions` in `-p` mode.
 
+## Codex CLI (child, 0.167.2; checked against the real binary with a stub model server)
+
+`harness = "codex"`. Runs `codex exec --json --ephemeral` in the worktree with the prompt on stdin, as shipped (its own prompt and tools). gruntly gives it the child endpoint as a custom provider with `wire_api = "responses"`, the only wire API Codex speaks (`chat` is refused: "no longer supported"), so the endpoint has to serve `/v1/responses`: LM Studio and Ollama do, as do OpenAI and OpenRouter and a few other hosted providers (`gruntly providers` shows `responses_api`, from documentation, not a live check). The key travels in the environment (`env_key`), never on the command line; a private `CODEX_HOME` per run keeps your login, config, rules and history out. The parent's permission mode picks the sandbox (bypass: no sandbox, accept-edits: workspace-write, plan: read-only; approvals never). Output: JSON lines (`thread.started`, `item.completed` with `agent_message`, `turn.completed` with `usage`); an `error` item is only a warning (Codex has no metadata for a model it does not know). Usage through the proxy is read from the Responses shape (streamed totals sit inside `response.completed`). Not resumed. Not run live.
+
+## Aider (child, 0.86.2; checked against the real binary with a stub model server)
+
+`harness = "aider"`. Not a tool-calling agent: it edits the files it is shown with the model's help, so it also works with small models that cannot call tools. gruntly runs it with `--message`, `--yes-always`, `--no-auto-commits`, the endpoint as `openai/<model>` (`OPENAI_API_BASE`, `OPENAI_API_KEY` in the environment), and keeps everything Aider would write into the tree out of it: chat, input and LLM history go to a private folder, the repo map (and its cache directory) is off, `.gitignore` is left alone. After a run against the stub the tree was exactly as it was found. With the repo map off Aider knows only the files the brief names (and files it asks to add, which `--yes-always` allows). Plan mode runs `--chat-mode ask`. Output: plain text with a `Tokens: N sent, M received.` line, read for usage. Not resumed. Not run live.
+
+## Gemini CLI
+
+No child role. It speaks only the Gemini API (`GOOGLE_GEMINI_BASE_URL` can point it at another server of that API), and a child is handed an OpenAI-compatible endpoint (a local server, or gruntly's rate-limit proxy), which it cannot use. As a parent it works: see `docs/parents.md`.
+
 ## Environment notes
 
 - WSL2 Ubuntu cannot reach `127.0.0.1:1234` on the Windows host (needs mirrored networking or the host IP) and has no Node of its own. M0 ran natively on Windows.

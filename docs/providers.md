@@ -139,3 +139,7 @@ overloaded); `google/gemma-4-31b-it` and `meta/muse-glimmer-30b` timed out once.
 Single runs on one task: they show the route works, not which model is better.
 
 Planned providers (issues #2-#5; #1 NVIDIA is now built): Cloudflare Workers AI (priority), then Groq, OpenRouter; xAI is not planned.
+
+## Which providers serve which API (`responses_api`)
+
+Most harnesses speak OpenAI chat completions, which every provider here serves. Codex CLI speaks only the Responses API, so each catalog entry may carry `responses_api = true` or `false` (from the provider's documentation; absent when unknown; never checked live): OpenAI, OpenRouter, Groq, Fireworks, xAI, LM Studio, Ollama and vLLM are marked true, the Gemini API and DeepSeek false, the others unknown. `gruntly providers --json` shows it, a Codex parent refuses a provider marked false and notes one that is unknown, and `gruntly harness matrix` has the whole harness-by-provider grid. Override it for your own setup in `~/.config/gruntly/providers.toml` (`[mistral]` then `responses_api = true`).

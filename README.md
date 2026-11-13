@@ -8,7 +8,7 @@
 
 Gruntly runs your AI coding agent's tasks on a local harness and checks the result before Claude Code takes it back.
 
-Your paid agent (the *parent*, e.g. Claude Code) writes a short brief. gruntly hands it to a local-model coding agent (the *child*: Qwen Code, OpenCode, Hermes) in a throwaway git worktree, runs its **own** checks on the result, and gives back one small JSON. Exploring, code generation and test-fix loops never touch your paid context.
+Your paid agent (the *parent*, e.g. Claude Code) writes a short brief. gruntly hands it to a local-model coding agent (the *child*: OpenCode, Qwen Code, Hermes, Codex CLI, Aider or Claude Code) in a throwaway git worktree, runs its **own** checks on the result, and gives back one small JSON. Exploring, code generation and test-fix loops never touch your paid context.
 
 ```
 parent -- brief --> gruntly -- worktree --> child (local model)
@@ -46,6 +46,18 @@ acceptance:
 /plugin install gruntly@gruntly
 ```
 
+### Use another harness as the parent
+
+The parent does not have to be Claude Code. `gruntly agent` launches any of these in a lean setup (only the short delegating prompt, one shell tool, only `gruntly` commands) or as a worker that does the job itself (`--mode working`, the baseline):
+
+```
+gruntly parent set codex --provider openai --model MODEL     # once (or `gruntly setup`); `gruntly parent` shows the choice
+gruntly agent "fix add() so test_calc.py passes"
+gruntly harness matrix                                        # every harness in both roles, what was checked, which providers each can use
+```
+
+Harnesses: Claude Code, OpenCode, Qwen Code, Hermes, Codex CLI, Gemini CLI, Aider (working mode only: it has no tool loop), `direct` (no harness at all: a short loop of gruntly's own that works with any provider and prices its own tokens) and `generic` (any command-line agent you describe in your settings). Provider keys are set with `gruntly auth set NAME` and only ever travel in the environment. [docs/parents.md](docs/parents.md) says what each harness can and cannot do of the lean setup and how it was checked: a harness's setup is run against a stub model server that records what it really sends, so nothing is claimed that was only read from documentation.
+
 This installs the skill (when to delegate, how to write briefs, what to inspect, the escalation playbook); Claude Code reaches gruntly through a Bash call, so the plugin starts no server. For other agents run `gruntly init --snippet` and paste the block into `AGENTS.md` or `CLAUDE.md`.
 
 ## Commands
@@ -60,6 +72,10 @@ This installs the skill (when to delegate, how to write briefs, what to inspect,
 | `gruntly log <run> --tail N` | Tail of the child's transcript. |
 | `gruntly continue <run> --guidance "..."` | Relay to a fresh child with the previous child's notes and your guidance. |
 | `gruntly apply / discard <run>` | Apply the patch (no commit, `--branch` available) / remove the worktree. |
+| `gruntly agent "task"` | Launch a parent harness (`--parent`, `--mode delegating|working`, `--provider`, `--model`, or the `[parent]` table) that directs gruntly. |
+| `gruntly parent [set HARNESS ...]` | Show or set the parent harness, mode, provider and model. |
+| `gruntly harness matrix` | Every harness in both roles, what was checked, and which providers each can use. |
+| `gruntly providers / models / verify` | The provider catalog, what an account offers, a live check of each key. |
 | `gruntly doctor / init / stats / gc / mcp` | Environment check, project config, aggregate stats, cleanup, MCP server. |
 
 **MCP, for agents other than Claude Code.** Start the server by hand with `gruntly mcp` (stdio; it needs the `mcp` extra from step 3). Example client config: `{"mcpServers": {"gruntly": {"command": "gruntly", "args": ["mcp"]}}}`. Its `gruntly_delegate(request)` takes plain words, like `gruntly agent-run`.
@@ -109,4 +125,4 @@ Level 0 (default) is a worktree, a scrubbed environment (no `ANTHROPIC_*`, `OPEN
 
 ## Status
 
-v0.3.0. Verified adapters: OpenCode 1.19.5 (benchmarked), Qwen Code 0.26.9 (one slim run measured). Hermes Agent 0.19.0: verified live on Linux/WSL2 with a hosted endpoint, two one-line fixes (see `docs/adapters.md`; no benchmark yet). Benchmarks: `docs/benchmarks/benchmark.md`, `docs/benchmarks/benchmark-v2.md`, `docs/benchmarks/benchmark-v2-sonnet.md`, `docs/benchmarks/child-bench.md`. Design notes: `docs/decisions.md`.
+v0.3.0 (unreleased changes in CHANGELOG.md: every harness in both roles, a provider catalog of 15, cost accounting for any hosted child). Verified adapters: OpenCode 1.19.5 (benchmarked), Qwen Code 0.26.9 (one slim run measured). Hermes Agent 0.19.0: verified live on Linux/WSL2 with a hosted endpoint, two one-line fixes (see `docs/adapters.md`; no benchmark yet). Benchmarks: `docs/benchmarks/benchmark.md`, `docs/benchmarks/benchmark-v2.md`, `docs/benchmarks/benchmark-v2-sonnet.md`, `docs/benchmarks/child-bench.md`. Design notes: `docs/decisions.md`.
