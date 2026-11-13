@@ -20,7 +20,8 @@ def _repo(tmp_path, files, email="dev@users.noreply.github.com"):
 
 def test_it_finds_a_key_a_home_path_an_email_and_a_forbidden_word_without_printing_the_key(tmp_path, capsys):
     key = "sk-" + "Q7x9" * 8
-    _repo(tmp_path, {"a.py": f'KEY = "{key}"\n', "b.md": "see C:\\Users\\jdoe\\Desktop and /home/jdoe/x and write to jane.doe@corp-mail.org\n",
+    person, mail = "jd" + "oe", "jane.d" + "oe@corp-mail" + ".org"          # assembled here so that this file does not trip the check it tests
+    _repo(tmp_path, {"a.py": f'KEY = "{key}"\n', "b.md": f"see C:\\Users\\{person}\\Desktop and /home/{person}/x and write to {mail}\n",
                      "c.txt": "owner: Zebulon\n"})
     assert check.main(["--root", str(tmp_path), "--words", "zebulon"]) == 1
     out = capsys.readouterr().out
@@ -41,7 +42,7 @@ def test_history_mode_flags_a_real_commit_email_but_not_a_noreply_one(tmp_path, 
     capsys.readouterr()
     bad_dir = tmp_path / "bad"
     bad_dir.mkdir()
-    bad = _repo(bad_dir, {"a.txt": "x\n"}, email="someone@university.edu")
+    bad = _repo(bad_dir, {"a.txt": "x\n"}, email="someone@" + "university.edu")
     assert check.main(["--root", str(bad)]) == 0                                          # the tree is fine ...
     assert check.main(["--root", str(bad), "--history"]) == 1                             # ... the history is not
     assert "not a noreply address" in capsys.readouterr().out
