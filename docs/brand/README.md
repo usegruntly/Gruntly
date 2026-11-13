@@ -81,7 +81,7 @@ Terminal (truecolor): orange `\x1b[38;2;255;106;19m`, cream `\x1b[38;2;244;241;2
 ## Notes
 
 - `svg/social-preview.svg` uses live `<text>`, so it depends on installed monospace fonts. Use the PNG for uploads.
-- The social preview's last line is to be **"Pay big-agent prices only for big-agent work."** (the maintainer's choice), in `github/social-preview-1280x640.png` and `svg/social-preview.svg`. The files committed here still show the earlier line ("open-source · same quality, fewer paid tokens") until they are re-exported. The cost numbers behind the new line, including where delegating is not cheaper, are in `docs/where-delegation-wins.md`.
+- The social preview's last line is to be **"Pay big agent prices only for big agent work."** (the maintainer's choice), in `github/social-preview-1280x640.png` and `svg/social-preview.svg`. The files committed here still show the earlier line ("open-source · same quality, fewer paid tokens") until they are re-exported. The cost numbers behind the new line, including where delegating is not cheaper, are in `docs/where-delegation-wins.md`.
 - This folder is the kit without the site design reference (`reference/gruntly-site.html`) and the terminal demo page (`demo/terminal-demo.html`): both are website material and live with the website. Keep the full kit wherever the design files live.
 - The SVGs are clean (no metadata, no external references, no fonts) and safe to inline.
 - Logo source: concept 29 in the logo explorations.
