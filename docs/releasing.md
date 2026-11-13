@@ -10,7 +10,11 @@ A checklist for the maintainer. Nothing here runs by itself except `.github/work
 
 ## Before the repository becomes public
 
-1. `python scripts/prerelease_check.py --history` must print `clean`. The file scan is already clean and runs in CI. The history check fails while any commit carries a real email address as author or committer. Two ways out:
+1. `python scripts/prerelease_check.py --history` must print `clean`. **Done on 2026-11-13**: the one real address (in the author and committer of every commit, and the tagger of the four tags) was replaced by the GitHub noreply address with `git filter-repo --mailmap`, after checking that all 134 commits kept identical trees and messages, and `main` and the tags were force-pushed. A fresh clone of GitHub passes the check. Two things remain true:
+   - GitHub keeps the old commits reachable by their full hash for a while, to anyone who has access to the repository. While it is private that is only you and your collaborators; if you want certainty before it goes public, publish from a *fresh* repository (second option below) instead of flipping this one.
+   - Your global git identity (`git config --global user.email`) is still the real address, so commits in your *other* repositories will carry it. This repository has the noreply address set locally. Set the global one too, and turn on *Keep my email addresses private* and *Block command line pushes that expose my email* in GitHub's email settings.
+
+   For the record, the steps that were used (and that work again if a real address ever gets back in). Two ways out:
    - **Rewrite the history** (every clone must be made again afterwards, and the old commits stay visible in anyone's fork or cache made while the repository was public, so do this *before* the switch). Work on a copy:
      ```
      # mailmap.txt, one line:  Your Name <ID+LOGIN@users.noreply.github.com> <the-old-address@example.org>
