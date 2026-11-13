@@ -98,3 +98,17 @@ def test_settings_choose_the_harness_and_an_unknown_one_or_mode_is_a_clear_error
     assert "unknown parent harness 'nope'; known: fakep, other" in capsys.readouterr().err
     (cfg / "cfg" / "config.toml").write_text('[parent]\nmode = "lean"\n')
     assert cli.main(["agent", "x"]) == 2 and "mode must be one of delegating, working" in capsys.readouterr().err
+
+
+def test_the_snippet_names_each_harnesss_file_and_fits_the_timeout_wording(capsys):
+    from gruntly import cli
+    assert cli.main(["init", "--snippet"]) == 0
+    plain = capsys.readouterr().out
+    assert "## Delegating to gruntly" in plain and "600000 ms Bash timeout" in plain and "<!--" not in plain             # the old output is unchanged
+    for harness, file in (("claude", "CLAUDE.md"), ("codex", "AGENTS.md"), ("gemini", "GEMINI.md"), ("qwen", "QWEN.md"), ("opencode", "AGENTS.md"), ("hermes", "AGENTS.md")):
+        assert cli.main(["init", "--snippet", "--for", harness]) == 0
+        out = capsys.readouterr().out
+        assert out.startswith(f"<!-- paste into {file} in your repository -->") and "## Delegating to gruntly" in out
+        assert ("600000 ms Bash timeout" in out) == (harness == "claude") and (("gruntly wait RUN_ID" in out) == (harness != "claude"))
+    assert cli.main(["init", "--snippet", "--for", "aider"]) == 2 and "cannot hand work to gruntly by itself" in capsys.readouterr().err
+    assert cli.main(["init", "--snippet", "--for", "nope"]) == 2

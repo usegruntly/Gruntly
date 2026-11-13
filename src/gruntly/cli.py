@@ -1003,9 +1003,33 @@ def cmd_auth(a) -> int:
     return 0
 
 
+# The project file each harness reads its standing instructions from (the harness's documented default), for `gruntly init --snippet --for H`.
+SNIPPET_FILES = {"claude": "CLAUDE.md", "opencode": "AGENTS.md", "qwen": "QWEN.md", "hermes": "AGENTS.md", "codex": "AGENTS.md", "gemini": "GEMINI.md", "any": "AGENTS.md"}
+CLAUDE_TIMEOUT = "in the foreground with a 600000 ms Bash timeout; never run_in_background:"
+OTHER_TIMEOUT = ("in the foreground, and wait for it (it can take minutes). If your shell tool gives up first, the block says `running`: call `gruntly wait RUN_ID` "
+                 "until it is done. Never run it in the background:")
+
+
+def snippet_for(harness: str) -> str:
+    """The block to paste into a harness's project instructions file, with the shell-timeout sentence that fits it."""
+    body = SNIPPET if harness == "claude" else SNIPPET.replace(CLAUDE_TIMEOUT, OTHER_TIMEOUT)
+    return f"<!-- paste into {SNIPPET_FILES[harness]} in your repository -->\n{body}"
+
+
 def cmd_init(a) -> int:
     if a.snippet:
-        print(SNIPPET)
+        h = getattr(a, "for_", None)
+        if h is None:
+            print(SNIPPET)
+        elif h == "aider":
+            print("Aider has no shell tool that the model chooses to call, so it cannot hand work to gruntly by itself. Run it as the worker: "
+                  "`gruntly agent --parent aider --mode working \"task\"`, or use it as the child (`gruntly harness aider`).", file=sys.stderr)
+            return 2
+        elif h not in SNIPPET_FILES:
+            print(f"unknown harness {h!r}; known: {', '.join(SNIPPET_FILES)}, aider", file=sys.stderr)
+            return 2
+        else:
+            print(snippet_for(h))
         return 0
     root = wtmod.preflight(Path.cwd())
     p = root / ".gruntly.toml"
@@ -1148,11 +1172,12 @@ def build_parser() -> argparse.ArgumentParser:
     hn.add_argument("--global", dest="global_", action="store_true", help="save to your global settings")
     hn.add_argument("--project", action="store_true", help="save to this project's .gruntly.toml")
     pa = add("parent", cmd_parent)
-    pa.add_argument("action", nargs="?", choices=["show", "set", "clear"], help="show (default), set HARNESS, or clear the [parent] table")
+    pa.add_argument("action", nargs="?", choices=["show", "set", "clear", "suggest"], help="show (default), set HARNESS, clear the [parent] table, or suggest a parent and a child from what is here")
     pa.add_argument("harness", nargs="?", help="with `set`: the parent harness (see `gruntly harness matrix`)")
     pa.add_argument("--mode", choices=["delegating", "working"], help="delegating: the parent directs gruntly; working: it does the job itself")
     pa.add_argument("--provider", help="a catalog provider the parent's model comes from (omit for the harness's own login)")
     pa.add_argument("--model", help="the parent's model")
+    pa.add_argument("--apply", action="store_true", help="with `suggest`: save the suggestion (the parent table and the child harness)")
     pa.add_argument("--global", dest="global_", action="store_true", help="save to your global settings (default: this project's .gruntly.toml)")
     md = add("mode", cmd_mode)
     md.add_argument("value", nargs="?", choices=["auto", "on", "off"], help="omit to show the current mode")
@@ -1163,7 +1188,8 @@ def build_parser() -> argparse.ArgumentParser:
     au.add_argument("provider", nargs="?")
     au.add_argument("--key", help="the key (prefer the hidden prompt or stdin: a flag stays in shell history)")
     i = add("init", cmd_init)
-    i.add_argument("--snippet", action="store_true")
+    i.add_argument("--snippet", action="store_true", help="print the block that tells an agent how to hand work to gruntly, for its instructions file")
+    i.add_argument("--for", dest="for_", metavar="HARNESS", help="with --snippet: the harness it is for (claude, opencode, qwen, hermes, codex, gemini, any): names its file and fits the timeout wording")
     add("stats", cmd_stats)
     add("gc", cmd_gc)
     d = add("do", cmd_do)

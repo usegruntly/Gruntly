@@ -8,7 +8,7 @@
 
 Gruntly runs your AI coding agent's tasks on a local harness and checks the result before Claude Code takes it back.
 
-Your paid agent (the *parent*, e.g. Claude Code) writes a short brief. gruntly hands it to a local-model coding agent (the *child*: OpenCode, Qwen Code, Hermes, Codex CLI, Aider or Claude Code) in a throwaway git worktree, runs its **own** checks on the result, and gives back one small JSON. Exploring, code generation and test-fix loops never touch your paid context.
+Your paid agent (the *parent*, e.g. Claude Code) writes a short brief. gruntly hands it to a local-model coding agent (the *child*: OpenCode, Qwen Code, Hermes, Codex CLI, Gemini CLI, Aider or Claude Code) in a throwaway git worktree, runs its **own** checks on the result, and gives back one small JSON. Exploring, code generation and test-fix loops never touch your paid context.
 
 ```
 parent -- brief --> gruntly -- worktree --> child (local model)
@@ -56,7 +56,7 @@ gruntly agent "fix add() so test_calc.py passes"
 gruntly harness matrix                                        # every harness in both roles, what was checked, which providers each can use
 ```
 
-Harnesses: Claude Code, OpenCode, Qwen Code, Hermes, Codex CLI, Gemini CLI, Aider (working mode only: it has no tool loop), `direct` (no harness at all: a short loop of gruntly's own that works with any provider and prices its own tokens) and `generic` (any command-line agent you describe in your settings). Provider keys are set with `gruntly auth set NAME` and only ever travel in the environment. [docs/parents.md](docs/parents.md) says what each harness can and cannot do of the lean setup and how it was checked: a harness's setup is run against a stub model server that records what it really sends, so nothing is claimed that was only read from documentation.
+Harnesses: Claude Code, OpenCode, Qwen Code, Hermes, Codex CLI, Gemini CLI, Aider (working mode only: it has no tool loop), `direct` (no harness at all: a short loop of gruntly's own that works with any provider and prices its own tokens) and `generic` (any command-line agent you describe in your settings). Provider keys are set with `gruntly auth set NAME` and only ever travel in the environment. [docs/architecture.md](docs/architecture.md) shows how the pieces fit; [docs/parents.md](docs/parents.md) says what each harness can and cannot do of the lean setup and how it was checked: a harness's setup is run against a stub model server that records what it really sends, so nothing is claimed that was only read from documentation.
 
 This installs the skill (when to delegate, how to write briefs, what to inspect, the escalation playbook); Claude Code reaches gruntly through a Bash call, so the plugin starts no server. For other agents run `gruntly init --snippet` and paste the block into `AGENTS.md` or `CLAUDE.md`.
 

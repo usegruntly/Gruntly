@@ -52,7 +52,7 @@ Set a provider's key once with `gruntly auth set NAME` (it is kept in a private 
 | direct | nothing: built in | any catalog provider or local server; the model must support tool calls | prices its own tokens |
 | generic | whatever your tool needs | whatever it supports | describe it in `[parent.generic]` |
 
-For an agent harness you use by hand (not through `gruntly agent`), `gruntly init --snippet` prints the block to paste into its `AGENTS.md`: it tells the agent to hand a bounded change to `gruntly agent-run` and read the result block.
+For an agent harness you use by hand (not through `gruntly agent`), `gruntly init --snippet --for HARNESS` prints the block to paste into the file that harness reads (`CLAUDE.md`, `AGENTS.md` for OpenCode, Codex and Hermes, `QWEN.md`, `GEMINI.md`): it tells the agent to hand a bounded change to `gruntly agent-run` and read the result block, with the timeout wording that fits that harness (`--for any` for an unlisted one). Aider has no shell tool the model chooses to call, so it gets a pointer to `--mode working` instead.
 
 ## Two parents that are not a harness
 
@@ -61,7 +61,7 @@ For an agent harness you use by hand (not through `gruntly agent`), `gruntly ini
 
 ## As a child
 
-The same harnesses can do the edit instead of directing it. Codex (it needs an endpoint that serves the Responses API) and Aider are new children, checked with the real binary against a stub (see `docs/adapters.md`); Gemini CLI has no child role, because a child is handed an OpenAI-compatible endpoint and Gemini CLI speaks only the Gemini API. `gruntly harness matrix` shows all of it.
+The same harnesses can do the edit instead of directing it. Codex (it needs an endpoint that serves the Responses API), Aider and Gemini CLI are children too, checked with the real binary against a stub (see `docs/adapters.md`). Gemini CLI speaks only the Gemini API, so a Gemini child runs behind a bridge that gruntly starts for the run (`geminibridge.py`): it turns the CLI's requests into chat completions for your endpoint, tool calls included. `gruntly harness matrix` shows all of it.
 
 ## Benchmarking any combination
 

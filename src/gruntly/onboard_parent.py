@@ -105,6 +105,100 @@ def show() -> str:
     return "\n".join(out)
 
 
+# ------------------------------------------------------------------------------------------------------ suggesting
+LEAN_PARENTS = ("opencode", "qwen", "codex", "gemini")          # after Claude Code, in the order gruntly has most evidence for them
+CHILD_ORDER = ("opencode", "qwen", "hermes")                   # the children gruntly benchmarked; codex, gemini and aider follow when nothing else is there
+OTHER_CHILDREN = ("codex", "gemini", "aider")
+
+
+def gather() -> dict:
+    """What is on this machine: which parent and child harnesses are installed, which providers have a key (never the key), whether the local server answers."""
+    from . import doctor
+    from .adapters.base import get_adapter
+    return {"parents": {n: parents.get_parent(n).detect().installed for n in parents.names() if n not in parents.NOT_AUTO},
+            "children": {n: get_adapter(n).detect().installed for n in matrix.CHILD_NAMES if n not in matrix.NO_CHILD},
+            "keys": {p.name: bool(keys.lookup(p.name, p.key_env)[0]) for p in providers.ALL.values() if p.kind == "hosted"},
+            "local_up": bool(doctor.probe_endpoint(onboard.LOCAL_DEFAULT_ENDPOINT, timeout=1.5)["ok"])}
+
+
+def _usable(harness: str, f: dict) -> list:
+    """Providers this harness can use right now: a hosted one with a key, or the local server when it answers; ones whose API support is only unknown come last."""
+    out = [p for p in providers.ALL.values() if (f["keys"].get(p.name) if p.kind == "hosted" else (f["local_up"] and p.name == "lmstudio")) and matrix.compatible(harness, p) != "no"]
+    return sorted(out, key=lambda p: matrix.compatible(harness, p) != "yes")
+
+
+def suggest(f: dict) -> dict:
+    """A parent and a child that fit what is here, each with the reason, and what is missing when nothing fits. It names evidence, it does not rank models."""
+    s: dict = {"parent": None, "child": None, "missing": []}
+    if f["parents"].get("claude"):
+        s["parent"] = {"harness": "claude", "mode": "delegating", "provider": None,
+                       "reason": "Claude Code is installed, and it is the parent gruntly has measured live (the plugin, and `gruntly agent` for the same lean setup)"}
+    else:
+        for h in LEAN_PARENTS:
+            if not f["parents"].get(h):
+                continue
+            usable = _usable(h, f)
+            if usable:
+                u = usable[0]
+                s["parent"] = {"harness": h, "mode": "delegating", "provider": u.name,
+                               "reason": f"{h} is installed and has a lean delegating setup checked against its real binary; {u.name} "
+                                         + ("has a key" if u.kind == "hosted" else "is the local server that answers")
+                                         + ("" if matrix.compatible(h, u) == "yes" else " (whether it serves this harness's API is not confirmed)")
+                                         + f"; pick a model with `gruntly models {u.name}`"}
+                break
+            s["missing"].append(f"{h} is installed but has no provider it can use: set a key (`gruntly auth set openrouter`, or `gemini` for Gemini CLI) or start the local server")
+        if s["parent"] is None:
+            keyed = [p for p in providers.ALL.values() if p.kind == "hosted" and f["keys"].get(p.name)]
+            if keyed:
+                why = "no installed parent harness can use a provider you have a key for" if s["missing"] else "no parent harness is installed"
+                s["parent"] = {"harness": "direct", "mode": "delegating", "provider": keyed[0].name,
+                               "reason": f"{why}, but {keyed[0].name} has a key: the built-in direct loop needs no install (the model must support tool calls)"}
+            else:
+                s["missing"].append("no parent: install one (`npm i -g opencode-ai`, `npm i -g @openai/codex`, Claude Code) or set a provider key (`gruntly auth set openrouter`)")
+    installed_children = [h for h in (*CHILD_ORDER, *OTHER_CHILDREN) if f["children"].get(h)]
+    if f["local_up"] and installed_children:
+        s["child"] = {"harness": installed_children[0], "provider": "local",
+                      "reason": f"{installed_children[0]} is installed and the local model server answers: the child costs no API dollars (compute is not priced)"}
+    else:
+        free = [p for p in providers.ALL.values() if p.kind == "hosted" and p.free_tier and f["keys"].get(p.name)]
+        usable = [h for h in installed_children if free and matrix.compatible(h, free[0]) != "no"]
+        if free and usable:
+            s["child"] = {"harness": usable[0], "provider": free[0].name,
+                          "reason": f"{usable[0]} is installed and {free[0].name} has a key and a free tier (limited: expect rate limits; a hosted provider counts as possibly paid)"}
+        elif f["children"].get("claude"):
+            s["child"] = {"harness": "claude", "provider": None,
+                          "reason": "Claude Code is installed: a Haiku child works (measured live) but it is paid, it runs in your Claude usage"}
+        else:
+            s["missing"].append("no child: install one (`npm i -g opencode-ai`, `npm i -g @qwen-code/qwen-code`) and start a local model server (LM Studio), or set a free-tier key (`gruntly auth set gemini`)")
+    return s
+
+
+def render_suggestion(s: dict) -> str:
+    out = []
+    if s["parent"]:
+        p = s["parent"]
+        out.append(f"Parent: {p['harness']} ({p['mode']}" + (f", provider {p['provider']}" if p["provider"] else "") + f")\n  why: {p['reason']}")
+    if s["child"]:
+        c = s["child"]
+        out.append(f"Child:  {c['harness']}" + (f" on {c['provider']}" if c["provider"] else "") + f"\n  why: {c['reason']}")
+    out += [f"Missing: {m}" for m in s["missing"]]
+    return "\n".join(out) if out else "Nothing to suggest."
+
+
+def apply_suggestion(s: dict, scope: str = "project") -> list[str]:
+    """Save what was suggested: the `[parent]` table and the child harness (and the child's provider when it is a hosted one). Returns where it was saved."""
+    saved = []
+    if s["parent"]:
+        p = s["parent"]
+        saved.append(str(save(p["harness"], p["mode"], p["provider"], None, scope)))
+    if s["child"]:
+        c = s["child"]
+        saved.append(str(onboard.save_harness(c["harness"], scope)))
+        if c["provider"] and c["provider"] != "local":
+            onboard.save_choice(c["provider"], None, scope)
+    return saved
+
+
 # ------------------------------------------------------------------------------------------------------ interactive
 def choose_harness(cur: str | None) -> str | None:
     rows = candidates()
@@ -155,6 +249,10 @@ def choose_provider(harness: str) -> str | None:
 def step() -> None:
     """The optional last step of `gruntly setup`: pick the parent. Skippable; the same thing is `gruntly parent set`."""
     onboard.say("\nOptional: the parent harness (the agent that reads your tasks and directs gruntly)")
+    try:
+        onboard.say("Looking at what is here...\n" + render_suggestion(suggest(gather())) + "\n")
+    except Exception as e:  # noqa: BLE001 - a suggestion must never stop the guide
+        onboard.say(f"(no suggestion: {e})")
     if not onboard.ask("Set it up now? Claude Code is the default. [y/N]: ", "n").lower().startswith("y"):
         onboard.say("Skipped. `gruntly parent` shows and sets it any time.")
         return
@@ -198,6 +296,18 @@ def cmd_parent(a) -> int:
             return 2
         print(f"Saved to {path}: [parent] harness = {a.harness}" + (f", mode = {a.mode}" if a.mode else "") + (f", provider = {a.provider}" if a.provider else "")
               + (f", model = {a.model}" if a.model else ""))
+        return 0
+    if a.action == "suggest":
+        s = suggest(gather())
+        print(render_suggestion(s))
+        if not getattr(a, "apply", False):
+            print("\nApply it:  gruntly parent suggest --apply   (saves the parent and the child harness; models stay for you to pick)")
+            return 0
+        if not (s["parent"] or s["child"]):
+            return 2
+        for path in apply_suggestion(s, "global" if a.global_ else "project"):
+            print(f"Saved to {path}")
+        print("Pick models with `gruntly models PROVIDER`, then `gruntly parent set HARNESS --provider P --model M` (and `gruntly use` for the child).")
         return 0
     if a.action == "clear":
         proj = onboard.project_config()
