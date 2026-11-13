@@ -12,16 +12,18 @@ characters of instructions by default; four tools and exactly our 1,548 characte
 (`request_user_input`, `view_image`) have no switch in this version.
 **Working** is Codex as shipped, with the workspace-write sandbox and no approval prompts.
 
-Codex only speaks the Responses API (`wire_api = "chat"` is refused), so a provider has to serve it: the catalog says which do
-(`responses_api`, from documentation). A provider is added with `-c model_providers.NAME={...}` and its key is read from the environment
-(`env_key`). Delegating needs a provider: its private `CODEX_HOME` holds none of your ChatGPT login. Codex warns that it has no metadata
-for a model it does not know; the warning is cosmetic.
+Codex only speaks the Responses API (`wire_api = "chat"` is refused), and most providers serve only chat completions. A provider the catalog marks as serving
+the Responses API (`responses_api`, from documentation) is used directly; every other one goes through gruntly's bridge (`gruntly/responsesbridge.py`): the launch
+runs `python -m gruntly.responsesbridge --upstream URL -- codex ...`, which starts a small local server, puts its address in Codex's provider config and translates
+Codex's requests and the model's answers, tool calls included. The key reaches Codex (`env_key`) and the bridge through the environment. Delegating needs a provider: its
+private `CODEX_HOME` holds none of your ChatGPT login. Codex warns that it has no metadata for a model it does not know; the warning is cosmetic.
 """
 from __future__ import annotations
 
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 from .. import providers
@@ -51,19 +53,27 @@ def _toml_table(d: dict) -> str:
     return "{" + ", ".join(f"{k} = {json.dumps(v)}" for k, v in d.items()) + "}"
 
 
-def provider_setup(provider: str | None, model: str | None) -> tuple[list[str], str | None, dict[str, str], list[str]]:
-    """(the `-c`/`-m` flags, the model, environment to add, notes) for a catalog provider. No provider: Codex's own login and default."""
+BRIDGE_URL = "{bridge_url}"             # the wrapper (gruntly.responsesbridge) puts the bridge's address here
+
+
+def bridged(p) -> bool:
+    """Codex speaks only the Responses API. A provider the catalog marks as serving it is used directly; any other (chat only, or not known) goes through
+    gruntly's Responses-to-chat bridge, which works with every provider that serves chat completions."""
+    return p.responses_api is not True
+
+
+def provider_setup(provider: str | None, model: str | None) -> tuple[list[str], str | None, dict[str, str], list[str], tuple[str, str] | None]:
+    """(the `-c`/`-m` flags, the model, environment to add, notes, the bridge as (upstream URL, key variable) or None) for a catalog provider.
+    No provider: Codex's own login and default."""
     if not provider:
-        return (["-m", model] if model else []), model, {}, []
+        return (["-m", model] if model else []), model, {}, [], None
     p = providers.ALL.get(provider)
     if p is None:
         raise ValueError(f"unknown provider {provider!r}; known: {', '.join(providers.ALL)}")
-    if p.responses_api is False:
-        raise ValueError(f"{p.name} does not serve the Responses API, which Codex needs (it dropped the chat API); use a provider that does: "
-                         + (", ".join(n for n, q in providers.ALL.items() if q.responses_api) or "none in the catalog"))
-    notes = [f"whether {p.name} serves the Responses API is not known; Codex fails if it does not"] if p.responses_api is None else []
+    via = bridged(p)
+    notes = [f"{p.name} does not serve the Responses API that Codex needs: gruntly translates Codex's requests to {p.name}'s chat API locally (a bridge)"] if via else []
     env: dict[str, str] = {}
-    entry = {"name": p.name, "base_url": p.base_url, "wire_api": "responses"}
+    entry = {"name": p.name, "base_url": BRIDGE_URL if via else p.base_url, "wire_api": "responses"}
     if p.kind != "local":
         key = providers.api_key(p)
         if not key:
@@ -74,7 +84,8 @@ def provider_setup(provider: str | None, model: str | None) -> tuple[list[str], 
     if not use:
         raise ValueError(f"provider {p.name} has no default model: pass --model ID (see `gruntly models {p.name}`)")
     pid = f"gruntly_{p.name}"
-    return ["-c", f"model_providers.{pid}={_toml_table(entry)}", "-c", f"model_provider={json.dumps(pid)}", "-m", use], use, env, notes
+    flags = ["-c", f"model_providers.{pid}={_toml_table(entry)}", "-c", f"model_provider={json.dumps(pid)}", "-m", use]
+    return flags, use, env, notes, ((p.base_url, p.key_env if p.kind != "local" else "") if via else None)
 
 
 class CodexParent:
@@ -92,13 +103,12 @@ class CodexParent:
 
     def command(self, task: str, mode: str, model: str | None = None, provider: str | None = None, structured: bool = False) -> ParentCommand:
         check_mode(mode)
-        flags, _use, env, notes = provider_setup(provider, model)
+        flags, _use, env, notes, bridge = provider_setup(provider, model)
         argv = [which("codex") or "codex", "exec", "--skip-git-repo-check", "--json", *flags]
         files: dict[str, str] = {}
         if mode == "delegating":
             if not provider:
-                raise ValueError("Codex as a delegating parent needs --provider (and --model): its private folder has none of your ChatGPT login, "
-                                 "and Codex only works with a provider that serves the Responses API")
+                raise ValueError("Codex as a delegating parent needs --provider (and --model): its private folder has none of your ChatGPT login")
             home = parent_home(mode)
             files[str(home / "instructions.md")] = prompts.DELEGATING
             files[str(home / "rules" / "default.rules")] = RULES
@@ -114,6 +124,8 @@ class CodexParent:
             if provider:
                 argv += ["--ephemeral"]
         argv.append("-")                                                # the task on stdin
+        if bridge:                                                      # the wrapper starts the bridge, fills in its address, runs Codex and stops the bridge
+            argv = [sys.executable, "-m", "gruntly.responsesbridge", "--upstream", bridge[0], "--key-env", bridge[1], "--", *argv]
         return ParentCommand(argv=argv, env=env, stdin=task, files=files, notes=notes)
 
     def parse(self, stdout: str, stderr: str, exit_code: int) -> ParentOutcome:
@@ -125,7 +137,7 @@ class CodexParent:
 
     def capabilities(self) -> ParentCaps:
         return ParentCaps(replace_system_prompt=True, restrict_tools=False, restrict_shell=True, disable_extensions=True, reports_usage=True,
-                          reports_cost=False, notes=NOTES + ("needs a provider that serves the Responses API, not the chat API",))
+                          reports_cost=False, notes=NOTES + ("works with any chat provider through gruntly's Responses-to-chat bridge, or directly with one that serves the Responses API",))
 
     def cancel(self, proc) -> None:
         kill_tree(proc)

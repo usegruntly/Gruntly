@@ -40,7 +40,7 @@ def test_the_delegating_level_is_lean_partial_or_no():
 def test_compatibility_follows_the_wire_protocol_and_the_catalogs_responses_flag():
     cat = providers.ALL
     assert matrix.compatible("opencode", cat["groq"]) == "yes" and matrix.compatible("opencode", cat["ollama"]) == "yes"
-    assert matrix.compatible("codex", cat["openai"]) == "yes" and matrix.compatible("codex", cat["deepseek"]) == "no" and matrix.compatible("codex", cat["mistral"]) == "unknown"
+    assert matrix.compatible("codex", cat["openai"]) == "yes" and matrix.compatible("codex", cat["deepseek"]) == "bridged" and matrix.compatible("codex", cat["mistral"]) == "bridged"      # chat-only providers go through the bridge
     assert matrix.compatible("gemini", cat["gemini"]) == "yes" and matrix.compatible("gemini", cat["openai"]) == "no"
     assert matrix.compatible("claude", cat["openai"]) == "no" and matrix.compatible("generic", cat["openai"]) == "unknown"
 

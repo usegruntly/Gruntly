@@ -43,7 +43,7 @@ HARNESSES: dict[str, Harness] = {h.name: h for h in (
             "Haiku measured at $0.004 to $0.009 for a small task; a call has no local model server to start. Never picked by auto.",
             "already installed if you use Claude Code", "https://docs.claude.com/en/docs/claude-code", "anthropics/claude-code", False),
     Harness("codex", "Codex CLI",
-            "OpenAI's agent. In gruntly it runs as shipped against any endpoint that serves the Responses API (a local LM Studio or Ollama, OpenAI, OpenRouter). Token counts; no resume.",
+            "OpenAI's agent, run as shipped. It speaks only the Responses API, so gruntly puts a small bridge in front of your endpoint (any chat provider or local server) that translates; a provider that serves Responses is used directly. Token counts; no resume.",
             "Heavy: about 19,500 characters of instructions and nine tools on every request.",
             "npm i -g @openai/codex", "https://developers.openai.com/codex/cli", "openai/codex", False),
     Harness("gemini", "Gemini CLI",

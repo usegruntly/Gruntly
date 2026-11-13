@@ -1,9 +1,9 @@
 """Codex CLI as a child (checked against 0.167.2, the real binary against a stub model server that speaks the Responses API).
 
-Run as shipped (its own prompt and tools) with `codex exec --json`, the task on stdin. gruntly points it at the endpoint it gives every child
-(the local server, or the rate-limit proxy of a hosted provider) as a custom provider with `wire_api = "responses"`, because that is the only
-wire API Codex speaks: the endpoint has to serve `/v1/responses` (LM Studio and Ollama do; so do OpenAI, OpenRouter and a few other hosted
-providers, see `responses_api` in `gruntly providers`). The key is passed in the environment (`env_key`), never in the command line. A private
+Run as shipped (its own prompt and tools) with `codex exec --json`, the task on stdin. Codex speaks only the Responses API, so gruntly gives it a custom
+provider with `wire_api = "responses"` that points at the child endpoint (the local server, or the rate-limit proxy of a hosted provider) when that provider serves
+the Responses API (`responses_api` in `gruntly providers`: OpenAI, OpenRouter, Groq, Fireworks, xAI), and otherwise at a bridge the runner starts
+(`gruntly/responsesbridge.py`) that translates Codex's requests into chat completions for the same endpoint, tool calls included; a local server always gets the bridge. The key is passed in the environment (`env_key`), never in the command line. A private
 `CODEX_HOME` per run keeps your own Codex login, config, rules and history out of it, and the parent's permission mode picks the sandbox.
 A session is not resumed (a follow-up starts a fresh session on the same tree).
 """
@@ -54,6 +54,14 @@ def parse_events(stdout: str) -> tuple[str, str | None, dict | None, str, int]:
     return text.strip(), session, (tot if turns else None), failure, turns
 
 
+def needs_bridge(spec) -> bool:
+    """Codex speaks only the Responses API. A hosted provider the catalog marks as serving it is reached directly (through gruntly's proxy, which meters it); everything
+    else, a local server included, goes through gruntly's Responses-to-chat bridge, which needs only chat completions."""
+    from .. import providers
+    p = providers.ALL.get(getattr(spec, "provider", "local") or "local")
+    return not (p is not None and p.kind == "hosted" and p.responses_api is True)
+
+
 class CodexAdapter:
     name = "codex"
 
@@ -71,7 +79,7 @@ class CodexAdapter:
         model = task.model or "default"
         home = Path(workdir).parents[1] / "child-state" / Path(workdir).name / "codex-home"
         home.mkdir(parents=True, exist_ok=True)                 # Codex refuses a CODEX_HOME that does not exist
-        entry = {"name": "gruntly", "base_url": task.endpoint, "env_key": KEY_ENV, "wire_api": "responses"}
+        entry = {"name": "gruntly", "base_url": getattr(task, "_bridge_url", None) or task.endpoint, "env_key": KEY_ENV, "wire_api": "responses"}
         argv = [which("codex") or "codex", "exec", "--skip-git-repo-check", "--json", "--ephemeral", "-C", str(workdir),
                 "-c", f"model_providers.{PROVIDER}={toml_table(entry)}", "-c", f'model_provider="{PROVIDER}"', "-m", model]
         mode = permission_mode(task)

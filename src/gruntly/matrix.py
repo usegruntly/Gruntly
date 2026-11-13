@@ -12,7 +12,7 @@ from . import parents, providers
 from .adapters.base import get_adapter
 
 # The wire protocol each harness speaks to its model. chat = OpenAI chat completions; responses = OpenAI Responses (Codex dropped the chat API);
-# gemini = the Gemini API; anthropic = Anthropic's own (Claude Code, through your login); any = whatever the command you give uses.
+# gemini = the Gemini API (a child reaches any endpoint through gruntly's Gemini bridge); anthropic = Anthropic's own (Claude Code, through your login); any = whatever the command you give uses.
 PROTOCOL = {"claude": "anthropic", "opencode": "chat", "qwen": "chat", "hermes": "chat", "codex": "responses", "gemini": "gemini", "aider": "chat",
             "direct": "chat", "generic": "any"}
 
@@ -24,11 +24,11 @@ NO_CHILD = {"direct": "the direct parent is a loop of gruntly's own with one too
 CHECKED = {
     ("claude", "parent"): "live (Claude Code, many runs)", ("claude", "child"): "live 2026-11-12 (Haiku child, $1.54)",
     ("opencode", "parent"): "stub 1.19.5; live 2026-11-13 (free OpenRouter model directing a free child: fixed, 16 requests)", ("opencode", "child"): "live 1.19.5 (docs/adapters.md)",
-    ("qwen", "parent"): "stub 0.26.9; live 2026-11-13: directed gruntly, but a free model did not finish a delegated fix", ("qwen", "child"): "live 0.26.9 (docs/adapters.md)",
+    ("qwen", "parent"): "stub 0.26.9; live 2026-11-13 (Gemini 3.5 Flash-Lite free tier directing an NVIDIA free child: fixed, 2 requests, 4.8k prompt tokens)", ("qwen", "child"): "live 0.26.9 (docs/adapters.md)",
     ("hermes", "parent"): "stub 0.23.0 (key delivery to a hosted provider unchecked)", ("hermes", "child"): "live 0.19.0 on Linux/WSL2 (docs/adapters.md)",
-    ("codex", "parent"): "stub 0.167.2; live 2026-11-13: the Responses API over OpenRouter works and usage is read; no delegated fix shown yet (free model 429)", ("codex", "child"): "stub 0.167.2",
+    ("codex", "parent"): "stub 0.167.2 (direct, and through the Responses bridge); live 2026-11-13 (bridged to the Gemini free tier: fixed, 5.4k prompt tokens)", ("codex", "child"): "stub 0.167.2 through the bridge; live 2026-11-13 (NVIDIA free tier through the bridge: fixed in 1 attempt)",
     ("gemini", "parent"): "stub 0.68.0; live 2026-11-13 (Gemini 3.5 Flash-Lite, free tier: fixed, 2 requests, 3.4k prompt tokens)", ("gemini", "child"): "stub 0.68.0 through the bridge; live 2026-11-13 (NVIDIA free tier: fixed in 1 attempt)",
-    ("aider", "parent"): "stub 0.86.2 (working mode only)", ("aider", "child"): "stub 0.86.2",
+    ("aider", "parent"): "stub 0.86.2 (working mode only); live 2026-11-13 (Gemini free tier: fixed, 1 request)", ("aider", "child"): "stub 0.86.2",
     ("direct", "parent"): "stub; live 2026-11-13 (free OpenRouter model directing a free child: fixed)",
     ("generic", "parent"): "stub (a python one-liner as the harness)", ("generic", "child"): "unit tests",
 }
@@ -44,12 +44,12 @@ def delegating_level(caps) -> str:
 
 
 def compatible(harness: str, provider: providers.Provider) -> str:
-    """yes / no / unknown / own login: can `harness` use a model from `provider`?"""
+    """yes / bridged / no / unknown: can `harness` use a model from `provider`? (bridged = through one of gruntly's protocol bridges)"""
     proto = PROTOCOL.get(harness, "any")
     if proto == "chat":
         return "yes"
     if proto == "responses":
-        return {True: "yes", False: "no", None: "unknown"}[provider.responses_api]
+        return "yes" if provider.responses_api is True else "bridged"           # a chat-only provider works through gruntly's Responses-to-chat bridge
     if proto == "gemini":
         return "yes" if provider.name == "gemini" else "no"
     if proto == "anthropic":
@@ -93,7 +93,7 @@ def render(m: dict) -> str:
         inst = "/".join(x for x in (("parent" if p and p["installed"] else ""), ("child" if c and c["installed"] else "")) if x) or "no"
         out.append(f"{r['harness']:{w}}  {r['protocol']:9} {deleg[:62]:62} {('yes' if p and p['working'] else '-'):8} {('yes' if c else 'no'):6} {inst:12} "
                    f"{(p or {}).get('checked') or '-'} | {(c or {}).get('checked') or '-'}")
-    out += ["", "Which providers each harness can use (yes / no / unknown / from the catalog's `responses_api`, which is documentation, not a live check):", ""]
+    out += ["", "Which providers each harness can use (yes / bridged = through a gruntly bridge / no / unknown; `yes` for Codex comes from the catalog's `responses_api`, which is documentation, not a live check):", ""]
     names = [r["harness"] for r in m["harnesses"]]
     out.append(f"{'PROVIDER':11} {'KIND':7} " + " ".join(f"{n[:8]:8}" for n in names))
     for pn, g in m["providers"].items():

@@ -58,18 +58,28 @@ def test_the_working_command_is_codex_as_shipped_with_the_workspace_sandbox_and_
         codex.CodexParent().command("t", "lean")
 
 
-def test_a_provider_without_the_responses_api_is_refused_and_one_nobody_knows_is_noted(cfg, monkeypatch):
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    with pytest.raises(ValueError, match=r"deepseek does not serve the Responses API.*openai"):
-        codex.provider_setup("deepseek", "m")
-    monkeypatch.setenv("MISTRAL_API_KEY", "k")
-    flags, model, env, notes = codex.provider_setup("mistral", "m")
-    assert model == "m" and any("not known" in n for n in notes) and env == {"MISTRAL_API_KEY": "k"}
+def test_a_chat_only_provider_goes_through_the_bridge_wrapper_and_one_that_serves_responses_is_used_directly(cfg, monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds-SECRET")
+    flags, model, env, notes, bridge = codex.provider_setup("deepseek", "m")
+    assert bridge == ("https://api.deepseek.com/v1" if "deepseek.com/v1" in bridge[0] else bridge[0], "DEEPSEEK_API_KEY") and env == {"DEEPSEEK_API_KEY": "ds-SECRET"}
+    prov = [x for x in flags if x.startswith("model_providers.")][0]
+    assert 'base_url = "{bridge_url}"' in prov and 'wire_api = "responses"' in prov and 'env_key = "DEEPSEEK_API_KEY"' in prov and any("bridge" in n for n in notes)
+    c = codex.CodexParent().command("Fix add().", "delegating", "m", "deepseek")
+    assert c.argv[1:3] == ["-m", "gruntly.responsesbridge"] and c.argv[c.argv.index("--upstream") + 1] == bridge[0] and c.argv[c.argv.index("--key-env") + 1] == "DEEPSEEK_API_KEY"
+    assert c.argv[c.argv.index("--") + 1].endswith(("codex", "codex.cmd", "codex.exe")) or "codex" in c.argv[c.argv.index("--") + 1]
+    assert "ds-SECRET" not in " ".join(c.argv) and c.env["DEEPSEEK_API_KEY"] == "ds-SECRET" and any("bridge" in n for n in c.notes)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-x")
+    flags, model, env, notes, bridge = codex.provider_setup("openai", "gpt-x")                     # serves Responses: direct, no wrapper
+    assert bridge is None and notes == [] and 'base_url = "https://api.openai.com/v1"' in [x for x in flags if x.startswith("model_providers.")][0]
+    assert "gruntly.responsesbridge" not in " ".join(codex.CodexParent().command("t", "delegating", "gpt-x", "openai").argv)
+    monkeypatch.setenv("MISTRAL_API_KEY", "k")                                                      # not known to serve Responses: bridged too
+    assert codex.provider_setup("mistral", "m")[4] is not None
 
 
 def test_a_local_server_needs_no_key_and_a_provider_that_cannot_be_used_is_a_clear_error(cfg, monkeypatch):
-    flags, model, env, notes = codex.provider_setup("ollama", "qwen3:8b")
-    assert env == {} and model == "qwen3:8b" and "env_key" not in " ".join(flags) and notes == []
+    flags, model, env, notes, bridge = codex.provider_setup("ollama", "qwen3:8b")
+    assert env == {} and model == "qwen3:8b" and "env_key" not in " ".join(flags) and bridge is None and notes == []     # Ollama serves Responses (documentation)
+    assert codex.provider_setup("llamacpp", "m")[4] == ("http://127.0.0.1:8080/v1", "")                                   # a local chat-only server: bridged, no key
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.setenv("GROQ_API_KEY", "k")
     with pytest.raises(ValueError, match="no API key for openrouter"):
@@ -156,3 +166,25 @@ def test_the_real_codex_runs_gruntly_outside_its_sandbox_and_blocks_every_other_
             assert "blocked by policy" in results[0] and "SECRET_CONTENT" not in results[0] and not outside.exists()
         if marker:
             assert not (work / marker).exists()
+
+
+@pytest.mark.skipif(not REAL, reason="Codex is not installed (set GRUNTLY_TEST_CODEX to a codex executable)")
+def test_the_real_codex_started_through_the_bridge_wrapper_runs_gruntly_and_is_refused_everything_else_for_a_chat_only_provider(cfg, tmp_path, monkeypatch):
+    """The provider serves only chat completions (the stub's chat route; its Responses route is never used). The launch is the wrapper: it starts the bridge, Codex talks
+    to it, the lean setup holds (the allowed gruntly command runs, a read is blocked by policy), and the answer comes back."""
+    script = [{"tool": "exec_command", "args": {"cmd": "gruntly --help"}}, {"tool": "exec_command", "args": {"cmd": "cat note.txt"}}, "done"]
+    with probe.StubServer(script=script) as srv:
+        monkeypatch.setitem(providers.ALL, "chatonly", providers.Provider(name="chatonly", base_url=srv.base_url, key_env="STUB_API_KEY", default_model="stub-model", responses_api=False))
+        monkeypatch.setenv("STUB_API_KEY", "dummy-key-123")
+        monkeypatch.setenv("GRUNTLY_CODEX_PARENT_HOME", str(tmp_path / "codexhome"))
+        work = tmp_path / "work"
+        work.mkdir()
+        (work / "note.txt").write_text("SECRET_CONTENT", encoding="utf8")
+        r = base.run(codex.CodexParent(), "do it", "delegating", provider="chatonly", cwd=work, timeout_s=300, env=_fake_gruntly(tmp_path, tmp_path / "OUTSIDE.txt"))
+        assert r.returncode == 0 and r.outcome.final_message == "done", (r.stdout[-400:], r.stderr[-400:])
+        chat = [s for s in srv.requests if s.path.endswith("/chat/completions")]
+        assert chat and not [s for s in srv.requests if s.path.endswith("/responses")]            # only the chat route was used
+        assert chat[0].auth == "Bearer dummy-key-123" and "exec_command" in chat[0].tools and "web_search" not in chat[0].tools
+        results = [x for s in chat for x in s.tool_results]
+        assert any("usage: gruntly fake" in x for x in results) and any("blocked by policy" in x for x in results) and not any("SECRET_CONTENT" in x for x in results)
+        assert r.outcome.usage is not None and r.outcome.usage.prompt > 0

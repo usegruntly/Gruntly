@@ -143,7 +143,7 @@ def suggest(f: dict) -> dict:
                 s["parent"] = {"harness": h, "mode": "delegating", "provider": u.name,
                                "reason": f"{h} is installed and has a lean delegating setup checked against its real binary; {u.name} "
                                          + ("has a key" if u.kind == "hosted" else "is the local server that answers")
-                                         + ("" if matrix.compatible(h, u) == "yes" else " (whether it serves this harness's API is not confirmed)")
+                                         + {"yes": "", "bridged": " (bridged: gruntly translates this harness's API to its chat API)"}.get(matrix.compatible(h, u), " (whether it serves this harness's API is not confirmed)")
                                          + f"; pick a model with `gruntly models {u.name}`"}
                 break
             s["missing"].append(f"{h} is installed but has no provider it can use: set a key (`gruntly auth set openrouter`, or `gemini` for Gemini CLI) or start the local server")

@@ -229,3 +229,14 @@ def test_the_server_sends_such_a_model_id_upstream_unchanged():
                 assert code == 200 and up.requests[-1].model == model
         finally:
             b.stop()
+
+
+def test_a_real_thought_signature_travels_both_ways_and_the_clis_stand_in_is_not_forwarded():
+    resp = {"choices": [{"message": {"tool_calls": [{"id": "c1", "type": "function", "extra_content": {"google": {"thought_signature": "REAL"}},
+                                                     "function": {"name": "ls", "arguments": "{}"}}]}}]}
+    part = gb.response_from_openai(resp, "m")["candidates"][0]["content"]["parts"][0]
+    assert part["thoughtSignature"] == "REAL" and part["functionCall"]["name"] == "ls"
+    body = {"contents": [{"role": "model", "parts": [{"functionCall": {"id": "c1", "name": "ls", "args": {}}, "thoughtSignature": "REAL"}]},
+                         {"role": "model", "parts": [{"functionCall": {"id": "c2", "name": "ls", "args": {}}, "thoughtSignature": "skip_thought_signature_validator"}]}]}
+    msgs = gb.messages_to_openai(body)
+    assert msgs[0]["tool_calls"][0]["extra_content"] == {"google": {"thought_signature": "REAL"}} and "extra_content" not in msgs[1]["tool_calls"][0]

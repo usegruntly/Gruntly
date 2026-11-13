@@ -339,12 +339,25 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
         st.write_json("provider.json", {"provider": prov.name, "model": spec.model, **srv.stop()})
 
 
+def _bridge_for(spec: Spec):
+    """The bridge a child needs in front of its endpoint, started, or None. Gemini CLI speaks only the Gemini API; Codex speaks only the Responses API (unless the
+    provider serves it). Each bridge translates to the OpenAI chat completions every endpoint gruntly gives a child serves."""
+    if spec.harness == "gemini":
+        from . import geminibridge
+        return geminibridge.start(spec.endpoint, spec.api_key)
+    if spec.harness == "codex":
+        from . import responsesbridge
+        from .adapters.codex import needs_bridge
+        if needs_bridge(spec):
+            return responsesbridge.start(spec.endpoint, spec.api_key)
+    return None
+
+
 def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | None, t_start: float) -> dict:
-    """Runs the task. A child that cannot speak to an OpenAI-compatible endpoint itself (Gemini CLI) gets a bridge in front of the endpoint for the run."""
-    if spec.harness != "gemini":
+    """Runs the task. A child that cannot speak to an OpenAI-compatible endpoint itself gets a bridge in front of the endpoint for the run."""
+    bridge = _bridge_for(spec)
+    if bridge is None:
         return _execute_core(st, spec, root, run_id, guidance, t_start)
-    from . import geminibridge
-    bridge = geminibridge.start(spec.endpoint, spec.api_key)
     spec._bridge_url = bridge.url
     if not getattr(spec, "_activity", None):
         spec._activity = lambda: bridge.stats["requests"]       # model requests count as progress for the idle guard

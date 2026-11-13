@@ -27,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # The model id is whatever the CLI was given: it may contain slashes (`nvidia/nemotron-...`) and colons (`qwen3:8b`, `vendor/model:free`), so the method is the part after the LAST colon.
 MODEL_PATH = re.compile(r"/v1(?:beta)?/models/(.+):(\w+)$")
+DUMMY_SIGNATURE = "skip_thought_signature_validator"          # what the CLI sends when it has no real signature
 STATUS = {400: "INVALID_ARGUMENT", 401: "UNAUTHENTICATED", 403: "PERMISSION_DENIED", 404: "NOT_FOUND", 408: "DEADLINE_EXCEEDED", 429: "RESOURCE_EXHAUSTED",
           500: "INTERNAL", 502: "UNAVAILABLE", 503: "UNAVAILABLE", 504: "DEADLINE_EXCEEDED"}
 
@@ -77,8 +78,12 @@ def messages_to_openai(body: dict) -> list[dict]:
                 fc = p.get("functionCall") if isinstance(p, dict) else None
                 if isinstance(fc, dict) and fc.get("name"):
                     n += 1
-                    calls.append({"id": str(fc.get("id") or f"call_{n}"), "type": "function",
-                                  "function": {"name": fc["name"], "arguments": json.dumps(fc.get("args") or {}, ensure_ascii=False)}})
+                    call = {"id": str(fc.get("id") or f"call_{n}"), "type": "function",
+                            "function": {"name": fc["name"], "arguments": json.dumps(fc.get("args") or {}, ensure_ascii=False)}}
+                    sig = p.get("thoughtSignature")
+                    if isinstance(sig, str) and sig and sig != DUMMY_SIGNATURE:      # a real signature from the upstream goes back to it; the CLI's stand-in is not forwarded
+                        call["extra_content"] = {"google": {"thought_signature": sig}}
+                    calls.append(call)
             m: dict = {"role": "assistant", "content": _text(parts) or None}
             if calls:
                 m["tool_calls"] = calls
@@ -121,7 +126,11 @@ def response_from_openai(resp: dict, model: str = "") -> dict:
             args = json.loads(fn.get("arguments") or "{}")
         except ValueError:
             args = {}
-        parts.append({"functionCall": {"id": tc.get("id") or "", "name": fn.get("name", ""), "args": args if isinstance(args, dict) else {}}})
+        part = {"functionCall": {"id": tc.get("id") or "", "name": fn.get("name", ""), "args": args if isinstance(args, dict) else {}}}
+        sig = ((tc.get("extra_content") or {}).get("google") or {}).get("thought_signature")
+        if sig:
+            part["thoughtSignature"] = sig                                     # the CLI keeps it and sends it back, which Gemini 3 requires
+        parts.append(part)
     if not parts:
         parts.append({"text": ""})
     u = resp.get("usage") if isinstance(resp.get("usage"), dict) else {}

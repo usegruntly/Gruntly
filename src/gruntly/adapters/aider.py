@@ -22,7 +22,7 @@ from .base import Caps, ChildOutcome, Command, Detection, count_malformed, kill_
 
 TOKENS = re.compile(r"Tokens:\s*([\d.,]+)(k?)\s*sent(?:,\s*[\d.,]+k?\s*cache write)?(?:,\s*[\d.,]+k?\s*cache hit)?,\s*([\d.,]+)(k?)\s*received", re.I)
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
-BANNER = ("Aider v", "Main model:", "Weak model:", "Git repo:", "Repo-map:", "Tokens:")
+BANNER = ("Aider v", "Main model:", "Weak model:", "Model:", "Git repo:", "Repo-map:", "Tokens:", "You can skip this check", "Added .aider", "Creating empty file")
 
 
 def _n(v: str, k: str) -> int:

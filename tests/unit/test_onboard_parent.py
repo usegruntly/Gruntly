@@ -35,12 +35,12 @@ def test_a_subtable_is_never_mistaken_for_the_parent_table(tmp_path):
 
 def test_a_choice_that_cannot_work_is_refused_with_the_reason(cfg):
     for args, why in ((("nope",), "unknown parent harness 'nope'"), (("aider", "delegating"), "aider cannot run in delegating mode"),
-                      (("codex", None, "deepseek"), "codex cannot use deepseek: it speaks the responses API"),
                       (("gemini", None, "openai"), "gemini cannot use openai"), (("claude", None, "openai"), "only works through your own login"),
                       (("opencode", None, "nowhere"), "unknown provider 'nowhere'")):
         with pytest.raises(ValueError, match=why):
             op.validate(*args)
     op.validate("codex", "delegating", "openai")
+    op.validate("codex", "delegating", "deepseek")                    # chat only: allowed, through gruntly's Responses-to-chat bridge
     op.validate("opencode", "working", "ollama")
 
 
@@ -89,14 +89,15 @@ def test_claude_code_is_the_suggested_parent_when_it_is_installed_and_a_local_ch
     assert s["child"] == {"harness": "opencode", "provider": "local", "reason": s["child"]["reason"]} and "no API dollars" in s["child"]["reason"] and s["missing"] == []
 
 
-def test_without_claude_a_lean_harness_with_a_provider_it_can_use_is_suggested_and_codex_needs_a_responses_provider():
+def test_without_claude_a_lean_harness_with_a_provider_it_can_use_is_suggested_and_codex_is_bridged_to_a_chat_only_provider():
     s = op.suggest(facts(parents_=("codex",), keys_=("deepseek",)))
-    assert any("codex is installed but has no provider it can use" in m for m in s["missing"])                              # deepseek does not serve the Responses API
-    assert s["parent"]["harness"] == "direct" and "no installed parent harness can use a provider you have a key for" in s["parent"]["reason"]
+    assert (s["parent"]["harness"], s["parent"]["provider"]) == ("codex", "deepseek") and "bridged" in s["parent"]["reason"] and not any("codex" in m for m in s["missing"])
+    s = op.suggest(facts(parents_=("codex",)))                                                                                  # a harness but no key and no local server
+    assert any("codex is installed but has no provider it can use" in m for m in s["missing"]) and s["parent"] is None
     s = op.suggest(facts(parents_=("codex", "opencode"), keys_=("deepseek", "openrouter")))
     assert s["parent"]["harness"] == "opencode" and s["parent"]["provider"] in ("deepseek", "openrouter")
-    s = op.suggest(facts(parents_=("codex",), keys_=("openai",)))
-    assert (s["parent"]["harness"], s["parent"]["provider"]) == ("codex", "openai") and "has a key" in s["parent"]["reason"]
+    s = op.suggest(facts(parents_=("codex",), keys_=("deepseek", "openai")))
+    assert (s["parent"]["harness"], s["parent"]["provider"]) == ("codex", "openai") and "has a key" in s["parent"]["reason"] and "bridged" not in s["parent"]["reason"]     # the one that serves Responses wins
     s = op.suggest(facts(parents_=("gemini",), keys_=("openai", "gemini")))
     assert (s["parent"]["harness"], s["parent"]["provider"]) == ("gemini", "gemini")
 

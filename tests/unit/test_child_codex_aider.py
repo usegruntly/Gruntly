@@ -131,3 +131,20 @@ def test_the_real_aider_child_leaves_the_tree_exactly_as_it_found_it_when_the_mo
         assert turn.model in ("m1", "openai/m1") and turn.auth == "Bearer dummy-key-123" and "Fix add()." in turn.user
         status = subprocess.run(["git", "status", "--porcelain"], cwd=work, capture_output=True, text=True).stdout
         assert status.strip() == "", f"Aider left files in the tree: {status}"            # no .aider* history, no tags cache, no .gitignore edit
+
+
+def test_the_codex_child_uses_the_runners_bridge_when_there_is_one_and_the_bridge_is_for_everything_but_a_responses_provider(wt, monkeypatch):
+    monkeypatch.setattr(codex, "which", lambda n: "/bin/codex")
+    t = _task()
+    t._bridge_url = "http://127.0.0.1:7777/v1"
+    prov = [x for x in codex.CodexAdapter().command(t, wt, "p", None).argv if x.startswith("model_providers.gruntly=")][0]
+    assert 'base_url = "http://127.0.0.1:7777/v1"' in prov
+    assert codex.needs_bridge(_task(provider="local")) and codex.needs_bridge(_task(provider="deepseek")) and codex.needs_bridge(_task(provider="mistral"))
+    assert not codex.needs_bridge(_task(provider="openai")) and not codex.needs_bridge(_task(provider="openrouter"))
+
+
+def test_aiders_startup_chatter_is_not_part_of_the_reply():
+    chatter = ("You can skip this check with --no-gitignore\nAdded .aider* to .gitignore\nAider v0.86.2\nModel: openai/m with whole edit format\n"
+               "Git repo: .git with 2 files\nApplied edit to calc.py\nTokens: 840 sent, 92 received.\n")
+    out = aider.AiderAdapter().parse(chatter, "", 0)
+    assert out.final_message == "Applied edit to calc.py" and out.usage["input_tokens"] == 840

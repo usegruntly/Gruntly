@@ -32,6 +32,7 @@ Every child adapter is the same shape (`detect`, `command`, `parse`, `capabiliti
 - **Local:** the model server on your machine (LM Studio, Ollama, llama.cpp, vLLM), no key, no proxy.
 - **Hosted:** gruntly starts `proxy.py` for the run. The child sees a loopback URL and a placeholder key; the proxy adds the real key, spaces requests to the provider's limits, retries a 429, and meters every response's `usage` (`usage.py`), so tokens and dollars are known whatever harness runs (`pricing.py`, `accounting.py`; an unknown price is unknown, never zero).
 - **Gemini CLI** speaks only the Gemini API, so the runner puts `geminibridge.py` in front of the endpoint for the run: a local server that turns Gemini requests into chat completions and back, tool calls included.
+- **Codex CLI** speaks only the Responses API, so `responsesbridge.py` does the same for it (the runner starts it for a child; a parent launch runs it as a wrapper), unless the provider serves Responses itself. Both bridges carry Gemini 3's `thought_signature` on tool calls so that Google's own endpoint accepts the conversation.
 
 ## Providers and keys
 
