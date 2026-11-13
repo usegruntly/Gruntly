@@ -1,5 +1,6 @@
 """Parent adapters: the two prompt categories, Claude Code behind the interface with the command line pinned, and the runner."""
 import json
+import os
 import sys
 
 import pytest
@@ -130,3 +131,17 @@ def test_run_agent_names_the_missing_harness_and_returns_127(monkeypatch, capsys
     monkeypatch.setattr(base.subprocess, "Popen", boom)
     assert agent.run_agent("Fix it.") == 127
     assert "not installed or not on PATH" in capsys.readouterr().err
+
+
+def test_a_parent_launched_with_a_folder_gets_that_folder_as_pwd_too_even_when_the_callers_shell_is_elsewhere(tmp_path, monkeypatch):
+    """OpenCode takes its project folder from $PWD: launched from a shell in another repository it ran gruntly in THAT repository (seen live)."""
+    monkeypatch.setenv("PWD", str(tmp_path.parent))                                # the caller's shell is somewhere else
+    work = tmp_path / "work"
+    work.mkdir()
+    monkeypatch.chdir(tmp_path)                                                    # the fake parent writes its settings file relative to where it runs: keep that out of the repo
+    code = "import os, sys; sys.stdout.write(os.getcwd() + '|' + os.environ.get('PWD', ''))"
+    r = base.run(ScriptParent(code), "t", "working", cwd=work)
+    here, pwd = r.outcome.final_message.split("|")
+    assert os.path.samefile(here, work) and pwd == str(work)
+    r2 = base.run(ScriptParent(code), "t", "working")                              # no folder asked for: the environment is left as it is
+    assert r2.outcome.final_message.split("|")[1] == str(tmp_path.parent)

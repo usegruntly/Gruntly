@@ -93,9 +93,13 @@ def run(adapter: ParentAdapter, task: str, mode: str, model: str | None = None, 
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf8")
     kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}     # so cancel() reaches the whole tree
+    full = {**os.environ, **cmd.env, **(env or {})}
+    if cwd:
+        full["PWD"] = str(cwd)      # OpenCode takes its project folder from $PWD, not from the process's real directory: a caller whose own shell is elsewhere
+                                    # (the benchmark runner, a script) would otherwise have it run, and edit, the wrong repository (seen live, 2026-11-13)
     try:
         proc = subprocess.Popen(cmd.argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf8",
-                                errors="replace", cwd=str(cwd) if cwd else None, env={**os.environ, **cmd.env, **(env or {})}, **kw)
+                                errors="replace", cwd=str(cwd) if cwd else None, env=full, **kw)
     except FileNotFoundError:
         return RunResult(ParentOutcome(f"{adapter.name} is not installed or not on PATH", True), 127, "", "", cmd)
     try:

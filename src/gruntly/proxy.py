@@ -188,6 +188,8 @@ class _Handler(BaseHTTPRequestHandler):
         srv = self.server
         body = drop_rejected_fields(dedupe_keys(self.rfile.read(n)), srv.name) if n and method == "POST" \
             else (self.rfile.read(n) if n else b"")
+        if method == "POST" and n:
+            body = srv.extras.restore(body)              # a tool call the harness echoed without the provider's own extra_content gets it back
         path = self.path.split("?", 1)[0]
         if path.startswith("/v1"):
             path = path[3:]                           # the client's base URL ends in /v1; the provider's base has its own
@@ -230,6 +232,7 @@ class _Handler(BaseHTTPRequestHandler):
                 srv.limiter.sleep(wait + 0.5)
                 continue
             sniff = usage.Sniffer(r.getheader("Content-Type", "")) if method == "POST" and r.status == 200 else None
+            tap = srv.extras.tap() if method == "POST" and r.status == 200 else None
             self.send_response(r.status)
             for k, v in r.getheaders():
                 if k.lower() not in ("transfer-encoding", "connection", "content-length", "content-encoding"):
@@ -242,12 +245,16 @@ class _Handler(BaseHTTPRequestHandler):
                         break
                     if sniff is not None:
                         sniff.feed(chunk)
+                    if tap is not None:
+                        tap.feed(chunk)
                     self.wfile.write(chunk)
                     self.wfile.flush()
             except OSError:
                 pass
             finally:
                 conn.close()
+                if tap is not None:
+                    tap.finish()
                 if sniff is not None:
                     srv.meter.record(sniff)             # what the response said it used; a response without usage counts as missing
             return
@@ -259,6 +266,73 @@ class _Handler(BaseHTTPRequestHandler):
         self._forward("GET")
 
 
+class ToolCallExtras:
+    """What a provider attaches to its tool calls (`extra_content`: Gemini 3's `thought_signature`) and refuses a conversation without. A harness that does not echo
+    the field back (OpenCode's HTTP layer drops it) gets a 400 on its next request; this remembers it by tool-call id from the provider's own responses, plain JSON or
+    a stream, and puts it back on the calls of later requests that lack it. Only what the same provider produced is ever added, so no other provider sees a new field."""
+
+    CAP = 8 * 1024 * 1024
+
+    def __init__(self):
+        self.by_id: dict[str, object] = {}
+        self._lock = threading.Lock()
+
+    def restore(self, body: bytes) -> bytes:
+        if not self.by_id or b"tool_calls" not in body:
+            return body
+        try:
+            d = json.loads(body)
+        except ValueError:
+            return body
+        changed = False
+        for m in d.get("messages") or [] if isinstance(d, dict) else []:
+            for tc in (m.get("tool_calls") or []) if isinstance(m, dict) else []:
+                if isinstance(tc, dict) and "extra_content" not in tc and tc.get("id") in self.by_id:
+                    tc["extra_content"] = self.by_id[tc["id"]]
+                    changed = True
+        return json.dumps(d).encode() if changed else body
+
+    def tap(self) -> "_ExtrasTap":
+        return _ExtrasTap(self)
+
+
+class _ExtrasTap:
+    def __init__(self, owner: ToolCallExtras):
+        self.owner, self.buf, self.size = owner, [], 0
+
+    def feed(self, chunk: bytes) -> None:
+        if self.size < ToolCallExtras.CAP:
+            self.buf.append(chunk)
+            self.size += len(chunk)
+
+    def finish(self) -> None:
+        raw = b"".join(self.buf)
+        if b"extra_content" not in raw:
+            return
+        text = raw.decode("utf8", "replace")
+        found: dict[str, object] = {}
+        events = [ln[5:].strip() for ln in text.splitlines() if ln.startswith("data:")] or [text]
+        index_ids: dict[int, str] = {}
+        for ev in events:
+            try:
+                d = json.loads(ev)
+            except ValueError:
+                continue
+            for ch in (d.get("choices") or []) if isinstance(d, dict) else []:
+                calls = ((ch.get("message") or {}).get("tool_calls") or []) + ((ch.get("delta") or {}).get("tool_calls") or [])
+                for tc in calls:
+                    if not isinstance(tc, dict):
+                        continue
+                    if tc.get("id") and isinstance(tc.get("index"), int):
+                        index_ids[tc["index"]] = tc["id"]
+                    cid = tc.get("id") or index_ids.get(tc.get("index"))
+                    if cid and tc.get("extra_content"):
+                        found[cid] = tc["extra_content"]
+        if found:
+            with self.owner._lock:
+                self.owner.by_id.update(found)
+
+
 class ProxyServer(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -266,6 +340,7 @@ class ProxyServer(ThreadingHTTPServer):
         super().__init__(("127.0.0.1", 0), _Handler)
         self.name, self.upstream, self.key, self.limiter = name, upstream, key, limiter
         self.meter = usage.Meter()
+        self.extras = ToolCallExtras()
 
     @property
     def url(self) -> str:

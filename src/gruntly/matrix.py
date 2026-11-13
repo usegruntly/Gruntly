@@ -23,7 +23,7 @@ NO_CHILD = {"direct": "the direct parent is a loop of gruntly's own with one too
 # What was checked, against which version. (harness, role) -> text. "live" = a real model answered; "stub" = the real binary against probe.py.
 CHECKED = {
     ("claude", "parent"): "live (Claude Code, many runs)", ("claude", "child"): "live 2026-11-12 (Haiku child, $1.54)",
-    ("opencode", "parent"): "stub 1.19.5; live 2026-11-13 (free OpenRouter model directing a free child: fixed, 16 requests)", ("opencode", "child"): "live 1.19.5 (docs/adapters.md)",
+    ("opencode", "parent"): "stub 1.19.5; live 2026-11-13 (NVIDIA free tier directing an NVIDIA free child: fixed; not on a Gemini 3 model, see docs/parents.md)", ("opencode", "child"): "live 1.19.5 (docs/adapters.md)",
     ("qwen", "parent"): "stub 0.26.9; live 2026-11-13 (Gemini 3.5 Flash-Lite free tier directing an NVIDIA free child: fixed, 2 requests, 4.8k prompt tokens)", ("qwen", "child"): "live 0.26.9 (docs/adapters.md)",
     ("hermes", "parent"): "stub 0.23.0 (key delivery to a hosted provider unchecked)", ("hermes", "child"): "live 0.19.0 on Linux/WSL2 (docs/adapters.md)",
     ("codex", "parent"): "stub 0.167.2 (direct, and through the Responses bridge); live 2026-11-13 (bridged to the Gemini free tier: fixed, 5.4k prompt tokens)", ("codex", "child"): "stub 0.167.2 through the bridge; live 2026-11-13 (NVIDIA free tier through the bridge: fixed in 1 attempt)",
