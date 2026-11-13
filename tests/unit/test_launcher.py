@@ -112,3 +112,13 @@ def test_the_snippet_names_each_harnesss_file_and_fits_the_timeout_wording(capsy
         assert ("600000 ms Bash timeout" in out) == (harness == "claude") and (("gruntly wait RUN_ID" in out) == (harness != "claude"))
     assert cli.main(["init", "--snippet", "--for", "aider"]) == 2 and "cannot hand work to gruntly by itself" in capsys.readouterr().err
     assert cli.main(["init", "--snippet", "--for", "nope"]) == 2
+
+
+def test_run_agent_says_what_the_parent_used_when_the_harness_reports_it_and_stays_quiet_when_it_does_not(monkeypatch, capsys):
+    from gruntly import agent
+    from gruntly.usage import Usage
+    quiet = base.ParentOutcome("done")
+    assert agent.parent_usage_line(quiet) is None and agent.parent_usage_line(base.ParentOutcome("x", usage=Usage())) is None
+    line = agent.parent_usage_line(base.ParentOutcome("x", usage=Usage(prompt=2345, completion=67, cached=1000, requests=3), cost_usd=0.0123))
+    assert line == "parent used 3 request(s), 2,345 prompt + 67 completion tokens (1,000 cached), $0.0123 as reported"
+    assert agent.parent_usage_line(base.ParentOutcome("x", usage=Usage(prompt=5, completion=1, requests=1))) == "parent used 1 request(s), 5 prompt + 1 completion tokens"

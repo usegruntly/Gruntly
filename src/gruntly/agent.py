@@ -348,6 +348,18 @@ def lean_command(task: str, model: str, full: bool = False) -> tuple[list[str], 
     return cmd.argv, cmd.stdin
 
 
+def parent_usage_line(outcome) -> str | None:
+    """What the parent itself used, from the harness's own output: requests, tokens and, when the harness or provider reported it, dollars. None when
+    the harness reports nothing (the line never guesses a figure)."""
+    u = outcome.usage
+    if u is None or not (u.requests or u.prompt or u.completion):
+        return None
+    bits = [f"{u.requests} request(s)" if u.requests else None, f"{u.prompt:,} prompt + {u.completion:,} completion tokens" + (f" ({u.cached:,} cached)" if u.cached else "")]
+    if outcome.cost_usd is not None:
+        bits.append(f"${outcome.cost_usd:.4f} as reported")
+    return "parent used " + ", ".join(b for b in bits if b)
+
+
 def run_agent(task: str, model: str | None = None, fallback: bool = True, cwd: Path | None = None, timeout_s: int = 900,
               parent: str = "claude", provider: str | None = None, mode: str = "delegating") -> int:
     """Run a parent. `delegating` (the default): the lean parent directs gruntly, and when it cannot finish (or says GRUNTLY-FALLBACK) the same
@@ -364,9 +376,15 @@ def run_agent(task: str, model: str | None = None, fallback: bool = True, cwd: P
         print(f"[gruntly agent] {r.outcome.final_message}. {adapter.detect().detail}", file=sys.stderr)
         return 127
     out = r.outcome.final_message.strip()
+    line = parent_usage_line(r.outcome)
+    if line:
+        print(f"[gruntly agent] {line}", file=sys.stderr)
     if mode == "delegating" and fallback and (r.returncode != 0 or out.startswith("GRUNTLY-FALLBACK")):
         print("[gruntly agent] lean session could not finish; falling back to a full session", file=sys.stderr)
         r = parents_base.run(adapter, prompts.working_task(task, out), "working", model, provider, cwd, timeout_s)
         out = r.outcome.final_message.strip()
+        line = parent_usage_line(r.outcome)
+        if line:
+            print(f"[gruntly agent] full session: {line}", file=sys.stderr)
     print(out)
     return r.returncode

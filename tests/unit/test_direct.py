@@ -142,3 +142,13 @@ def test_end_to_end_against_a_stub_model_the_gruntly_command_runs_and_every_othe
         assert not (work / "X.txt").exists()
         assert r.outcome.usage.requests == 2 and r.outcome.usage.prompt == 14 and r.outcome.turns == 2
         assert json.loads(r.stdout.strip().splitlines()[-1])["cost"]["source"] == "unknown"       # a provider with no price: unknown, never zero
+
+
+def test_a_dollar_figure_the_provider_reported_is_kept_and_one_gruntly_priced_itself_is_not():
+    base_ = {"final_message": "ok", "is_error": False, "turns": 1, "usage": {"prompt": 10, "completion": 2, "requests": 1, "missing": 0, "cost_usd": 0.0}}
+    reported = dparent.DirectParent().parse(json.dumps({**base_, "cost": {"usd": 0.0, "source": "reported by the provider", "detail": ""}}), "", 0)
+    assert reported.cost_usd == 0.0
+    priced = dparent.DirectParent().parse(json.dumps({**base_, "cost": {"usd": 0.003, "source": "price table", "detail": ""}}), "", 0)
+    assert priced.cost_usd is None
+    unknown = dparent.DirectParent().parse(json.dumps({**base_, "cost": {"usd": None, "source": "unknown", "detail": "no price"}}), "", 0)
+    assert unknown.cost_usd is None

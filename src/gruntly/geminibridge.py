@@ -21,10 +21,12 @@ import json
 import re
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-MODEL_PATH = re.compile(r"/v1(?:beta)?/models/([^:/?]+):(\w+)")
+# The model id is whatever the CLI was given: it may contain slashes (`nvidia/nemotron-...`) and colons (`qwen3:8b`, `vendor/model:free`), so the method is the part after the LAST colon.
+MODEL_PATH = re.compile(r"/v1(?:beta)?/models/(.+):(\w+)$")
 STATUS = {400: "INVALID_ARGUMENT", 401: "UNAUTHENTICATED", 403: "PERMISSION_DENIED", 404: "NOT_FOUND", 408: "DEADLINE_EXCEEDED", 429: "RESOURCE_EXHAUSTED",
           500: "INTERNAL", 502: "UNAVAILABLE", 503: "UNAVAILABLE", 504: "DEADLINE_EXCEEDED"}
 
@@ -167,7 +169,7 @@ class Bridge:
                     body = json.loads(self.rfile.read(n) or b"{}")
                 except ValueError:
                     return self._send(400, error_body(400, "the request body is not JSON"))
-                m = MODEL_PATH.search(self.path.split("?")[0])
+                m = MODEL_PATH.search(urllib.parse.unquote(self.path.split("?")[0]))
                 if not m:
                     return self._send(404, error_body(404, f"the bridge does not serve {self.path.split('?')[0]}"))
                 model, action = m.group(1), m.group(2)

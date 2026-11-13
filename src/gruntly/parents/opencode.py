@@ -17,6 +17,7 @@ import subprocess
 
 from .. import providers
 from ..adapters.opencode import OpenCodeAdapter
+from ..store import state_dir
 from ..usage import Usage
 from . import prompts
 from .base import Detection, ParentCaps, ParentCommand, ParentOutcome, check_mode, kill_tree, which
@@ -89,6 +90,10 @@ class OpenCodeParent:
         if m_arg:
             argv += ["-m", m_arg]
         env["OPENCODE_CONFIG_CONTENT"] = json.dumps(cfg)
+        if provider:                                     # the key and model come with the launch, so your own OpenCode login, database and history are not needed:
+            state = state_dir() / "opencode-parent" / mode      # a private folder keeps them out of it (an old database of yours once made the launch fail)
+            env.update({f"XDG_{k.upper()}_HOME": str(state / k) for k in ("data", "config", "state", "cache")})
+            notes.append("OpenCode runs with a private data folder, so your own OpenCode login, database and history are not used")
         return ParentCommand(argv=argv, env=env, stdin=task, notes=notes)
 
     def parse(self, stdout: str, stderr: str, exit_code: int) -> ParentOutcome:

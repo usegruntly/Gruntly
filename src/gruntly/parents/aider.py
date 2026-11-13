@@ -21,6 +21,7 @@ from ..store import state_dir
 from ..usage import Usage
 from .base import Detection, ParentCaps, ParentCommand, ParentOutcome, check_mode, kill_tree, which
 
+WORKING_NOTES = ("Aider writes its history files (.aider*) into the project and may add them to .gitignore, as it does when you run it by hand",)
 NOTES = ("Aider has no tool loop, no prompt override and no command limit, so it cannot be a delegating parent",)
 
 
@@ -65,7 +66,7 @@ class AiderParent:
         argv = [which("aider") or "aider", *flags, "--message-file", str(msg), "--yes-always", "--no-auto-commits", "--no-check-update", "--no-analytics",
                 "--no-show-model-warnings", "--no-pretty", "--no-stream", "--no-fancy-input", "--no-detect-urls", "--no-restore-chat-history"]
         env = {**env, "PYTHONIOENCODING": "utf-8", "AIDER_ANALYTICS": "false"}
-        return ParentCommand(argv=argv, env=env, stdin=None, files={str(msg): task}, notes=[])
+        return ParentCommand(argv=argv, env=env, stdin=None, files={str(msg): task}, notes=list(WORKING_NOTES))
 
     def parse(self, stdout: str, stderr: str, exit_code: int) -> ParentOutcome:
         text, sent, recv, n = parse_output(stdout)

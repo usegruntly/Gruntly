@@ -210,3 +210,22 @@ def test_the_real_gemini_cli_edits_a_file_through_the_bridge_and_the_model_serve
         assert len(first.system) > 5000                                      # Gemini CLI's own prompt, as shipped
         assert second.tool_results and "calc.py" in second.tool_results[0]
         assert o.usage["available"] and o.usage["requests"] == 2
+
+
+def test_a_model_id_with_slashes_and_colons_is_read_whole_and_the_method_is_what_follows_the_last_colon():
+    for model in ("m1", "nvidia/nemotron-3.5-bolt-e4b", "qwen3:8b", "google/gemma-4-26b-a4b-it:free", "a/b/c:d:e"):
+        for action in ("generateContent", "streamGenerateContent", "countTokens"):
+            m = gb.MODEL_PATH.search(f"/v1beta/models/{model}:{action}")
+            assert m and (m.group(1), m.group(2)) == (model, action), (model, action)
+    assert gb.MODEL_PATH.search("/v1beta/models/m1") is None
+
+
+def test_the_server_sends_such_a_model_id_upstream_unchanged():
+    with probe.StubServer() as up:
+        b = gb.start(up.base_url, "k")
+        try:
+            for model, quoted in (("nvidia/nemotron-3.5-bolt-e4b", "nvidia/nemotron-3.5-bolt-e4b"), ("vendor/model:free", "vendor/model%3Afree")):
+                code, _ = _post(f"{b.url}/v1beta/models/{quoted}:generateContent", BODY)
+                assert code == 200 and up.requests[-1].model == model
+        finally:
+            b.stop()

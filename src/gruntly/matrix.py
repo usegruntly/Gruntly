@@ -23,13 +23,13 @@ NO_CHILD = {"direct": "the direct parent is a loop of gruntly's own with one too
 # What was checked, against which version. (harness, role) -> text. "live" = a real model answered; "stub" = the real binary against probe.py.
 CHECKED = {
     ("claude", "parent"): "live (Claude Code, many runs)", ("claude", "child"): "live 2026-11-12 (Haiku child, $1.54)",
-    ("opencode", "parent"): "stub 1.19.5", ("opencode", "child"): "live 1.19.5 (docs/adapters.md)",
-    ("qwen", "parent"): "stub 0.26.9", ("qwen", "child"): "live 0.26.9 (docs/adapters.md)",
+    ("opencode", "parent"): "stub 1.19.5; live 2026-11-13 (free OpenRouter model directing a free child: fixed, 16 requests)", ("opencode", "child"): "live 1.19.5 (docs/adapters.md)",
+    ("qwen", "parent"): "stub 0.26.9; live 2026-11-13: directed gruntly, but a free model did not finish a delegated fix", ("qwen", "child"): "live 0.26.9 (docs/adapters.md)",
     ("hermes", "parent"): "stub 0.23.0 (key delivery to a hosted provider unchecked)", ("hermes", "child"): "live 0.19.0 on Linux/WSL2 (docs/adapters.md)",
-    ("codex", "parent"): "stub 0.167.2", ("codex", "child"): "stub 0.167.2",
-    ("gemini", "parent"): "stub 0.68.0", ("gemini", "child"): "stub 0.68.0 through the bridge",
+    ("codex", "parent"): "stub 0.167.2; live 2026-11-13: the Responses API over OpenRouter works and usage is read; no delegated fix shown yet (free model 429)", ("codex", "child"): "stub 0.167.2",
+    ("gemini", "parent"): "stub 0.68.0; live 2026-11-13 (Gemini 3.5 Flash-Lite, free tier: fixed, 2 requests, 3.4k prompt tokens)", ("gemini", "child"): "stub 0.68.0 through the bridge; live 2026-11-13 (NVIDIA free tier: fixed in 1 attempt)",
     ("aider", "parent"): "stub 0.86.2 (working mode only)", ("aider", "child"): "stub 0.86.2",
-    ("direct", "parent"): "stub (the loop and the refusals; no live model yet)",
+    ("direct", "parent"): "stub; live 2026-11-13 (free OpenRouter model directing a free child: fixed)",
     ("generic", "parent"): "stub (a python one-liner as the harness)", ("generic", "child"): "unit tests",
 }
 

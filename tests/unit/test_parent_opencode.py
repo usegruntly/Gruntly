@@ -136,3 +136,16 @@ def test_the_real_opencode_refuses_every_command_but_gruntly(cfg, tmp_path, monk
             assert "usage: gruntly" in results[0] and "NOT_ALLOWED_MARKER" not in results[0]
         else:
             assert "prevents you from using this specific tool call" in results[0]
+
+
+def test_with_a_provider_opencode_gets_a_private_data_folder_and_without_one_it_keeps_the_persons_own(cfg, monkeypatch):
+    monkeypatch.setattr(opencode, "which", lambda n: "/bin/opencode")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-xyz")
+    c = opencode.OpenCodeParent().command("t", "delegating", "m", "openrouter")
+    for k in ("data", "config", "state", "cache"):
+        assert Path(c.env[f"XDG_{k.upper()}_HOME"]) == cfg / "state" / "opencode-parent" / "delegating" / k
+    assert any("private data folder" in n for n in c.notes)
+    w = opencode.OpenCodeParent().command("t", "working", "m", "openrouter")
+    assert Path(w.env["XDG_DATA_HOME"]).parts[-3:] == ("opencode-parent", "working", "data")
+    own = opencode.OpenCodeParent().command("t", "delegating", "anthropic/claude-x")
+    assert not any(k.startswith("XDG_") for k in own.env) and not any("private" in n for n in own.notes)

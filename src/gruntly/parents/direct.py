@@ -69,8 +69,10 @@ class DirectParent:
         usage = Usage(prompt=int(u.get("prompt") or 0), completion=int(u.get("completion") or 0), cached=int(u.get("cached") or 0),
                       cache_write=int(u.get("cache_write") or 0), reasoning=int(u.get("reasoning") or 0), requests=int(u.get("requests") or 0),
                       missing=int(u.get("missing") or 0), cost_usd=u.get("cost_usd"))
+        cost = data.get("cost") if isinstance(data.get("cost"), dict) else {}
+        reported = cost.get("usd") if cost.get("source") == "reported by the provider" else None      # a price-table figure is gruntly's own, not the harness's report
         return ParentOutcome(final_message=str(data.get("final_message") or ""), is_error=bool(data.get("is_error")) or exit_code != 0,
-                             usage=usage if usage.requests else None, turns=data.get("turns"))
+                             usage=usage if usage.requests else None, cost_usd=reported, turns=data.get("turns"))
 
     def capabilities(self) -> ParentCaps:
         return ParentCaps(replace_system_prompt=True, restrict_tools=True, restrict_shell=True, disable_extensions=True, reports_usage=True,

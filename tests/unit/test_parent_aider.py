@@ -32,7 +32,7 @@ def test_the_working_command_gives_the_task_in_a_file_and_keeps_aider_quiet_and_
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-SECRET-xyz")
     c = aider.AiderParent().command("Fix add().", "working", "meta/llama", "openrouter")
     msg = str(cfg / "state" / "aider-parent" / "message.txt")
-    assert c.files == {msg: "Fix add()."} and c.stdin is None and c.notes == []
+    assert c.files == {msg: "Fix add()."} and c.stdin is None and len(c.notes) == 1 and ".gitignore" in c.notes[0]
     a = c.argv
     assert a[a.index("--message-file") + 1] == msg and a[a.index("--model") + 1] == "openai/meta/llama"
     for f in ("--yes-always", "--no-auto-commits", "--no-check-update", "--no-analytics", "--no-pretty", "--no-stream", "--no-fancy-input"):
