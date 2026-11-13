@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import subprocess
 
-from .. import providers
+from .. import nobrowser, providers
 from ..adapters.aider import parse_output
 from ..store import state_dir
 from ..usage import Usage
@@ -65,7 +65,7 @@ class AiderParent:
         msg = state_dir() / "aider-parent" / "message.txt"
         argv = [which("aider") or "aider", *flags, "--message-file", str(msg), "--yes-always", "--no-auto-commits", "--no-check-update", "--no-analytics",
                 "--no-show-model-warnings", "--no-pretty", "--no-stream", "--no-fancy-input", "--no-detect-urls", "--no-restore-chat-history"]
-        env = {**env, "PYTHONIOENCODING": "utf-8", "AIDER_ANALYTICS": "false"}
+        env = {**env, "PYTHONIOENCODING": "utf-8", "AIDER_ANALYTICS": "false", **nobrowser.env()}     # --yes-always also opens every "Open URL?" offer: see gruntly/nobrowser.py
         return ParentCommand(argv=argv, env=env, stdin=None, files={str(msg): task}, notes=list(WORKING_NOTES))
 
     def parse(self, stdout: str, stderr: str, exit_code: int) -> ParentOutcome:

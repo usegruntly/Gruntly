@@ -38,7 +38,7 @@ def test_the_two_original_presets_are_unchanged():
 
 def test_nothing_new_is_claimed_verified_and_no_model_id_is_hard_coded():
     cat = providers.load(user=False)
-    assert {n for n, p in cat.items() if p.verified} == {"gemini", "nvidia"}               # only what a live check has passed
+    assert {n for n, p in cat.items() if p.verified} == {"gemini", "nvidia", "openrouter"}  # only what a live check has passed (openrouter: 2026-11-13, `:free` models)
     assert all(p.default_model is None for n, p in cat.items() if n not in ("gemini", "nvidia"))
 
 

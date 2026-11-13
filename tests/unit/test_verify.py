@@ -17,6 +17,7 @@ class Fake:
     def __init__(self):
         outer = self
         self.hits = {"models": 0, "chat": 0}
+        self.calls: dict[str, int] = {}
         self.auth_required = True
 
         class H(BaseHTTPRequestHandler):
@@ -50,6 +51,11 @@ class Fake:
                     return
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 m = body["model"]
+                outer.calls[m] = outer.calls.get(m, 0) + 1
+                if m == "flaky" and outer.calls[m] == 1:
+                    return self._send(500, {"error": "internal"})
+                if m == "hangs-once" and outer.calls[m] == 1:
+                    time.sleep(1.5)
                 if m == "slow":
                     time.sleep(1.5)
                 if m == "missing":
@@ -76,6 +82,7 @@ class Fake:
 
 @pytest.fixture
 def fake(tmp_path, monkeypatch):
+    monkeypatch.setattr(verify, "RETRY_WAIT", (0.0, 0.0))                           # the retries are tested, the waiting between them is not
     monkeypatch.setenv("GRUNTLY_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("GRUNTLY_CONFIG_DIR", str(tmp_path / "cfg"))
     monkeypatch.setenv("FAKE_API_KEY", KEY)
@@ -148,7 +155,7 @@ def test_the_command_exit_code_and_output(fake, monkeypatch, capsys):
     monkeypatch.setattr(verify, "LOCAL_TIMEOUT", 0.5)
     assert cli.main(["verify"]) == 0                                   # a local server that is off is not a failure of the sweep
     out = capsys.readouterr().out
-    assert "fake" in out and "ok" in out and "FAILED (network)" in out and KEY not in out
+    assert "fake" in out and "ok" in out and "not running" in out and "FAILED" not in out and KEY not in out   # an off local server reads "not running", not as a failure
     assert cli.main(["verify", "localdead"]) == 1                      # but naming it asks for it to work
     capsys.readouterr()
     assert cli.main(["verify", "fake", "--model", "limited", "--json"]) == 1
@@ -191,3 +198,18 @@ def test_a_local_list_is_never_cached(fake, monkeypatch):
     monkeypatch.setattr(models, "_lms_downloaded", lambda: None)
     _, age = models.fetch_cached("ollama")
     assert age is None and not models.cache_path("ollama").exists()
+
+
+def test_a_transient_failure_is_retried_and_the_detail_says_so(fake):
+    c = verify.check(prov(fake), model="flaky")                                      # HTTP 500 on the first call, fine on the second
+    assert c.ok and c.tries == 2 and fake.calls["flaky"] == 2 and "on try 2 (earlier: server)" in c.detail
+    h = verify.check(prov(fake), model="hangs-once", timeout=0.5)                    # the first call hangs past the timeout
+    assert h.ok and h.tries == 2 and "earlier: timeout" in h.detail
+
+
+def test_a_failure_that_does_not_clear_is_reported_after_all_the_tries_and_other_classes_are_not_retried(fake):
+    c = verify.check(prov(fake), model="boom")
+    assert not c.ok and c.error == "server" and c.tries == verify.RETRIES + 1 and fake.calls["boom"] == 3 and f"after {verify.RETRIES + 1} tries" in c.detail
+    for model, error in (("missing", "not_found"), ("limited", "rate_limit")):       # a 404 or a 429 says something retrying will not change
+        r = verify.check(prov(fake), model=model)
+        assert r.error == error and r.tries == 1 and fake.calls[model] == 1

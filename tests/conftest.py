@@ -28,6 +28,30 @@ def never_start_the_real_claude(monkeypatch):
     monkeypatch.setattr(subprocess.Popen, "__init__", guarded)
 
 
+@pytest.fixture(autouse=True)
+def never_open_a_browser(monkeypatch):
+    """A harness run with `--yes-always` (Aider) says yes to every "Open URL for more info?", and a fresh HOME makes each run the first run of a version, so a
+    test of the real binary opened Aider's release-notes page in the user's browser every time (the tabs filled the machine's memory, 2026-11-13). Every
+    test runs with `BROWSER` set to a program that does nothing; see gruntly/nobrowser.py."""
+    from gruntly import nobrowser
+    monkeypatch.delenv(nobrowser.ALLOW, raising=False)
+    monkeypatch.setenv("BROWSER", nobrowser.command())
+
+
+@pytest.fixture
+def browser_stand_in(tmp_path, monkeypatch):
+    """Swaps the do-nothing program gruntly hands a harness as its browser for one that writes down each URL it is asked to open, and returns a function
+    that lists them: proves a real binary's attempt to open a page was caught by gruntly's stand-in and reached no browser."""
+    from gruntly import nobrowser
+    rec = tmp_path / "stand in" / "record_url.py"
+    rec.parent.mkdir()
+    log = tmp_path / "opened-urls.txt"
+    rec.write_text("import sys\nopen(sys.argv[1], 'a').write(' '.join(sys.argv[2:]) + '\\n')\n")
+    real = nobrowser.command
+    monkeypatch.setattr(nobrowser, "command", lambda argv=None: real(argv or [sys.executable, str(rec), str(log)]))
+    return lambda: log.read_text().split() if log.exists() else []
+
+
 def sh(cwd, *args):
     return subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
 

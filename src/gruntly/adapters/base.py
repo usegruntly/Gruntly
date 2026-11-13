@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from .. import nobrowser
+
 # Only these variables reach the child. Everything else (ANTHROPIC_*, OPENAI_*, cloud and
 # GitHub tokens) is dropped; adapters add the local-endpoint variables explicitly.
 BASE_ENV_KEYS = [
@@ -64,7 +66,7 @@ class Adapter(Protocol):
 def scrub_env(extra: dict[str, str], allow: list[str] | None = None) -> dict[str, str]:
     keys = set(BASE_ENV_KEYS) | set(allow or [])
     base = {k: v for k, v in os.environ.items() if k.upper() in {x.upper() for x in keys}}
-    return {**base, "PYTHONDONTWRITEBYTECODE": "1", **extra}
+    return {**base, "PYTHONDONTWRITEBYTECODE": "1", **nobrowser.env(), **extra}       # a child runs unattended: no tab may open for it
 
 
 def kill_tree(proc: subprocess.Popen) -> None:

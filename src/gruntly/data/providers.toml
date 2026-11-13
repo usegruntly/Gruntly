@@ -63,6 +63,7 @@ base_url = "https://openrouter.ai/api/v1"
 key_env = "OPENROUTER_API_KEY"
 note = "OpenRouter: many providers behind one key"
 free_tier = true
+verified = true                  # 2026-11-13: model list (436 models) and chat answered on `:free` models, and OpenCode used it as a child. The free allowance runs out each day (429).
 docs = [["Get an API key", "https://openrouter.ai/keys"],
         ["Models", "https://openrouter.ai/models"],
         ["Docs", "https://openrouter.ai/docs"]]

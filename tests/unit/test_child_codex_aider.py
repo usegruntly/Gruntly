@@ -115,7 +115,7 @@ def test_the_real_codex_child_talks_to_the_endpoint_with_the_key_and_the_task(tm
 
 
 @pytest.mark.skipif(not REAL_AIDER, reason="Aider is not installed (set GRUNTLY_TEST_AIDER to an aider executable)")
-def test_the_real_aider_child_leaves_the_tree_exactly_as_it_found_it_when_the_model_changes_nothing(tmp_path, monkeypatch):
+def test_the_real_aider_child_leaves_the_tree_exactly_as_it_found_it_when_the_model_changes_nothing(tmp_path, monkeypatch, browser_stand_in):
     monkeypatch.setattr(aider, "which", lambda n: REAL_AIDER)
     with probe.StubServer(reply="ok") as srv:
         work = tmp_path / "runs" / "r1" / "wt"
@@ -131,6 +131,9 @@ def test_the_real_aider_child_leaves_the_tree_exactly_as_it_found_it_when_the_mo
         assert turn.model in ("m1", "openai/m1") and turn.auth == "Bearer dummy-key-123" and "Fix add()." in turn.user
         status = subprocess.run(["git", "status", "--porcelain"], cwd=work, capture_output=True, text=True).stdout
         assert status.strip() == "", f"Aider left files in the tree: {status}"            # no .aider* history, no tags cache, no .gitignore edit
+        # a fresh HOME makes this the first run of the version, and --yes-always says yes to Aider's offer to open its release notes: the page went to
+        # the stand-in, not to a browser (it opened a tab on every real run until 2026-11-13). If Aider stops offering it, drop this assertion.
+        assert browser_stand_in() == ["https://aider.chat/HISTORY.html#release-notes"]
 
 
 def test_the_codex_child_uses_the_runners_bridge_when_there_is_one_and_the_bridge_is_for_everything_but_a_responses_provider(wt, monkeypatch):

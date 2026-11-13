@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from .. import nobrowser
 from ..adapters.base import Detection, kill_tree, which  # noqa: F401  (re-exported for the adapters)
 from ..usage import Usage
 
@@ -93,7 +94,7 @@ def run(adapter: ParentAdapter, task: str, mode: str, model: str | None = None, 
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text.replace("{gruntly_cwd}", base.resolve().as_posix()), encoding="utf8")      # a file may name the folder the parent is launched in
     kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}     # so cancel() reaches the whole tree
-    full = {**os.environ, **cmd.env, **(env or {})}
+    full = {**os.environ, **nobrowser.env(), **cmd.env, **(env or {})}      # unattended: no tab may open for the parent either (see gruntly/nobrowser.py)
     if cwd:
         full["PWD"] = str(cwd)      # OpenCode takes its project folder from $PWD, not from the process's real directory: a caller whose own shell is elsewhere
                                     # (the benchmark runner, a script) would otherwise have it run, and edit, the wrong repository (seen live, 2026-11-13)

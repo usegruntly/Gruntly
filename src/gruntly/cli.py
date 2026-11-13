@@ -928,7 +928,8 @@ def cmd_verify(a) -> int:
         return 1 if failed else 0
     print(f"{'PROVIDER':11} {'RESULT':16} {'STAGE':8} {'MS':>6}  DETAIL")
     for c in checks:
-        result = "ok" if c.ok else ("skipped" if c.stage == "skipped" else f"FAILED ({c.error})")
+        result = ("ok" if c.ok else "skipped" if c.stage == "skipped" else "not running" if c.kind == "local" and c.error == "network"
+                  else f"FAILED ({c.error})")
         print(f"{c.provider:11} {result:16} {c.stage:8} {c.latency_ms if c.latency_ms is not None else '-':>6}  {c.detail}")
     return 1 if failed else 0
 

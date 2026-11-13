@@ -17,6 +17,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from .. import nobrowser
 from ..spec import permission_mode
 from .base import Caps, ChildOutcome, Command, Detection, count_malformed, kill_tree, which
 
@@ -64,7 +65,8 @@ class AiderAdapter:
                 "--llm-history-file", str(state / "llm.log")]
         if permission_mode(task) == "plan":
             argv += ["--chat-mode", "ask"]
-        env = {"OPENAI_API_BASE": task.endpoint, "OPENAI_API_KEY": task.api_key, "PYTHONIOENCODING": "utf-8", "AIDER_ANALYTICS": "false"}
+        env = {"OPENAI_API_BASE": task.endpoint, "OPENAI_API_KEY": task.api_key, "PYTHONIOENCODING": "utf-8", "AIDER_ANALYTICS": "false",
+               **nobrowser.env()}       # --yes-always also says yes to "Open URL for more info?" and Aider has no switch against it (gruntly/nobrowser.py)
         state.mkdir(parents=True, exist_ok=True)
         return Command(argv=argv, env=env, stdin=None)
 

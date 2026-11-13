@@ -71,7 +71,7 @@ def test_aider_is_registered_as_working_only_and_is_never_picked_as_a_delegating
 
 
 @pytest.mark.skipif(not REAL, reason="Aider is not installed (set GRUNTLY_TEST_AIDER to an aider executable)")
-def test_the_real_aider_sends_the_task_to_the_named_model_with_the_key_and_reports_tokens(cfg, tmp_path, monkeypatch):
+def test_the_real_aider_sends_the_task_to_the_named_model_with_the_key_and_reports_tokens(cfg, tmp_path, monkeypatch, browser_stand_in):
     """No key, no cost. Measured on 0.86.2: Aider's own prompt carries the task from the message file; the key arrives as a bearer token."""
     with probe.StubServer(reply="ok") as srv:
         monkeypatch.setitem(providers.ALL, "stubprov", providers.Provider(name="stubprov", base_url=srv.base_url, key_env="STUB_API_KEY", default_model="stub-model"))
@@ -86,3 +86,4 @@ def test_the_real_aider_sends_the_task_to_the_named_model_with_the_key_and_repor
         turn = srv.chat()[0]
         assert turn.model == "openai/stub-model" or turn.model == "stub-model"
         assert turn.auth == "Bearer dummy-key-123" and "Fix add()." in turn.user and "ok" in r.outcome.final_message
+        assert browser_stand_in() == ["https://aider.chat/HISTORY.html#release-notes"]       # the first-run release-notes offer, said yes to by --yes-always, reached no browser

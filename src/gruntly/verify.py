@@ -21,6 +21,9 @@ from pathlib import Path
 from . import keys, models as mm, providers
 
 TIMEOUT = 30
+RETRIES = 2                      # a transient failure (the provider's own 5xx, a call that hangs) is tried again this many times: some APIs answer 500 on about half the calls
+RETRY_WAIT = (2.0, 5.0)          # seconds before the first and the second retry
+RETRY_ON = ("server", "timeout")
 LOCAL_TIMEOUT = 2
 PROMPT = "Reply with the single word: ok"
 BODY_CHARS = 160
@@ -38,6 +41,7 @@ class Check:
     model: str | None = None
     models: int | None = None
     usage: dict | None = None
+    tries: int = 1                # calls made for the chat check; above 1 when a transient failure was retried
 
 
 def scrub(text: str, key: str | None) -> str:
@@ -109,9 +113,20 @@ def check(p: providers.Provider, model: str | None = None, timeout: float | None
         return out
     out.model, out.stage = use, "chat"
     t1 = time.monotonic()
+    earlier: list[str] = []
     try:
-        r = _request(p.base_url.rstrip("/") + "/chat/completions", key,
-                     {"model": use, "messages": [{"role": "user", "content": PROMPT}], "max_tokens": 8, "temperature": 0}, t)
+        while True:
+            try:
+                r = _request(p.base_url.rstrip("/") + "/chat/completions", key,
+                             {"model": use, "messages": [{"role": "user", "content": PROMPT}], "max_tokens": 8, "temperature": 0}, t)
+                break
+            except Exception as e:  # noqa: BLE001
+                cls = classify(e)[0]
+                if cls not in RETRY_ON or out.tries > RETRIES:
+                    raise
+                earlier.append(cls)
+                time.sleep(RETRY_WAIT[min(out.tries - 1, len(RETRY_WAIT) - 1)])
+                out.tries += 1
         out.latency_ms = int((time.monotonic() - t1) * 1000)
         if not r.get("choices"):
             out.error, out.detail = "other", f"{use}: the answer had no choices"
@@ -119,10 +134,11 @@ def check(p: providers.Provider, model: str | None = None, timeout: float | None
         usage = r.get("usage") or {}
         out.usage = {k: usage[k] for k in ("prompt_tokens", "completion_tokens", "total_tokens") if isinstance(usage.get(k), int)} or None
         out.ok = True
-        out.detail = f"{out.models} models listed; {use} answered" + (f" ({out.usage['total_tokens']} tokens)" if out.usage and "total_tokens" in out.usage else "")
+        out.detail = (f"{out.models} models listed; {use} answered" + (f" ({out.usage['total_tokens']} tokens)" if out.usage and "total_tokens" in out.usage else "")
+                      + (f" on try {out.tries} (earlier: {', '.join(earlier)})" if earlier else ""))
     except Exception as e:  # noqa: BLE001
         out.error, detail = classify(e)
-        out.detail = scrub(f"{use}: {detail}", key)
+        out.detail = scrub(f"{use}: {detail}" + (f" (after {out.tries} tries)" if out.tries > 1 else ""), key)
         out.latency_ms = int((time.monotonic() - t1) * 1000)
     return out
 
