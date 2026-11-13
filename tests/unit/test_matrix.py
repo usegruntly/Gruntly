@@ -34,7 +34,7 @@ def test_the_delegating_level_is_lean_partial_or_no():
     assert matrix.delegating_level(ParentCaps(modes=("working",))) == "no"
     rows = {r["harness"]: r for r in matrix.build()["harnesses"]}
     assert rows["claude"]["parent"]["delegating"] == "lean" and rows["aider"]["parent"]["delegating"] == "no" and rows["aider"]["parent"]["working"]
-    assert rows["hermes"]["parent"]["delegating"].startswith("partial") and rows["hermes"]["parent"]["experimental"]
+    assert rows["hermes"]["parent"]["delegating"] == "partial: own prompt stays" and not rows["hermes"]["parent"]["experimental"]
 
 
 def test_compatibility_follows_the_wire_protocol_and_the_catalogs_responses_flag():

@@ -1172,7 +1172,7 @@ def build_parser() -> argparse.ArgumentParser:
     hn.add_argument("--global", dest="global_", action="store_true", help="save to your global settings")
     hn.add_argument("--project", action="store_true", help="save to this project's .gruntly.toml")
     pa = add("parent", cmd_parent)
-    pa.add_argument("action", nargs="?", choices=["show", "set", "clear", "suggest"], help="show (default), set HARNESS, clear the [parent] table, or suggest a parent and a child from what is here")
+    pa.add_argument("action", nargs="?", choices=["show", "set", "clear", "suggest", "prepare"], help="show (default), set HARNESS, clear the [parent] table, suggest a parent and a child from what is here, or prepare HARNESS (Hermes: its private data folder, once)")
     pa.add_argument("harness", nargs="?", help="with `set`: the parent harness (see `gruntly harness matrix`)")
     pa.add_argument("--mode", choices=["delegating", "working"], help="delegating: the parent directs gruntly; working: it does the job itself")
     pa.add_argument("--provider", help="a catalog provider the parent's model comes from (omit for the harness's own login)")

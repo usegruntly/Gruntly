@@ -297,6 +297,17 @@ def cmd_parent(a) -> int:
         print(f"Saved to {path}: [parent] harness = {a.harness}" + (f", mode = {a.mode}" if a.mode else "") + (f", provider = {a.provider}" if a.provider else "")
               + (f", model = {a.model}" if a.model else ""))
         return 0
+    if a.action == "prepare":
+        name = a.harness or "hermes"
+        if name != "hermes":
+            print(f"nothing to prepare for {name}: only Hermes needs a one-time setup of its private data folder", file=sys.stderr)
+            return 2
+        from .parents import hermes
+        print(f"Preparing Hermes's private folder {hermes.parent_home()} (hermes pm repair: a minute or two, downloads Python packages)...", flush=True)
+        ok, tail = hermes.prepare()
+        print(tail)
+        print("Ready: `gruntly agent --parent hermes --provider P --model M \"task\"`" if ok else "Not ready: see the output above.")
+        return 0 if ok else 1
     if a.action == "suggest":
         s = suggest(gather())
         print(render_suggestion(s))

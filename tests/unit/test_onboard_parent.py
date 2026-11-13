@@ -137,3 +137,14 @@ def test_gather_reads_the_machine_without_returning_a_key(cfg, monkeypatch):
     f = op.gather()
     assert f["keys"]["groq"] is True and f["keys"]["openai"] in (True, False) and f["local_up"] is False
     assert "gsk-SECRET-xyz" not in repr(f) and "claude" in f["parents"] and "opencode" in f["children"]
+
+
+def test_prepare_hermes_runs_the_setup_and_reports_and_nothing_else_needs_one(cfg, monkeypatch, capsys):
+    from gruntly.parents import hermes
+    monkeypatch.setattr(hermes, "prepare", lambda mode="delegating", timeout_s=900: (True, "hermes: dependency environment repaired"))
+    assert cli.main(["parent", "prepare", "hermes"]) == 0 and cli.main(["parent", "prepare"]) == 0
+    out = capsys.readouterr().out
+    assert "Preparing Hermes's private folder" in out and "repaired" in out and "Ready:" in out
+    monkeypatch.setattr(hermes, "prepare", lambda mode="delegating", timeout_s=900: (False, "boom"))
+    assert cli.main(["parent", "prepare", "hermes"]) == 1 and "Not ready" in capsys.readouterr().out
+    assert cli.main(["parent", "prepare", "codex"]) == 2 and "only Hermes needs" in capsys.readouterr().err

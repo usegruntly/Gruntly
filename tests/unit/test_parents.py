@@ -145,3 +145,15 @@ def test_a_parent_launched_with_a_folder_gets_that_folder_as_pwd_too_even_when_t
     assert os.path.samefile(here, work) and pwd == str(work)
     r2 = base.run(ScriptParent(code), "t", "working")                              # no folder asked for: the environment is left as it is
     assert r2.outcome.final_message.split("|")[1] == str(tmp_path.parent)
+
+
+def test_a_launched_file_may_name_the_folder_the_parent_is_launched_in(tmp_path):
+    class P(ScriptParent):
+        def command(self, *a, **k):
+            c = super().command(*a, **k)
+            c.files["note.txt"] = "work in {gruntly_cwd} please"
+            return c
+    work = tmp_path / "work"
+    work.mkdir()
+    base.run(P("print(1)"), "t", "working", cwd=work)
+    assert (work / "note.txt").read_text(encoding="utf8") == f"work in {work.resolve().as_posix()} please"

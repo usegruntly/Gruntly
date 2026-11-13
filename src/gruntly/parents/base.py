@@ -91,7 +91,7 @@ def run(adapter: ParentAdapter, task: str, mode: str, model: str | None = None, 
     for rel, text in cmd.files.items():
         p = Path(rel) if Path(rel).is_absolute() else base / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(text, encoding="utf8")
+        p.write_text(text.replace("{gruntly_cwd}", base.resolve().as_posix()), encoding="utf8")      # a file may name the folder the parent is launched in
     kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}     # so cancel() reaches the whole tree
     full = {**os.environ, **cmd.env, **(env or {})}
     if cwd:

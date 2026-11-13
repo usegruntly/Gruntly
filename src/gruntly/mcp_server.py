@@ -2,7 +2,8 @@
 
 Two tools on purpose: every tool schema sits in the parent's context on every turn of every session,
 so seven small tools cost more than one tool with an `action`. Each call shells out to the CLI in the
-target repo, so there is exactly one code path.
+target repo, so there is exactly one code path. The repository is the `repo` argument, else the environment variable GRUNTLY_REPO (a host that starts the
+server from another folder, such as Hermes, sets it to its workspace), else the folder the server runs in.
 """
 from __future__ import annotations
 
@@ -27,7 +28,9 @@ INSTRUCTIONS = (
 
 
 def _cli(repo: str | None, args: list[str], stdin: str | None = None, timeout: int = 3600) -> dict | str:
-    p = subprocess.run([sys.executable, "-m", "gruntly", *args], cwd=repo or os.getcwd(), input=stdin,
+    if os.environ.get("GRUNTLY_MCP_REQUIRE_REPO") and not repo:        # a host whose server outlives the project (Hermes keeps it in a shared gateway) must not guess
+        return {"error": "repo is required: pass the repository path given in your instructions as the repo argument"}
+    p = subprocess.run([sys.executable, "-m", "gruntly", *args], cwd=repo or os.environ.get("GRUNTLY_REPO") or os.getcwd(), input=stdin,
                        capture_output=True, text=True, encoding="utf8", errors="replace", timeout=timeout)
     text = p.stdout.strip()
     if p.returncode != 0:

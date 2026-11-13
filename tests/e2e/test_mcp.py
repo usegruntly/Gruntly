@@ -64,3 +64,11 @@ def _raw(result):
     if getattr(result, "structured_content", None) is not None:
         return result.structured_content
     return result.content[0].text
+
+
+def test_a_host_can_make_the_repo_argument_mandatory_so_a_server_that_outlives_the_project_never_guesses(monkeypatch):
+    monkeypatch.setenv("GRUNTLY_MCP_REQUIRE_REPO", "1")
+    for out in (mcp_server._cli(None, ["status", "r_x"]), mcp_server._cli("", ["status", "r_x"])):
+        assert out == {"error": "repo is required: pass the repository path given in your instructions as the repo argument"}
+    monkeypatch.delenv("GRUNTLY_MCP_REQUIRE_REPO")
+    assert "repo is required" not in json.dumps(mcp_server._cli(None, ["--help"]))
