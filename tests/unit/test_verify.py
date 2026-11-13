@@ -213,3 +213,12 @@ def test_a_failure_that_does_not_clear_is_reported_after_all_the_tries_and_other
     for model, error in (("missing", "not_found"), ("limited", "rate_limit")):       # a 404 or a 429 says something retrying will not change
         r = verify.check(prov(fake), model=model)
         assert r.error == error and r.tries == 1 and fake.calls[model] == 1
+
+
+def test_a_missing_root_certificate_store_gets_its_own_class_with_the_fix(fake):
+    import ssl
+    import urllib.error
+    cls, detail = verify.classify(urllib.error.URLError(ssl.SSLCertVerificationError(1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate")))
+    assert cls == "tls" and "Install Certificates.command" in detail and "SSL_CERT_FILE" in detail
+    assert verify.classify(urllib.error.URLError(ConnectionRefusedError("refused")))[0] == "network"          # a refused connection is still just the network
+    assert "tls" not in verify.RETRY_ON                                                                        # retrying cannot give Python a certificate store

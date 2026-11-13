@@ -96,7 +96,8 @@ def candidates() -> list[dict]:
 
 def show() -> str:
     cur = current(onboard.project_config().parent if onboard.project_config() else None)
-    out = [f"Parent: harness = {cur['parent']}, mode = {cur['mode']}, provider = {cur['provider'] or '(the harness\'s own login)'}, model = {cur['model'] or '(its default)'}", ""]
+    own_login = "(the harness's own login)"       # a backslash inside an f-string expression is a syntax error before Python 3.12
+    out = [f"Parent: harness = {cur['parent']}, mode = {cur['mode']}, provider = {cur['provider'] or own_login}, model = {cur['model'] or '(its default)'}", ""]
     out.append(f"{'HARNESS':9} {'INSTALLED':10} {'DELEGATING':56} WORKING  CHECKED")
     for c in candidates():
         out.append(f"{c['name']:9} {'yes' if c['installed'] else 'no':10} {(c['delegating'] + (' (experimental)' if c['experimental'] else ''))[:56]:56} "

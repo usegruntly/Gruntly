@@ -9,8 +9,27 @@ description = "Hand the grunt work to your local model. Gruntly runs your AI cod
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-keywords = ["ai", "coding-agent", "claude-code", "local-llm"]
+authors = [{ name = "Aaryan" }]
+keywords = ["ai", "coding-agent", "claude-code", "local-llm", "mcp", "delegation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = ["pyyaml>=6"]
+
+[project.urls]
+Homepage = "https://github.com/usegruntly/Gruntly"
+Documentation = "https://github.com/usegruntly/Gruntly#readme"
+Changelog = "https://github.com/usegruntly/Gruntly/blob/main/CHANGELOG.md"
+Issues = "https://github.com/usegruntly/Gruntly/issues"
 
 [project.optional-dependencies]
 mcp = ["mcp>=1.0"]
@@ -22,6 +41,10 @@ gruntly-mcp = "gruntly.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gruntly"]
+
+[tool.hatch.build.targets.sdist]
+# the tests and the manual go with the source; the measured benchmark data (megabytes of run records) stays in the repository
+exclude = ["/docs/benchmarks", "/logs", "/.gruntly", "/bench/runs*", "/bench/.cache"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

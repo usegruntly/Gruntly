@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import socket
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -63,6 +64,10 @@ def classify(exc: BaseException) -> tuple[str, str]:
     reason = getattr(exc, "reason", exc)
     if isinstance(exc, (socket.timeout, TimeoutError)) or isinstance(reason, (socket.timeout, TimeoutError)):
         return "timeout", "no answer in time"
+    if isinstance(reason, ssl.SSLCertVerificationError) or "CERTIFICATE_VERIFY_FAILED" in str(reason):
+        return "tls", ("the provider's TLS certificate could not be verified because this Python has no root certificates to check it against. "
+                       "Python from python.org on macOS: run 'Install Certificates.command' (in /Applications/Python 3.x). Otherwise use a Python from uv or Homebrew. "
+                       "Behind a company proxy that re-signs traffic, point SSL_CERT_FILE at its root certificate")
     if isinstance(exc, (urllib.error.URLError, ConnectionError, OSError)):
         return "network", f"could not connect: {reason}"
     return "other", f"{type(exc).__name__}: {exc}"[:BODY_CHARS]

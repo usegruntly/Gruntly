@@ -244,7 +244,7 @@ def main() -> None:
             L.append(f"| {r['task']} | {label} | {'yes' if r['passed'] else 'NO'} | {j.get('cases_passed', '-')}/{j.get('cases_failed', '-')} | {total(r):.3f} | "
                      f"{parent_usd(r):.3f} | {r.get('child_cost_usd') or 0:.4f} | {'cold' if r.get('cold_start') else ''} | {r.get('turns')} | "
                      f"{r.get('gruntly_wall_s', '-')} / {r.get('parent_wall_s', '-')} | "
-                     f"{', '.join(f'{x.get('status')} x{x.get('attempts')}' for x in g) or '-'} | {why[:120]} | "
+                     f"{', '.join(str(x.get('status')) + ' x' + str(x.get('attempts')) for x in g) or '-'} | {why[:120]} | "
                      f"{('+%s/-%s' % (fp.get('lines_added'), fp.get('lines_removed'))) if fp else '-'} |")
 
     L += ["", "## 7. Limits of this evidence", "",
