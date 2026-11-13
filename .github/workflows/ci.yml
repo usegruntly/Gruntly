@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      macos:
+        description: "Also run the suite on macOS (ten times the minutes on a private repository; never part of a push)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -26,7 +31,7 @@ jobs:
 
   test:
     # The whole suite, offline: fake servers and fake child CLIs, no model, no key. Tests of a real harness binary skip themselves when it is not installed.
-    # macOS runs one Python: its minutes cost ten times a Linux minute on a private repository.
+    # macOS is not here: see the manual test-macos job below.
     name: tests (${{ matrix.os }}, Python ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -39,7 +44,6 @@ jobs:
           - {os: ubuntu-latest, python: "3.13"}
           - {os: windows-latest, python: "3.11"}
           - {os: windows-latest, python: "3.13"}
-          - {os: macos-latest, python: "3.12"}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -59,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -77,3 +81,21 @@ jobs:
           mkdir "$RUNNER_TEMP/neutral" && cd "$RUNNER_TEMP/neutral"
           "$BIN/gruntly" --version
           "$BIN/gruntly" demo
+
+  test-macos:
+    # Never runs on a push or a pull request: macOS minutes cost ten times a Linux minute on a private repository. Start it by hand
+    # (Actions, ci, Run workflow, tick "macos") or run the steps in docs/releasing.md on a Mac.
+    if: github.event_name == 'workflow_dispatch' && inputs.macos
+    name: tests (macOS, Python 3.12)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: git config --global user.email ci@example.test
+      - run: git config --global user.name ci
+      - run: python -m pip install -e ".[dev,mcp]"
+      - run: python -m pytest tests -q -p no:cacheprovider --tb=short -ra
+      - run: gruntly demo

@@ -24,13 +24,27 @@ A checklist for the maintainer. Nothing here runs by itself except `.github/work
 2. Read `docs/` once as a stranger would. It holds working notes (`investigation-*.md`, `plan-*.md`, `research-brief.md`) and measured benchmark data (`docs/benchmarks/`, including `delegation-export/`, which is derived from your own Claude Code sessions: numbers and labels only, but your call). Remove or keep each deliberately.
 3. `LICENSE` names the copyright holder; `pyproject.toml` names the author. Both say what you want public.
 4. The README's logo uses relative paths: fine on GitHub, broken on PyPI. Once public, change the two `docs/brand/svg/...` URLs in the top block to `https://raw.githubusercontent.com/usegruntly/Gruntly/main/docs/brand/svg/...`.
-5. Push once and watch the first CI run on all three systems. Windows and Linux ran green locally; **macOS has never run the suite**, so expect to fix a few things there.
+5. Push and watch the first CI run (Linux and Windows). **macOS has never run the suite and is not part of CI**: its minutes cost ten times as much on a private repository, so it is checked by hand (next section) and the `test-macos` job in `ci.yml` only runs when you start it yourself.
+
+## Testing on a Mac
+
+Ask someone with a Mac to open Terminal and paste this (about 10 minutes, no account or key needed):
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh        # skip if uv is installed
+git clone https://github.com/usegruntly/Gruntly && cd Gruntly
+uv venv --python 3.12 && uv pip install -e ".[dev,mcp]"
+.venv/bin/python -m pytest -q -p no:cacheprovider 2>&1 | tail -40
+.venv/bin/gruntly demo
+```
+
+What to send back: the last lines of the pytest output (the `passed` / `failed` line and any `FAILED` names), the output of `gruntly demo`, and `sw_vers` and `uname -m`. Failures are expected to be about paths (macOS temp folders are symbolic links) or the shell; each is a small fix. If it all passes, record the macOS version and date in `CHANGELOG.md` and the README's Status section.
 
 ## Each release
 
 1. Move the *Unreleased* part of `CHANGELOG.md` under the new version, set `version` in `pyproject.toml`, commit.
 2. CI is green on `main`.
-3. `git tag v0.4.0 && git push origin v0.4.0`. The workflow checks that the tag matches `pyproject.toml`, runs the file scan, builds the wheel and sdist, runs `twine check`, installs the *wheel* on Linux, Windows and macOS and runs `gruntly demo` from an unrelated folder, and only then publishes.
+3. `git tag v0.4.0 && git push origin v0.4.0`. The workflow checks that the tag matches `pyproject.toml`, runs the file scan, builds the wheel and sdist, runs `twine check`, installs the *wheel* on Linux and Windows and runs `gruntly demo` from an unrelated folder, and only then publishes.
 4. `gh release create v0.4.0 --notes-file <the changelog section>`.
 5. From a clean machine or folder: `uvx gruntly@latest --version` and `uvx gruntly@latest demo`.
 
