@@ -20,6 +20,8 @@ parent -- brief --> gruntly -- worktree --> child (local model)
 
 Prefer a guided version? Install gruntly (step 3), then run `gruntly setup`: it checks what is installed, lets you pick a provider (your local server or a hosted endpoint with your own API key), shows every model your account offers, saves your choice, and explains the main commands. `gruntly harness` picks the child agent (OpenCode, Qwen Code, Hermes) with a short note and docs link for each; `gruntly use` changes provider or model later; `gruntly models` lists what an account offers.
 
+Want to see what it does first, with no model and no key? Install gruntly (step 3 below) and run `gruntly demo`.
+
 You need: git, Python 3.11+, [uv](https://docs.astral.sh/uv/), a local model server with an OpenAI-compatible API (LM Studio, llama.cpp, Ollama) and one child CLI.
 
 1. **Local model.** In LM Studio load a coder model, set its context to **32k or more** (the child harness's own system prompt and tools take much of it), start the server (default `http://127.0.0.1:1234`).
@@ -75,10 +77,12 @@ This installs the skill (when to delegate, how to write briefs, what to inspect,
 | `gruntly agent "task"` | Launch a parent harness (`--parent`, `--mode delegating|working`, `--provider`, `--model`, or the `[parent]` table) that directs gruntly. |
 | `gruntly parent [set HARNESS ...]` | Show or set the parent harness, mode, provider and model. |
 | `gruntly harness matrix` | Every harness in both roles, what was checked, and which providers each can use. |
+| `gruntly demo` | See it work in two minutes with a stand-in child: no model, no key, no network. `--live` runs the first task with your configured child. |
+| `gruntly restore <run>` | After a `main tree modified` failure: put back the files a child changed in your own working tree, only those still as the child left them (`--dry-run` first). |
 | `gruntly providers / models / verify` | The provider catalog, what an account offers, a live check of each key. |
 | `gruntly doctor / init / stats / gc / mcp` | Environment check, project config, aggregate stats, cleanup, MCP server. |
 
-**MCP, for agents other than Claude Code.** Start the server by hand with `gruntly mcp` (stdio; it needs the `mcp` extra from step 3). Example client config: `{"mcpServers": {"gruntly": {"command": "gruntly", "args": ["mcp"]}}}`. Its `gruntly_delegate(request)` takes plain words, like `gruntly agent-run`.
+**MCP, for agents other than Claude Code.** Start the server by hand with `gruntly mcp` (stdio; it needs the `mcp` extra from step 3). Example client config: `{"mcpServers": {"gruntly": {"command": "gruntly", "args": ["mcp"]}}}`. Its `gruntly_delegate(request)` takes plain words, like `gruntly agent-run`. Setup for Cursor, VS Code, Cline, Roo Code, Zed, Claude Desktop, Codex CLI, Gemini CLI, Qwen Code and OpenCode, with what was checked against the real program and what was not, is in [docs/mcp-clients.md](docs/mcp-clients.md).
 
 `gruntly guide` prints the full manual. Every command prints JSON (`--human` for text). Exit code is non-zero only when the tool itself errors; a failed gate is a normal result.
 
@@ -120,6 +124,9 @@ Level 0 (default) is a worktree, a scrubbed environment (no `ANTHROPIC_*`, `OPEN
 - `model ... not loaded`: set `model` to an id from `curl <endpoint>/models`.
 - Child loops or truncates: raise the context (16k+), shrink `allowed_paths`, split the task.
 - OpenCode `Database is not empty...`: fixed by gruntly (private state dir per run); running plain `opencode` still uses the old DB.
+- `main tree modified: <file>` and a failed run: the child edited your own checkout instead of its worktree (the models that do this found the checkout's path through the worktree's `.git` file). `gruntly restore RUN --dry-run` shows what would be put back, `gruntly restore RUN` does it. Files you edited yourself afterwards are left alone.
+- `tls` or `CERTIFICATE_VERIFY_FAILED` against a hosted provider: Python has no root certificates. Python from python.org on macOS: run `Install Certificates.command` in `/Applications/Python 3.x`; or use a Python from Homebrew or uv. Behind a company proxy that re-signs traffic, point `SSL_CERT_FILE` at its root certificate.
+- macOS and Linux: the system Python is often older than 3.11. `uv tool install` fetches a suitable one; pip on an old Python stops with "requires >=3.11".
 - WSL2 cannot reach a Windows-hosted model: enable "Serve on Local Network" in LM Studio or use mirrored networking.
 - Windows: native Windows works for Qwen Code and OpenCode (tested); sandbox level 1 needs Linux. Hermes also runs natively on Windows (0.23.0 verified; see `docs/adapters.md`) or in WSL2.
 

@@ -22,7 +22,7 @@ def test_the_real_quiet_output_gives_the_answer_without_the_diff_preview_and_the
     err = (FIX / "quiet_success.stderr").read_text(encoding="utf8")
     o = HermesAdapter().parse(out, err, 0)
     assert o.session_id == "20261109_191151_014343" and not o.is_error
-    assert o.final_message == "a//home/aaryan/hs_test/calc.py → b//home/aaryan/hs_test/calc.py\n@@ -1,2 +1,2 @@\n def add(a, b):\n-    return a - b\n+    return a + b\nAd-hoc verification successful: add(a, b) now correctly returns a + b." \
+    assert o.final_message == "a//home/user/hs_test/calc.py → b//home/user/hs_test/calc.py\n@@ -1,2 +1,2 @@\n def add(a, b):\n-    return a - b\n+    return a + b\nAd-hoc verification successful: add(a, b) now correctly returns a + b." \
         or "Ad-hoc verification successful" in o.final_message
     assert "┊" not in o.final_message
 

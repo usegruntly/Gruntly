@@ -115,7 +115,7 @@
   "requests": 0,
   "input_per_request": null,
   "warnings": null,
-  "error": "~~~~^^^\nOSError: [WinError 145] The directory is not empty: 'C:\\\\Users\\\\Aaryan\\\\AppData\\\\Local\\\\Temp\\\\cbench-o4wsrdib\\\\repo\\\\.gruntly\\\\child-state\\\\r_20261108_4881\\\\opencode\\\\data\\\\opencode\\\\snapshot\\\\1ba67699aecdec86d5279e3c113f3d1889c3a024\\\\c00738a7c5e85a8f69d7cedba3c38ed4acf1b122\\\\objects\\\\pack'\n",
+  "error": "~~~~^^^\nOSError: [WinError 145] The directory is not empty: 'C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\cbench-o4wsrdib\\\\repo\\\\.gruntly\\\\child-state\\\\r_20261108_4881\\\\opencode\\\\data\\\\opencode\\\\snapshot\\\\1ba67699aecdec86d5279e3c113f3d1889c3a024\\\\c00738a7c5e85a8f69d7cedba3c38ed4acf1b122\\\\objects\\\\pack'\n",
   "reason": null
  },
  {

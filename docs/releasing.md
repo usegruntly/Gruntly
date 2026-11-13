@@ -1,0 +1,41 @@
+# Releasing
+
+A checklist for the maintainer. Nothing here runs by itself except `.github/workflows/release.yml`, which does its work when a version tag is pushed.
+
+## One-time setup
+
+1. **PyPI.** Make an account with two-factor sign-in. The name `gruntly` was free on 2026-11-13; check again (`https://pypi.org/project/gruntly/` should be a 404). On https://pypi.org/manage/account/publishing/ add a *pending publisher*: project `gruntly`, owner `usegruntly`, repository `Gruntly`, workflow `release.yml`, environment `pypi`. After that no token is needed anywhere.
+2. **GitHub.** Settings, Environments, create `pypi` (optionally require yourself as a reviewer, so a tag cannot publish unattended). Settings, Code security: turn on *Private vulnerability reporting* (SECURITY.md and the issue template point to it). Actions are free on a public repository; on a private one the macOS runner costs ten minutes for each minute used.
+3. **Your commit identity.** Use GitHub's noreply address for commits that will be public: `git config user.email "ID+LOGIN@users.noreply.github.com"` (the ID is on https://api.github.com/users/LOGIN). In GitHub, Settings, Emails: turn on *Keep my email addresses private* and *Block command line pushes that expose my email*.
+
+## Before the repository becomes public
+
+1. `python scripts/prerelease_check.py --history` must print `clean`. The file scan is already clean and runs in CI. The history check fails while any commit carries a real email address as author or committer. Two ways out:
+   - **Rewrite the history** (every clone must be made again afterwards, and the old commits stay visible in anyone's fork or cache made while the repository was public, so do this *before* the switch). Work on a copy:
+     ```
+     # mailmap.txt, one line:  Your Name <ID+LOGIN@users.noreply.github.com> <the-old-address@example.org>
+     pip install git-filter-repo
+     git clone --mirror https://github.com/usegruntly/Gruntly gruntly-clean.git
+     cd gruntly-clean.git && git filter-repo --mailmap ../mailmap.txt
+     python ../Gruntly/scripts/prerelease_check.py --root <a normal clone of it> --history
+     git push --force --mirror https://github.com/usegruntly/Gruntly
+     ```
+   - **Or publish a fresh repository** from a squashed history and keep this one private.
+2. Read `docs/` once as a stranger would. It holds working notes (`investigation-*.md`, `plan-*.md`, `research-brief.md`) and measured benchmark data (`docs/benchmarks/`, including `delegation-export/`, which is derived from your own Claude Code sessions: numbers and labels only, but your call). Remove or keep each deliberately.
+3. `LICENSE` names the copyright holder; `pyproject.toml` names the author. Both say what you want public.
+4. The README's logo uses relative paths: fine on GitHub, broken on PyPI. Once public, change the two `docs/brand/svg/...` URLs in the top block to `https://raw.githubusercontent.com/usegruntly/Gruntly/main/docs/brand/svg/...`.
+5. Push once and watch the first CI run on all three systems. Windows and Linux ran green locally; **macOS has never run the suite**, so expect to fix a few things there.
+
+## Each release
+
+1. Move the *Unreleased* part of `CHANGELOG.md` under the new version, set `version` in `pyproject.toml`, commit.
+2. CI is green on `main`.
+3. `git tag v0.4.0 && git push origin v0.4.0`. The workflow checks that the tag matches `pyproject.toml`, runs the file scan, builds the wheel and sdist, runs `twine check`, installs the *wheel* on Linux, Windows and macOS and runs `gruntly demo` from an unrelated folder, and only then publishes.
+4. `gh release create v0.4.0 --notes-file <the changelog section>`.
+5. From a clean machine or folder: `uvx gruntly@latest --version` and `uvx gruntly@latest demo`.
+
+## After the first release
+
+- **MCP registry.** The official registry verifies a PyPI package by a line in its README of the form `mcp-name: io.github.usegruntly/gruntly`. Generate `server.json` with the registry's own tool (`mcp-publisher init`) rather than writing it by hand, as the schema changes.
+- **Claude Code plugin.** `/plugin marketplace add usegruntly/Gruntly` works as soon as the repository is public.
+- Announce where your users are, with the demo and the honest numbers: delegating pays on long tasks and loses on short ones (`docs/where-delegation-wins.md`).

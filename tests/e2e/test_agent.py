@@ -163,7 +163,7 @@ def test_ask_returns_the_childs_answer_without_a_diff_or_tests(repo, capsys, mon
     (repo / "README.md").write_text("not python\n")
     out = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")
     assert out.startswith(agent.OPEN) and out.endswith(agent.CLOSE), out
-    assert "status: passed (research" in out and "Aaryan Beniwal" in out and "[untrusted answer" in out
+    assert "status: passed (research" in out and "Ada Example" in out and "[untrusted answer" in out
     assert "tests:" not in out and "[untrusted diff" not in out
 
 

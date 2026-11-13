@@ -1,5 +1,5 @@
   ┊ review diff
-a//home/aaryan/hs_test/calc.py → b//home/aaryan/hs_test/calc.py
+a//home/user/hs_test/calc.py → b//home/user/hs_test/calc.py
 @@ -1,2 +1,2 @@
  def add(a, b):
 -    return a - b

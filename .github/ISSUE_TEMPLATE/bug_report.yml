@@ -1,0 +1,44 @@
+name: Bug report
+description: Something did not work, or a run did something it should not have
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Please remove API keys, private code and personal paths from anything you paste. A security problem should go through **Security > Report a vulnerability** instead (see SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect
+      description: The command you ran and the result block or error it printed.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: gruntly version
+      description: Output of `gruntly --version`
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Operating system and Python
+      placeholder: "Windows 11, Python 3.12 / macOS 15 arm64, Python 3.13 / Ubuntu 24.04, Python 3.11"
+    validations:
+      required: true
+  - type: input
+    id: harness
+    attributes:
+      label: Child harness and version, parent if any
+      placeholder: "OpenCode 1.19.5 child; Claude Code 2.1 parent"
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and model
+      placeholder: "local LM Studio, qwen3-coder-30b / NVIDIA free tier, nemotron / OpenRouter free"
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`gruntly doctor` output (optional)"
+      render: text
