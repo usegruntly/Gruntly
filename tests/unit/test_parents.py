@@ -104,7 +104,7 @@ class ScriptParent:
         return base.ParentCaps()
 
     def cancel(self, proc):
-        pass
+        base.kill_tree(proc)
 
 
 def test_the_runner_writes_files_gives_the_task_on_stdin_merges_the_environment_and_parses(tmp_path):
@@ -127,6 +127,6 @@ def test_a_missing_harness_and_a_timeout_are_error_outcomes_not_exceptions(tmp_p
 def test_run_agent_names_the_missing_harness_and_returns_127(monkeypatch, capsys):
     def boom(*a, **k):
         raise FileNotFoundError
-    monkeypatch.setattr(base.subprocess, "run", boom)
+    monkeypatch.setattr(base.subprocess, "Popen", boom)
     assert agent.run_agent("Fix it.") == 127
     assert "not installed or not on PATH" in capsys.readouterr().err

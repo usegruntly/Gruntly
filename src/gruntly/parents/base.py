@@ -31,6 +31,7 @@ class ParentCaps:
     reports_cost: bool = False              # a dollar figure comes back in its output
     non_interactive: bool = True            # can run headless with the task on stdin or the command line
     experimental: bool = False              # written from documentation, not yet checked live
+    modes: tuple[str, ...] = MODES          # the modes it can run in (Aider cannot be a delegating parent)
     notes: tuple[str, ...] = ()
 
 
@@ -91,12 +92,19 @@ def run(adapter: ParentAdapter, task: str, mode: str, model: str | None = None, 
         p = Path(rel) if Path(rel).is_absolute() else base / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf8")
+    kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}     # so cancel() reaches the whole tree
     try:
-        p = subprocess.run(cmd.argv, input=cmd.stdin, text=True, encoding="utf8", errors="replace", capture_output=True,
-                           cwd=str(cwd) if cwd else None, timeout=timeout_s, env={**os.environ, **cmd.env, **(env or {})})
+        proc = subprocess.Popen(cmd.argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf8",
+                                errors="replace", cwd=str(cwd) if cwd else None, env={**os.environ, **cmd.env, **(env or {})}, **kw)
     except FileNotFoundError:
         return RunResult(ParentOutcome(f"{adapter.name} is not installed or not on PATH", True), 127, "", "", cmd)
+    try:
+        stdout, stderr = proc.communicate(cmd.stdin, timeout=timeout_s)
     except subprocess.TimeoutExpired:
+        adapter.cancel(proc)                   # a Windows .cmd shim leaves its node child running if only the shim is killed
+        try:
+            proc.communicate(timeout=10)
+        except Exception:  # noqa: BLE001
+            pass
         return RunResult(ParentOutcome(f"{adapter.name} did not finish in {timeout_s} s", True), 124, "", "", cmd)
-    stdout, stderr = (p.stdout or ""), (getattr(p, "stderr", "") or "")
-    return RunResult(adapter.parse(stdout, stderr, p.returncode), p.returncode, stdout, stderr, cmd)
+    return RunResult(adapter.parse(stdout or "", stderr or "", proc.returncode), proc.returncode, stdout or "", stderr or "", cmd)

@@ -214,3 +214,14 @@ def test_the_benchmark_report_names_the_runs_whose_child_price_is_unknown():
            "child_tokens": 100, "child_cost_unknown": 1, "takeover_edits": 0, "sessions": 1}
     text = rb.report([row], {"harness": "opencode", "model": "m", "parent_model": "sonnet"})
     assert "Child price unknown: 1 run(s)" in text and "t1/forced#1" in text and "lower bounds" in text
+
+
+def test_the_responses_api_shape_is_read_whole_and_from_a_stream_with_its_cached_and_reasoning_tokens():
+    body = {"usage": {"input_tokens": 120, "output_tokens": 30, "input_tokens_details": {"cached_tokens": 100}, "output_tokens_details": {"reasoning_tokens": 8}}}
+    u = parse_usage(body)
+    assert (u.prompt, u.completion, u.cached, u.reasoning, u.total) == (120, 30, 100, 8, 150)          # input already counts the cached tokens: not added again
+    sse = (b'event: response.created\ndata: {"type":"response.created","response":{"status":"in_progress"}}\n\n'
+           b'event: response.completed\ndata: ' + json.dumps({"type": "response.completed", "response": body}).encode() + b'\n\n')
+    s = parse_body(sse, "text/event-stream")
+    assert (s.prompt, s.completion, s.cached) == (120, 30, 100)
+    assert parse_usage({"usage": {"input_tokens": 7, "output_tokens": 1}}).prompt == 7                  # a Responses body without details still reads like the Anthropic shape

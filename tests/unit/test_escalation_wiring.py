@@ -110,17 +110,18 @@ def test_the_full_session_is_the_normal_one_with_the_edit_tools_and_the_story(mo
 
 def test_run_agent_escalates_to_a_full_session_with_what_the_lean_one_said(monkeypatch, capsys):
     calls = []
+    replies = iter(["GRUNTLY-FALLBACK: stuck after two rounds (run r_9)", "done by the full session"])
 
-    class P:
-        def __init__(self, out, rc=0):
-            self.stdout, self.returncode = out, rc
+    class FakePopen:
+        """What the parent runner starts: nothing real. (The runner uses Popen so it can end a whole process tree on a timeout.)"""
+        def __init__(self, argv, **kw):
+            self.argv, self.returncode, self.pid = argv, 0, 0
 
-    replies = iter([P("GRUNTLY-FALLBACK: stuck after two rounds (run r_9)"), P("done by the full session")])
+        def communicate(self, input=None, timeout=None):
+            calls.append((self.argv, input))
+            return next(replies), ""
 
-    def fake_run(argv, **kw):
-        calls.append((argv, kw["input"]))
-        return next(replies)
-    monkeypatch.setattr(agent.subprocess, "run", fake_run)
+    monkeypatch.setattr(agent.subprocess, "Popen", FakePopen)
     assert agent.run_agent("Fix add().") == 0
     (lean_argv, lean_in), (full_argv, full_in) = calls
     assert "--system-prompt" in lean_argv and "--system-prompt" not in full_argv

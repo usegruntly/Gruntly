@@ -62,11 +62,17 @@ def parse_usage(d) -> Usage | None:
     if not isinstance(d, dict):
         return None
     u = d.get("usage") if isinstance(d.get("usage"), dict) else (d.get("message", {}).get("usage") if isinstance(d.get("message"), dict) else None)
+    if u is None and isinstance(d.get("response"), dict) and isinstance(d["response"].get("usage"), dict):
+        u = d["response"]["usage"]                              # the Responses API streams its totals inside the `response.completed` event
     if u is None and ("prompt_tokens" in d or "input_tokens" in d):
         u = d
     if not isinstance(u, dict):
         return None
-    if "input_tokens" in u or "output_tokens" in u:           # Anthropic's native shape: cache reads and writes are separate counts
+    if "input_tokens_details" in u or "output_tokens_details" in u:   # the OpenAI Responses shape: input already counts the cached tokens
+        ind = u.get("input_tokens_details") if isinstance(u.get("input_tokens_details"), dict) else {}
+        outd = u.get("output_tokens_details") if isinstance(u.get("output_tokens_details"), dict) else {}
+        out = Usage(prompt=_int(u.get("input_tokens")), completion=_int(u.get("output_tokens")), cached=_int(ind.get("cached_tokens")), reasoning=_int(outd.get("reasoning_tokens")))
+    elif "input_tokens" in u or "output_tokens" in u:           # Anthropic's native shape: cache reads and writes are separate counts
         read, write = _int(u.get("cache_read_input_tokens")), _int(u.get("cache_creation_input_tokens"))
         out = Usage(prompt=_int(u.get("input_tokens")) + read + write, completion=_int(u.get("output_tokens")), cached=read, cache_write=write)
     elif "prompt_tokens" in u or "completion_tokens" in u:     # the OpenAI shape

@@ -41,7 +41,7 @@ def cfg(tmp_path, monkeypatch):
     monkeypatch.setenv("GRUNTLY_CONFIG_DIR", str(tmp_path / "cfg"))
     (tmp_path / "cfg").mkdir()
     monkeypatch.setattr(parents, "table", lambda: {"fakep": FakeParent, "other": FakeParent})
-    monkeypatch.setattr(parents, "pick_installed", lambda: "fakep")
+    monkeypatch.setattr(parents, "pick_installed", lambda mode="delegating": "fakep")
     FakeParent.reply = None
     monkeypatch.chdir(tmp_path)
     return tmp_path

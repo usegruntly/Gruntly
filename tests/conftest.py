@@ -8,6 +8,26 @@ import pytest
 FAKE = str(Path(__file__).parent / "fake_child" / "fake_child.py")
 
 
+@pytest.fixture(autouse=True)
+def never_start_the_real_claude(monkeypatch):
+    """Claude Code runs on your own login, so starting it is a paid call. A test that reaches the real one (a mock that no longer matches the code under
+    test, a missing PATH stand-in) must fail instead of spending money: this once cost a Sonnet call when the parent runner moved from `subprocess.run`
+    to `Popen` and a test still patched `run`. Stand-ins live under the temp folder and are allowed; set GRUNTLY_ALLOW_REAL_CLAUDE=1 for a deliberate live test."""
+    import os
+    import tempfile
+    real_init = subprocess.Popen.__init__
+    temp = os.path.normcase(os.path.realpath(tempfile.gettempdir()))
+
+    def guarded(self, args, *a, **kw):
+        argv = args if isinstance(args, (list, tuple)) else str(args).split()
+        exe = str(argv[0]) if argv else ""
+        if (not os.environ.get("GRUNTLY_ALLOW_REAL_CLAUDE") and os.path.splitext(os.path.basename(exe))[0].lower() == "claude"
+                and not os.path.normcase(os.path.realpath(exe)).startswith(temp)):
+            raise RuntimeError(f"a test tried to start the real Claude Code ({exe}): that is a paid call. Fake it (Popen or a stand-in `claude` under tmp_path).")
+        real_init(self, args, *a, **kw)
+    monkeypatch.setattr(subprocess.Popen, "__init__", guarded)
+
+
 def sh(cwd, *args):
     return subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
 

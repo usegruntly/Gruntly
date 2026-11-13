@@ -120,3 +120,10 @@ def test_a_hosted_provider_without_a_default_model_says_how_to_pick_one(run_task
     monkeypatch.setenv("OPENROUTER_API_KEY", "dummy-not-a-real-key")
     res, _ = run_task(make_spec("pass", provider="openrouter"))
     assert res["status"] == "error" and "has no default model" in res["error"] and "gruntly models openrouter" in res["error"]
+
+
+def test_the_responses_api_flag_is_true_false_or_unknown_and_nothing_else():
+    assert providers.ALL["openai"].responses_api is True and providers.ALL["deepseek"].responses_api is False and providers.ALL["mistral"].responses_api is None
+    assert providers._build("x", {"base_url": "http://a", "kind": "local", "responses_api": True}, "t").responses_api is True
+    with pytest.raises(providers.CatalogError, match="responses_api must be true or false"):
+        providers._build("x", {"base_url": "http://a", "kind": "local", "responses_api": "yes"}, "t")

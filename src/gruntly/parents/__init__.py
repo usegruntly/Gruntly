@@ -5,9 +5,17 @@ from .base import MODES, ParentAdapter, ParentCaps, ParentCommand, ParentOutcome
 
 
 def table() -> dict[str, type]:
+    from .aider import AiderParent
     from .claude import ClaudeParent
+    from .codex import CodexParent
+    from .direct import DirectParent
+    from .gemini import GeminiParent
+    from .generic import GenericParent
+    from .hermes import HermesParent
     from .opencode import OpenCodeParent
-    return {"claude": ClaudeParent, "opencode": OpenCodeParent}
+    from .qwen import QwenParent
+    return {"claude": ClaudeParent, "opencode": OpenCodeParent, "qwen": QwenParent, "hermes": HermesParent, "codex": CodexParent, "gemini": GeminiParent, "aider": AiderParent,
+            "direct": DirectParent, "generic": GenericParent}
 
 
 def names() -> list[str]:
@@ -38,13 +46,20 @@ def settings(root=None) -> dict:
 def resolve(parent: str | None = None, model: str | None = None, provider: str | None = None, mode: str | None = None, root=None) -> dict:
     """What to launch: a flag, else the `[parent]` settings, else the first parent harness installed here (claude if none), mode delegating."""
     s = settings(root)
-    return {"parent": parent or s.get("harness") or pick_installed() or "claude", "model": model or s.get("model"),
-            "provider": provider or s.get("provider"), "mode": mode or s.get("mode") or "delegating"}
+    m = mode or s.get("mode") or "delegating"
+    return {"parent": parent or s.get("harness") or pick_installed(m) or "claude", "model": model or s.get("model"),
+            "provider": provider or s.get("provider"), "mode": m}
 
 
-def pick_installed() -> str | None:
-    """The first parent harness found on this machine, or None."""
+NOT_AUTO = ("direct", "generic")           # never picked for you: the direct parent needs a provider and a key, the generic one your own settings
+
+
+def pick_installed(mode: str = "delegating") -> str | None:
+    """The first parent harness found on this machine that can run in `mode`, or None (Aider, for one, cannot be a delegating parent)."""
     for name in names():
-        if get_parent(name).detect().installed:
+        if name in NOT_AUTO:
+            continue
+        a = get_parent(name)
+        if mode in a.capabilities().modes and a.detect().installed:
             return name
     return None

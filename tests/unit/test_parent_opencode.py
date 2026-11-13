@@ -114,3 +114,25 @@ def test_the_real_opencode_sends_our_prompt_and_only_a_bash_tool_and_the_key_rea
         assert prompts.DELEGATING in turn.system and len(turn.system) < len(prompts.DELEGATING) + 800
         assert turn.auth == "Bearer dummy-key-123" and turn.user == "Fix add()."
         assert r.outcome.final_message == "ok"
+
+
+@pytest.mark.skipif(not shutil.which("opencode"), reason="OpenCode is not installed")
+@pytest.mark.parametrize("command,allowed", [("echo NOT_ALLOWED_MARKER", False), ("gruntly --help", True)])
+def test_the_real_opencode_refuses_every_command_but_gruntly(cfg, tmp_path, monkeypatch, command, allowed):
+    """The stub plays a model that asks for one shell command. Measured 2026-11-14 on 1.19.5: `echo` is refused with a permission message, and
+    `gruntly --help` runs and returns gruntly's usage."""
+    script = [{"tool": "bash", "args": {"command": command, "description": "probe"}}, "done"]
+    with probe.StubServer(script=script) as srv:
+        monkeypatch.setitem(providers.ALL, "stubprov", providers.Provider(name="stubprov", base_url=srv.base_url, key_env="STUB_API_KEY", default_model="stub-model"))
+        monkeypatch.setenv("STUB_API_KEY", "dummy-key-123")
+        work = tmp_path / "work"
+        work.mkdir()
+        env = {f"XDG_{k}_HOME": str(tmp_path / "ocstate" / k.lower()) for k in ("DATA", "CONFIG", "STATE", "CACHE")}
+        r = base.run(opencode.OpenCodeParent(), "do it", "delegating", provider="stubprov", cwd=work, timeout_s=240, env=env)
+        assert r.returncode == 0 and r.outcome.final_message == "done"
+        results = [x for s in srv.chat() for x in s.tool_results]
+        assert results, "the harness never answered the tool call"
+        if allowed:
+            assert "usage: gruntly" in results[0] and "NOT_ALLOWED_MARKER" not in results[0]
+        else:
+            assert "prevents you from using this specific tool call" in results[0]

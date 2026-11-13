@@ -37,6 +37,7 @@ class Provider:
     kind: str = "hosted"         # hosted (needs a key, goes through the proxy) or local (a server on this machine)
     free_tier: bool = False
     verified: bool = False       # a live check has passed; False = from the provider's documentation only
+    responses_api: bool | None = None   # serves the OpenAI Responses API (Codex CLI needs it): from documentation, None = unknown
 
 
 _FIELDS = {f.name for f in fields(Provider)} - {"name"}
@@ -68,6 +69,8 @@ def _build(name: str, t: dict, where: str) -> Provider:
     for f in ("rpm", "tpm", "rpd"):
         if t.get(f) is not None and (isinstance(t[f], bool) or not isinstance(t[f], int)):
             raise CatalogError(f"{where}: [{name}] {f} must be a whole number")
+    if t.get("responses_api") is not None and not isinstance(t["responses_api"], bool):
+        raise CatalogError(f"{where}: [{name}] responses_api must be true or false")
     try:
         docs = tuple((str(a), str(b)) for a, b in t.get("docs", ()))
     except (TypeError, ValueError):
@@ -75,7 +78,7 @@ def _build(name: str, t: dict, where: str) -> Provider:
     return Provider(name=name, base_url=str(t["base_url"]), key_env=str(t.get("key_env", "")), default_model=t.get("default_model") or None,
                     rpm=t.get("rpm"), tpm=t.get("tpm"), rpd=t.get("rpd"), note=str(t.get("note", "")),
                     models_api=str(t.get("models_api", "openai")), docs=docs, kind=kind, free_tier=bool(t.get("free_tier", False)),
-                    verified=bool(t.get("verified", False)))
+                    verified=bool(t.get("verified", False)), responses_api=t.get("responses_api"))
 
 
 def user_files(root: Path | None = None) -> list[Path]:
