@@ -67,12 +67,22 @@ def named_files(request: str, files: list[str]) -> list[str]:
     return list(dict.fromkeys(hits))
 
 
-def text_plan(request: str, root: Path):
+def apply_context(raw: dict, ctx: list[str]) -> None:
+    """Files named with --context: the child is told to read them, and the scope gate refuses any change to them."""
+    if not ctx:
+        return
+    raw["context_files"] = list(dict.fromkeys([*(raw.get("context_files") or []), *ctx]))
+    raw["deny_paths"] = list(dict.fromkeys([*(raw.get("deny_paths") or []), *ctx]))
+    if raw.get("allowed_paths"):
+        raw["allowed_paths"] = [p for p in raw["allowed_paths"] if p not in ctx]
+
+
+def text_plan(request: str, root: Path, context: list[str] | None = None):
     """A request about files that are not Python (a website, docs, config): no test to run, so the acceptance is that the named
     files changed, and the child is told to make real tool calls. Returns (plan, raw spec) or None."""
     import sys
     files = do.tracked(root)
-    named = [f for f in named_files(request, files) if not f.endswith(".py")]
+    named = [f for f in named_files(request, files) if not f.endswith(".py") and f not in (context or [])]
     if not named or len(named) > do.MAX_TARGETS:
         return None
     quoted = " ".join(f'"{f}"' for f in named)
@@ -84,12 +94,12 @@ def text_plan(request: str, root: Path):
     return plan, raw
 
 
-def loose_plan(request: str, root: Path, refusal: "do.Refusal"):
+def loose_plan(request: str, root: Path, refusal: "do.Refusal", context: list[str] | None = None):
     """When no test covers the target, run anyway against the whole existing suite and let the child add a test.
     Only for that one refusal; every other refusal (too many files, tests already pass, ...) stays a refusal."""
     if refusal.reason.startswith("this project has no Python files") or not [
             f for f in do.tracked(root) if f.endswith(".py") and f in request]:
-        t = text_plan(request, root)               # the request names files that are not Python
+        t = text_plan(request, root, context)      # the request names files that are not Python
         if t is not None:
             return t
     broad = bool(BROAD.search(request))

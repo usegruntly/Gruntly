@@ -60,9 +60,13 @@ def named_paths(request: str, files: list[str]) -> list[str]:
     return out
 
 
+ABS_PATH = re.compile(r"""(?:[A-Za-z]:[\\/]|\\\\)[^\s'"`<>|]*|(?<![\w.:/])/(?:[\w.~-]+/)+[\w.~-]*""")
+
+
 def code_names(request: str) -> list[str]:
     """Names that look like code: a lone backticked word or flag, snake_case, CamelCase, CONSTANT_NAMES. Plain English and the
     language's own names (ValueError, True, ...) are left out, because they exist everywhere and would flag nothing real."""
+    request = ABS_PATH.sub(" ", request)      # a path outside the project (a scratch folder, AppData) is not a name the diff should have added
     found: list[str] = []
     for m in re.finditer(r"`([^`\n]+)`", request):
         s = m.group(1).strip()

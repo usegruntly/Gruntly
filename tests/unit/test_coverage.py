@@ -146,3 +146,14 @@ def test_a_name_that_a_rename_removes_is_a_hint_not_grounds_to_escalate(proj):
     out = coverage.gaps(req, patch("app/a.py", "app/b.py", "app/c.py", "app/d.py", "app/e.py", added="account_label = 1"), proj)
     assert any(k == "names" and "customer_label" in t for k, t in out)       # still shown in the flags
     assert "names" not in coverage.STRONG and not [k for k, _ in out if k in coverage.STRONG]
+
+
+def test_a_path_outside_the_project_is_not_a_name_the_diff_should_have_added():
+    """Website session, 2026-11-13: a request that pointed at a scratch file by its absolute path made the block warn that the diff 'never adds
+    head_block, AppData'."""
+    win = r"Copy the five lines from C:\Users\someone\AppData\Local\Temp\scratch\head_block.txt into `page.html` after the viewport meta."
+    posix = "Copy the lines from /tmp/pytest_work/head_block.txt into page.html, using set_title()."
+    assert "head_block" not in coverage.code_names(win) and "AppData" not in coverage.code_names(win)
+    assert "head_block" not in coverage.code_names(posix) and "set_title" in coverage.code_names(posix)      # a real name beside the path stays
+    assert "head_block" in coverage.code_names("Fix head_block in src/api/user_client.py")                       # a name in the project still counts
+    assert "user_client" in coverage.code_names("Fix get_user in src/api/user_client.py")                        # and a relative path is not mistaken for one outside

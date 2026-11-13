@@ -12,6 +12,7 @@ from .adapters.base import get_adapter
 from .spec import MIN_CONTEXT
 
 MIN_CTX = 32_768
+NO_SERVER = ("claude", "generic")      # no model server to probe: Claude Code uses your own login, a generic command brings its own model (the runner skips the probe too)
 
 
 def probe_endpoint(endpoint: str, timeout: float = 3.0) -> dict:
@@ -34,7 +35,7 @@ def probe_endpoint(endpoint: str, timeout: float = 3.0) -> dict:
     return {"ok": True, "models": models, "ctx": ctx, "error": None}
 
 
-def run(endpoint: str, model: str | None = None, hosted: str | None = None) -> dict:
+def run(endpoint: str, model: str | None = None, hosted: str | None = None, harness: str | None = None) -> dict:
     checks: list[dict] = []
 
     def add(name, ok, detail="", warn=False):
@@ -43,10 +44,20 @@ def run(endpoint: str, model: str | None = None, hosted: str | None = None) -> d
     add("git", bool(shutil.which("git")), shutil.which("git") or "git not found")
     add("python", sys.version_info >= (3, 11), sys.version.split()[0])
     for h in ("qwen", "opencode", "hermes"):
+        if h == harness:                         # the child this project uses gets the stricter check below
+            continue
         d = get_adapter(h).detect()
         add(f"child:{h}", d.installed, (d.version or "") + (f" {d.detail}" if d.detail else ""), warn=not d.installed)
+    if harness and harness != "generic":         # the child the project actually uses must be there: that is a failure, not a warning
+        try:
+            d = get_adapter(harness).detect()
+            add(f"child:{harness}", d.installed, ((d.version or "") + (f" {d.detail}" if d.detail else "")).strip() or f"{harness} is not installed")
+        except Exception as e:  # noqa: BLE001 - an unknown harness name is reported, not raised
+            add(f"child:{harness}", False, f"unknown harness: {e}")
     p = {"ok": False}
-    if hosted:                                   # the project uses a hosted provider: the local server is not part of the run
+    if harness in NO_SERVER:
+        add("model_server", True, "not needed: " + ("Claude Code uses your own login" if harness == "claude" else "a generic child runs the command you gave it"))
+    elif hosted:                                 # the project uses a hosted provider: the local server is not part of the run
         add("model_server", True, f"not needed: this project uses {hosted}" + (f" ({model})" if model else ""))
     else:
         p = probe_endpoint(endpoint)

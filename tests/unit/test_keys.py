@@ -14,8 +14,8 @@ def cfg(tmp_path, monkeypatch):
 
 def test_set_lookup_remove_round_trip(cfg):
     assert keys.lookup("gemini", "GEMINI_API_KEY") == (None, None)
-    keys.set_key("gemini", 'a"b\c-key')
-    assert keys.lookup("gemini", "GEMINI_API_KEY") == ('a"b\c-key', "keys file")
+    keys.set_key("gemini", 'a"b\\c-key')
+    assert keys.lookup("gemini", "GEMINI_API_KEY") == ('a"b\\c-key', "keys file")
     assert (cfg / "keys.toml").is_file()
     assert keys.remove("gemini") and not keys.remove("gemini")
     assert keys.lookup("gemini", "GEMINI_API_KEY") == (None, None)

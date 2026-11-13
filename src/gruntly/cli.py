@@ -146,6 +146,27 @@ def cmd_do(a) -> int:
     return 0
 
 
+HOLDOUT_STDIN_WAIT_S = 1.0      # how long to wait for text on stdin when the holdout file already exists
+
+
+def _stdin_text(wait_s: float | None) -> str | None:
+    """The text piped into this call, or None. With wait_s None it blocks until the pipe closes: the holdout file is missing, so stdin is the only
+    place its text can come from. With a number it waits that long: the file exists, and a pipe that stays open and silent must not hang the call."""
+    import threading
+    box: list[str] = []
+
+    def read() -> None:
+        try:
+            box.append(sys.stdin.read())
+        except Exception:  # noqa: BLE001 - a closed or odd stdin is simply "no text"
+            box.append("")
+
+    t = threading.Thread(target=read, daemon=True)
+    t.start()
+    t.join(wait_s)
+    return box[0] if box else None
+
+
 def _holdout(a, root: Path, request_in_args: bool) -> dict | None:
     """`--holdout PATH`: a test the parent wrote that the child never sees. The file exists already (written with the parent's
     own Write tool) or its content arrives on stdin (a heredoc in the same call), which needs the request as an argument."""
@@ -171,9 +192,32 @@ def _holdout(a, root: Path, request_in_args: bool) -> dict | None:
             if not f.is_file():
                 raise ValueError(f"holdout file {p!r} does not exist: write it first, or pass its content on stdin with "
                                  f"the request as an argument")
+        elif len(paths) == 1 and request_in_args and not sys.stdin.isatty():
+            # The file is already there AND text may be piped in. Before, the text was dropped without a word and the old test ran (seen twice in
+            # the website session, 2026-11-13). Now the text wins, unless the file is tracked: a tracked test is never overwritten.
+            new = _stdin_text(HOLDOUT_STDIN_WAIT_S)
+            if new and new.strip() and new.replace("\r\n", "\n") != f.read_text(encoding="utf8", errors="replace").replace("\r\n", "\n"):
+                if wtmod.git(["ls-files", "--error-unmatch", "--", rel], root, check=False).returncode == 0:
+                    raise ValueError(f"holdout file {p!r} is tracked by git and different text arrived on stdin: gruntly will not overwrite "
+                                     f"a tracked file; give the new test another file name")
+                f.write_text(new, encoding="utf8")
+                print(f"gruntly: holdout {rel} already existed; replaced it with the text on stdin", file=sys.stderr)
         files.append(rel)
     cmd = getattr(a, "holdout_cmd", None) or f"{do.python_cmd(root)} -m pytest -q -p no:cacheprovider {' '.join(files)}"
     return {"files": files, "cmd": cmd}
+
+
+def _context_paths(a, root: Path) -> list[str]:
+    """The --context files as paths relative to the project. One outside the project is dropped: the child can read it by its absolute path."""
+    out: list[str] = []
+    for p in getattr(a, "context", None) or []:
+        f = Path(p)
+        f = (f if f.is_absolute() else Path.cwd() / f).resolve()
+        try:
+            out.append(f.relative_to(Path(root).resolve()).as_posix())
+        except ValueError:
+            continue
+    return list(dict.fromkeys(out))
 
 
 def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = None, apply_on_pass: bool = True,
@@ -184,6 +228,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
     out: dict = {"res": None, "p": None, "refusal": None, "error": None, "patch": "", "contract": None, "request": request,
                  "note": "", "holdout": None}
     ho = getattr(a, "_holdout", None)
+    ctx = _context_paths(a, root)
     try:
         if cont:
             st = store.Store.existing(root, cont)
@@ -217,6 +262,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
         elif getattr(a, "explore", False):
             p, raw = agent.explore_plan(request, root, getattr(a, "check", None))
             out["p"] = p
+            agent.apply_context(raw, ctx)
             raw["apply_on_pass"] = apply_on_pass
             if ho:
                 raw["holdout"] = ho
@@ -229,7 +275,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
             p = do.plan(request, root)
             raw = None
             if isinstance(p, do.Refusal):
-                loose = agent.loose_plan(request, root, p)
+                loose = agent.loose_plan(request, root, p, ctx)
                 if loose is None:
                     out["refusal"] = p
                 else:
@@ -240,6 +286,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
             if raw is not None:
                 out["p"] = p
                 agent.open_scope(raw, request)
+                agent.apply_context(raw, ctx)
                 raw["apply_on_pass"] = apply_on_pass
                 if ho:
                     raw["holdout"] = ho
@@ -688,9 +735,30 @@ def cmd_restore(a) -> int:
     return 0
 
 
+def _keep_summary(root: Path, st, rid: str) -> None:
+    """Discarding removes the run's folder, and with it the evidence of how it went (seen in the website session: four failed runs, their
+    costs gone). Keep one line per discarded run in .gruntly/discarded.jsonl."""
+    import time
+    try:
+        res = st.read_json("result.json", {}) or {}
+        cu = st.read_json("child_usage.json", {}) or {}
+        req = (st.read_json("request.json", {}) or {}).get("request") or ""
+        line = {"run_id": rid, "discarded_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "status": res.get("status"), "attempts": res.get("attempts"),
+                "failed_gates": [g for g, v in (res.get("gates") or {}).items() if v is not True],
+                "reason": (res.get("failure_bundle") or {}).get("reason") or res.get("error"), "diff_stat": res.get("diff_stat"),
+                "wall_s": res.get("wall_s"), "child_cost_usd": cu.get("cost_usd"), "request": req[:300]}
+        d = Path(root) / ".gruntly"
+        d.mkdir(exist_ok=True)
+        with (d / "discarded.jsonl").open("a", encoding="utf8") as f:
+            f.write(json.dumps(line, ensure_ascii=False) + "\n")
+    except Exception:  # noqa: BLE001 - bookkeeping must never block a discard
+        pass
+
+
 def cmd_discard(a) -> int:
     root = _root()
-    store.Store.existing(root, a.run)
+    st = store.Store.existing(root, a.run)
+    _keep_summary(root, st, a.run)
     wtmod.remove(root, a.run)
     import shutil
     shutil.rmtree(root / ".gruntly" / "runs" / a.run, ignore_errors=True)
@@ -698,19 +766,27 @@ def cmd_discard(a) -> int:
     return 0
 
 
+def _doctor_human(rep: dict) -> str:
+    lines = ["everything this project needs is in place" if rep["ok"] else "something this project needs is missing (see FAIL)"]
+    for c in rep["checks"]:
+        tag = "warn" if c["warn"] else "ok  " if c["ok"] else "FAIL"
+        lines.append(f"  [{tag}] {c['check']}: {c['detail']}")
+    return "\n".join(lines)
+
+
 def cmd_doctor(a) -> int:
-    endpoint, model, provider = "http://127.0.0.1:1234/v1", None, "local"
+    endpoint, model, provider, harness = "http://127.0.0.1:1234/v1", None, "local", None
     try:
         root = wtmod.repo_root(Path.cwd())
         s = build_spec({"brief": "x", "acceptance": ["true"]}, root)
-        endpoint, model, provider = s.endpoint, s.model, s.provider
+        endpoint, model, provider, harness = s.endpoint, s.model, s.provider, s.harness
     except Exception:  # noqa: BLE001 - doctor must work outside a repo too
         pass
     from . import providers as provmod
-    hosted = provider if provider != "local" and provider in provmod.PROVIDERS else None
+    hosted = provider if provider != "local" and provider in provmod.PROVIDERS and harness not in doctormod.NO_SERVER else None
     if hosted and not model:
         model = provmod.PROVIDERS[hosted].default_model
-    rep = doctormod.run(endpoint, model, hosted)
+    rep = doctormod.run(endpoint, model, hosted, harness)
     if hosted:
         from . import keys as keysmod, models as modelsmod
         try:
@@ -720,12 +796,23 @@ def cmd_doctor(a) -> int:
                                   "detail": f"{len(ms)} models listed" + ("" if ok else f"; {model or 'no model chosen'} is not in the list (a listing does not guarantee a model is usable)")})
         except modelsmod.ModelsError as e:
             rep["checks"].append({"check": f"provider_models:{hosted}", "ok": False, "warn": False, "detail": str(e)})
-    from . import keys, providers
-    for name, p in providers.PROVIDERS.items():
+    from . import keys
+    stored, missing = [], []
+    for name, p in provmod.PROVIDERS.items():
         _, src = keys.lookup(name, p.key_env)
-        rep["checks"].append({"check": f"provider:{name}", "ok": bool(src), "warn": not src,
-                              "detail": f"key found ({src})" if src else f"no key; set {p.key_env} or run: gruntly auth set {name}"})
-    out(rep, a.human)
+        (stored if src else missing).append(name)
+    if hosted:                                   # the provider this project uses needs its key; a key for any other is only worth a note
+        p = provmod.PROVIDERS[hosted]
+        _, src = keys.lookup(hosted, p.key_env)
+        rep["checks"].append({"check": f"provider:{hosted}", "ok": bool(src), "warn": False,
+                              "detail": f"key found ({src})" if src else f"no key; set {p.key_env} or run: gruntly auth set {hosted}"})
+    rep["checks"].append({"check": "provider_keys", "ok": True, "warn": False,
+                          "detail": "stored: " + (", ".join(stored) or "none") + ("; not set (only needed if you use them): " + ", ".join(missing) if missing else "")})
+    rep["ok"] = all(c["ok"] or c["warn"] for c in rep["checks"])
+    if a.human:
+        print(_doctor_human(rep))
+    else:
+        out(rep, False)
     return 0
 
 
@@ -1235,8 +1322,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--plan-reviewer", help="with --supervised: the model that approves the plan (default: sonnet:low)")
     g.add_argument("--holdout", action="append", metavar="PATH", help="a test YOU wrote for behaviour the existing tests do not check, "
                    "inside the project (e.g. tests/holdout_x.py): the child never sees it, gruntly runs it after the child and a "
-                   "pass needs it green. Missing file: its content is read from stdin (heredoc) with the request as an argument")
+                   "pass needs it green. Its content may come from stdin (heredoc) with the request as an argument: for a missing file that "
+                   "creates it, for an existing untracked one it replaces it (a tracked file is never overwritten)")
     g.add_argument("--holdout-cmd", help="with --holdout: the command that runs it (default: pytest on the holdout files)")
+    g.add_argument("--context", action="append", metavar="PATH", help="a file in the project the small agent may READ but must not change "
+                   "(a source to copy from, a spec): without this, every file the request names is a file it has to change. Repeatable")
     g.add_argument("--review", action="store_true", help="after a pass, one review of the diff by your model outside your session "
                    "(--reviewer picks the model, default sonnet:low, about $0.007); a FIX goes back to the child once in this call")
     g = add("agent", cmd_agent)

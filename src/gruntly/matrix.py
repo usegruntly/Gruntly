@@ -25,7 +25,7 @@ CHECKED = {
     ("claude", "parent"): "live (Claude Code, many runs)", ("claude", "child"): "live 2026-11-12 (Haiku child, $1.54)",
     ("opencode", "parent"): "stub 1.19.5; live 2026-11-13 (NVIDIA free tier directing an NVIDIA free child: fixed; not on a Gemini 3 model, see docs/parents.md)", ("opencode", "child"): "live 1.19.5 (docs/adapters.md)",
     ("qwen", "parent"): "stub 0.26.9; live 2026-11-13 (Gemini 3.5 Flash-Lite free tier directing an NVIDIA free child: fixed, 2 requests, 4.8k prompt tokens)", ("qwen", "child"): "live 0.26.9 (docs/adapters.md)",
-    ("hermes", "parent"): "stub 0.23.0; live 2026-11-13 (NVIDIA free tier, key by environment variable, no shell: fixed, 6.0k prompt tokens)", ("hermes", "child"): "live 0.19.0 on Linux/WSL2 (docs/adapters.md)",
+    ("hermes", "parent"): "stub 0.23.0; live 2026-11-13 (NVIDIA free tier, key by environment variable, no shell: fixed, 6.0k prompt tokens)", ("hermes", "child"): "live 0.19.0 on Linux/WSL2 and 0.23.0 on Windows, 2026-11-10 (docs/adapters.md)",
     ("codex", "parent"): "stub 0.167.2 (direct, and through the Responses bridge); live 2026-11-13 (bridged to the Gemini free tier: fixed, 5.4k prompt tokens)", ("codex", "child"): "stub 0.167.2 through the bridge; live 2026-11-13 (NVIDIA free tier through the bridge: fixed in 1 attempt)",
     ("gemini", "parent"): "stub 0.68.0; live 2026-11-13 (Gemini 3.5 Flash-Lite, free tier: fixed, 2 requests, 3.4k prompt tokens)", ("gemini", "child"): "stub 0.68.0 through the bridge; live 2026-11-13 (NVIDIA free tier: fixed in 1 attempt)",
     ("aider", "parent"): "stub 0.86.2 (working mode only); live 2026-11-13 (Gemini free tier: fixed, 1 request)", ("aider", "child"): "stub 0.86.2",
