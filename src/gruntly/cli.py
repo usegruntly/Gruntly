@@ -494,9 +494,22 @@ def cmd_agent_run(a) -> int:
 
 
 def cmd_agent(a) -> int:
-    from . import agent
+    """gruntly agent [--parent HARNESS] [--mode delegating|working] [--model M] [--provider P] 'task': the parent side of a delegation.
+    Delegating (the default) is the lean setup: the parent directs gruntly and does not touch files. Working: the parent does the job itself."""
+    from . import agent, parents
+    try:
+        root = wtmod.repo_root(Path.cwd())
+    except Exception:  # noqa: BLE001 - works outside a repository too
+        root = None
+    try:
+        cfg = parents.resolve(a.parent, a.model, a.provider, a.mode, root)
+        parents.get_parent(cfg["parent"])
+        parents.check_mode(cfg["mode"])
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        return 2
     task = " ".join(a.task) if a.task else sys.stdin.read()
-    return agent.run_agent(task, a.model, fallback=not a.no_fallback)
+    return agent.run_agent(task, cfg["model"], fallback=not a.no_fallback, parent=cfg["parent"], provider=cfg["provider"], mode=cfg["mode"])
 
 
 def cmd_wait(a) -> int:
@@ -1160,8 +1173,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--review", action="store_true", help="after a pass, one review of the diff by your model outside your session "
                    "(--reviewer picks the model, default sonnet:low, about $0.007); a FIX goes back to the child once in this call")
     g = add("agent", cmd_agent)
-    g.add_argument("task", nargs="*", help="the task for a lean Claude to direct through gruntly")
-    g.add_argument("--model", default="sonnet")
+    g.add_argument("task", nargs="*", help="the task for the parent (delegating: it directs gruntly; working: it does the job itself)")
+    g.add_argument("--parent", help="the harness that is the parent (default: [parent] harness in your settings, else the first one installed)")
+    g.add_argument("--mode", choices=["delegating", "working"], help="delegating (the default): the lean setup, the parent directs gruntly; working: the parent does the job itself")
+    g.add_argument("--model", help="the parent's model (default: [parent] model in your settings, else the harness's own default)")
+    g.add_argument("--provider", help="the provider the parent's model comes from, for harnesses that can use several")
     g.add_argument("--no-fallback", action="store_true", help="do not fall back to a full Claude session")
     add("guide", cmd_guide)
     add("mcp", cmd_mcp)

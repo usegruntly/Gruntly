@@ -165,6 +165,7 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
     merged["provider"], merged["endpoint"] = provmod.resolve_local(merged.get("provider", "local"), merged.get("endpoint"), DEFAULTS["endpoint"])
     merged.pop("do", None)  # the `[do]` table in .gruntly.toml configures `gruntly do`, not a task spec
     merged.pop("escalate", None)  # likewise `[escalate]`: the policy for handing a stuck task to the caller's own model
+    merged.pop("parent", None)    # and `[parent]`: which harness, model and mode `gruntly agent` launches
     for k in RETIRED_FIELDS:
         merged.pop(k, None)
     brief = merged.pop("brief", None)

@@ -348,17 +348,20 @@ def lean_command(task: str, model: str, full: bool = False) -> tuple[list[str], 
     return cmd.argv, cmd.stdin
 
 
-def run_agent(task: str, model: str | None = "sonnet", fallback: bool = True, cwd: Path | None = None, timeout_s: int = 900,
-              parent: str = "claude", provider: str | None = None) -> int:
-    """Run a delegating parent; when it cannot finish (or says GRUNTLY-FALLBACK) run the same parent as a working session that is told what
-    the local child tried."""
+def run_agent(task: str, model: str | None = None, fallback: bool = True, cwd: Path | None = None, timeout_s: int = 900,
+              parent: str = "claude", provider: str | None = None, mode: str = "delegating") -> int:
+    """Run a parent. `delegating` (the default): the lean parent directs gruntly, and when it cannot finish (or says GRUNTLY-FALLBACK) the same
+    parent runs as a working session that is told what the local child tried. `working`: the parent does the job itself, no gruntly, no fallback."""
     adapter = parents.get_parent(parent)
-    r = parents_base.run(adapter, task, "delegating", model, provider, cwd, timeout_s)
+    parents_base.check_mode(mode)
+    r = parents_base.run(adapter, task, mode, model, provider, cwd, timeout_s)
+    for note in (r.command.notes if r.command else []):
+        print(f"[gruntly agent] note: {note}", file=sys.stderr)
     if r.returncode == 127:                                    # the harness is not installed: say how, do not fall back to itself
         print(f"[gruntly agent] {r.outcome.final_message}. {adapter.detect().detail}", file=sys.stderr)
         return 127
     out = r.outcome.final_message.strip()
-    if fallback and (r.returncode != 0 or out.startswith("GRUNTLY-FALLBACK")):
+    if mode == "delegating" and fallback and (r.returncode != 0 or out.startswith("GRUNTLY-FALLBACK")):
         print("[gruntly agent] lean session could not finish; falling back to a full session", file=sys.stderr)
         r = parents_base.run(adapter, prompts.working_task(task, out), "working", model, provider, cwd, timeout_s)
         out = r.outcome.final_message.strip()
