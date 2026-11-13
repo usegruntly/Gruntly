@@ -45,12 +45,12 @@ def test_compatibility_follows_the_wire_protocol_and_the_catalogs_responses_flag
     assert matrix.compatible("claude", cat["openai"]) == "no" and matrix.compatible("generic", cat["openai"]) == "unknown"
 
 
-def test_the_matrix_is_json_and_the_text_names_what_was_checked_and_why_gemini_has_no_child():
+def test_the_matrix_is_json_and_the_text_names_what_was_checked_and_why_direct_has_no_child():
     m = matrix.build()
     json.dumps(m)
     assert set(m["providers"]) == set(providers.ALL) and all(set(g["harnesses"]) == {r["harness"] for r in m["harnesses"]} for g in m["providers"].values())
     text = matrix.render(m)
-    assert "stub 1.19.5" in text and "live 1.19.5" in text and "Gemini CLI speaks only the Gemini API" in text and "PROVIDER" in text
+    assert "stub 1.19.5" in text and "live 1.19.5" in text and "stub 0.68.0 through the bridge" in text and "the direct parent is a loop" in text and "PROVIDER" in text
     for r in m["harnesses"]:
         if r["parent"]:
             assert r["parent"]["checked"], f"{r['harness']} parent has no CHECKED entry"

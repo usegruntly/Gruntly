@@ -18,8 +18,7 @@ PROTOCOL = {"claude": "anthropic", "opencode": "chat", "qwen": "chat", "hermes":
 
 CHILD_NAMES = ("claude", "opencode", "qwen", "hermes", "codex", "gemini", "aider", "generic")
 # Why a harness has no child role, where it has none.
-NO_CHILD = {"gemini": "Gemini CLI speaks only the Gemini API; a child is handed an OpenAI-compatible endpoint (a local server or gruntly's proxy), which it cannot use",
-            "direct": "the direct parent is a loop of gruntly's own with one tool, not an agent that edits files"}
+NO_CHILD = {"direct": "the direct parent is a loop of gruntly's own with one tool, not an agent that edits files"}
 
 # What was checked, against which version. (harness, role) -> text. "live" = a real model answered; "stub" = the real binary against probe.py.
 CHECKED = {
@@ -28,7 +27,7 @@ CHECKED = {
     ("qwen", "parent"): "stub 0.26.9", ("qwen", "child"): "live 0.26.9 (docs/adapters.md)",
     ("hermes", "parent"): "stub 0.23.0 (key delivery to a hosted provider unchecked)", ("hermes", "child"): "live 0.19.0 on Linux/WSL2 (docs/adapters.md)",
     ("codex", "parent"): "stub 0.167.2", ("codex", "child"): "stub 0.167.2",
-    ("gemini", "parent"): "stub 0.68.0",
+    ("gemini", "parent"): "stub 0.68.0", ("gemini", "child"): "stub 0.68.0 through the bridge",
     ("aider", "parent"): "stub 0.86.2 (working mode only)", ("aider", "child"): "stub 0.86.2",
     ("direct", "parent"): "stub (the loop and the refusals; no live model yet)",
     ("generic", "parent"): "stub (a python one-liner as the harness)", ("generic", "child"): "unit tests",

@@ -340,6 +340,21 @@ def _execute(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | Non
 
 
 def _execute_inner(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | None, t_start: float) -> dict:
+    """Runs the task. A child that cannot speak to an OpenAI-compatible endpoint itself (Gemini CLI) gets a bridge in front of the endpoint for the run."""
+    if spec.harness != "gemini":
+        return _execute_core(st, spec, root, run_id, guidance, t_start)
+    from . import geminibridge
+    bridge = geminibridge.start(spec.endpoint, spec.api_key)
+    spec._bridge_url = bridge.url
+    if not getattr(spec, "_activity", None):
+        spec._activity = lambda: bridge.stats["requests"]       # model requests count as progress for the idle guard
+    try:
+        return _execute_core(st, spec, root, run_id, guidance, t_start)
+    finally:
+        st.write_json("bridge.json", bridge.stop())
+
+
+def _execute_core(st: Store, spec: Spec, root: Path, run_id: str, guidance: str | None, t_start: float) -> dict:
     empty = {"files": 0, "insertions": 0, "deletions": 0, "paths": []}
     cont = guidance is not None
     prior = st.read_json("state.json", {}) if cont else {}

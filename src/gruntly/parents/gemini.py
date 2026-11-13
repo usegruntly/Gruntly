@@ -18,6 +18,7 @@ import subprocess
 from pathlib import Path
 
 from .. import providers
+from ..adapters.gemini import parse_json, totals
 from ..store import state_dir
 from ..usage import Usage
 from . import prompts
@@ -81,27 +82,16 @@ class GeminiParent:
         return ParentCommand(argv=argv, env=env, stdin=task, files=files, notes=notes)
 
     def parse(self, stdout: str, stderr: str, exit_code: int) -> ParentOutcome:
-        s = (stdout or "").strip()
-        data = None
-        for cand in (s, s[s.find("{"):] if "{" in s else ""):
-            try:
-                data = json.loads(cand)
-                break
-            except ValueError:
-                continue
-        if not isinstance(data, dict):
+        data = parse_json(stdout)
+        if data is None:
             return ParentOutcome(final_message=((stderr or stdout or "").strip()[-600:] or "no output"), is_error=True)
         err = data.get("error")
         if err:
             return ParentOutcome(final_message=str(err.get("message") if isinstance(err, dict) else err), is_error=True, session_id=data.get("session_id"))
-        usage = Usage()
-        models = (data.get("stats") or {}).get("models") or {}
-        for m in models.values():
-            t, a = m.get("tokens") or {}, m.get("api") or {}
-            usage.add(Usage(prompt=int(t.get("prompt") or t.get("input") or 0), completion=int(t.get("candidates") or 0), cached=int(t.get("cached") or 0),
-                            reasoning=int(t.get("thoughts") or 0), requests=int(a.get("totalRequests") or 0)))
+        t = totals(data)
+        usage = Usage(prompt=t["prompt"], completion=t["completion"], cached=t["cached"], reasoning=t["reasoning"], requests=t["requests"]) if t else None
         return ParentOutcome(final_message=str(data.get("response") or "").strip(), is_error=exit_code != 0, session_id=data.get("session_id"),
-                             usage=usage if usage.requests else None, turns=usage.requests or None)
+                             usage=usage, turns=t["requests"] if t else None)
 
     def capabilities(self) -> ParentCaps:
         return ParentCaps(replace_system_prompt=True, restrict_tools=True, restrict_shell=True, disable_extensions=False, reports_usage=True,
