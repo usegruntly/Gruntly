@@ -1,7 +1,4 @@
 """`agent-run --supervised`: the child plans, a fresh child does each step, a reviewer (stubbed here) judges each one."""
-import json
-import sys
-
 from gruntly import cli, rules as rulesmod, supervise
 from tests.e2e.test_do import write_config
 
@@ -120,40 +117,6 @@ def test_a_pass_checked_by_the_whole_suite_with_child_written_tests_is_unproven(
     sid = start(repo, check="python -c pass")
     named = supervise._finish(repo, supervise.sup_dir(repo, sid), sid, {"request": "r", "check": "python -c pass"}, "passed", "", ["x"], steps, costs)
     assert "UNPROVEN" not in named                    # the person's own check decided, not the child's test
-
-
-def test_a_supervised_task_runs_the_holdout_once_at_the_end_and_a_red_holdout_fails_it(repo):
-    write_config(repo, "supervised")
-    (repo / "holdout_calc.py").write_text("from calc import add\n\n\ndef test_negative():\n    assert add(-2, -3) == -5\n")
-    sid = supervise.new_id()
-    task = {"request": "Make add() in calc.py add.", "check": None, "model": None,
-            "holdout": {"files": ["holdout_calc.py"], "cmd": f'"{sys.executable}" -m pytest -q -p no:cacheprovider holdout_calc.py'}}
-    supervise._write(supervise.sup_dir(repo, sid), "task.json", task)
-    block = supervise.run(repo, sid, call=Reviewer("APPROVE", "APPROVE: done"))
-    assert "status: passed" in block and "holdout: pass (holdout_calc.py" in block
-    # the children never saw it: it was hidden from every worktree
-    assert not any("holdout_calc" in p for p in prompts(repo))
-
-    (repo / "holdout_calc.py").write_text("from calc import add\n\n\ndef test_impossible():\n    assert add(1, 1) == 3\n")
-    sid = supervise.new_id()
-    supervise._write(supervise.sup_dir(repo, sid), "task.json", task)
-    block = supervise.run(repo, sid, call=Reviewer("APPROVE", "APPROVE: done"))
-    assert "status: failed (the holdout test failed" in block and "holdout: FAILED (holdout_calc.py)" in block
-    assert "test_impossible" in block
-
-
-def test_a_supervised_holdout_kept_in_the_record_is_placed_only_while_it_runs(repo):
-    write_config(repo, "supervised")
-    sid = supervise.new_id()
-    text = "from calc import add\n\n\ndef test_negative():\n    assert add(-2, -3) == -5\n"
-    task = {"request": "Make add() in calc.py add.", "check": None, "model": None,
-            "holdout": {"files": ["holdout_calc.py"], "inline": {"holdout_calc.py": text},
-                        "cmd": f'"{sys.executable}" -m pytest -q -p no:cacheprovider holdout_calc.py'}}
-    supervise._write(supervise.sup_dir(repo, sid), "task.json", task)
-    block = supervise.run(repo, sid, call=Reviewer("APPROVE", "APPROVE: done"))
-    assert "status: passed" in block and "holdout: pass (holdout_calc.py" in block and "nothing was written into your project" in block
-    assert not (repo / "holdout_calc.py").exists()
-    assert not any("holdout_calc" in p or "test_negative" in p for p in prompts(repo))
 
 
 def test_every_step_review_shares_one_byte_identical_system_prompt_and_only_the_plan_review_skips_the_cache(repo):

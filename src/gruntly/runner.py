@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import threading
 import time
@@ -26,7 +25,7 @@ INFRA = re.compile(r"(?i)(ECONNREFUSED|connection refused|fetch failed|connectio
                    r"max retries exceeded|no route to host|name or service not known)")
 CONTEXT = re.compile(r"(?i)(context[ _-]?(length|window)|maximum context|n_ctx|exceeds the (available )?context|"
                      r"too many tokens|token limit)")
-GATE_PRIORITY = ["scope", "test_weakening", "new_deps", "diff_size", "acceptance", "holdout", "regression", "lint", "typecheck"]
+GATE_PRIORITY = ["scope", "test_weakening", "new_deps", "diff_size", "acceptance", "regression", "lint", "typecheck"]
 RISKY_PATH = re.compile(r"(?i)(auth|secur|crypt|secret|passw|token|migrat|\.env|\.lock$|dockerfile|\.github/)")
 REVIEW_LINES = 150
 
@@ -221,9 +220,6 @@ def acquire_slot(root: Path, max_conc: int, stale_s: float, wait_s: float = 3600
 
 # ---------------------------------------------------------------- gates
 def _failing_text(name: str, g: dict) -> str:
-    if name == "holdout":  # the child sees which holdout tests failed, never their bodies or assertion text
-        names = [ln.strip()[:160] for ln in g.get("tail", "").splitlines() if ln.startswith("FAILED ")]
-        return "\n".join(names) or "holdout check failed (no test names available)"
     if name == "acceptance" or name in ("regression", "lint", "typecheck"):
         return g.get("tail", "")
     return "\n".join(g.get("violations") or g.get("findings") or g.get("problems") or g.get("files") or [name])
@@ -245,25 +241,7 @@ def run_gates(spec: Spec, wt: Path, base: str, root: Path, main_fp: str, secrets
             r = acceptance.run_cmd(cmd, wt, 300)
             g[extra] = {"ok": r["ok"], "cmd": cmd, "tail": "" if r["ok"] else
                         resmod.tail_lines(redact(r["output"], secrets), resmod.GATE_TAIL_LINES)}
-    if spec.holdout:
-        g["holdout"] = _holdout_gate(spec.holdout, wt, root, secrets)
     return g
-
-
-def _holdout_gate(h: dict, wt: Path, root: Path, secrets: list[str]) -> dict:
-    """Copy the parent's held-out tests in, run them, remove them. The child never sees them."""
-    from . import holdout
-    copied: list[Path] = []
-    try:
-        try:
-            copied = holdout.place(h, wt, root)
-        except (OSError, ValueError) as e:
-            return {"ok": False, "tail": str(e)[:300]}
-        r = acceptance.run_cmd(h["cmd"], wt, 300)
-        return {"ok": r["ok"], "cmd": h["cmd"], "tail": "" if r["ok"] else
-                resmod.tail_lines(redact(r["output"], secrets), resmod.GATE_TAIL_LINES)}
-    finally:
-        holdout.remove(copied)
 
 
 def first_failure(gates: dict) -> str | None:
@@ -414,7 +392,7 @@ def _execute_core(st: Store, spec: Spec, root: Path, run_id: str, guidance: str 
         wt = root / ".gruntly" / "worktrees" / run_id
     else:
         main_fp = wtmod.fingerprint(root)
-        w = wtmod.create(root, run_id, spec.base, exclude=[*((spec.holdout or {}).get("files") or []), *spec.hide] or None)
+        w = wtmod.create(root, run_id, spec.base)
         base, wt = w.base, w.path
         # A file the task is told to read but the snapshot lacks (git-ignored, excluded): the child would invent its content.
         missing = [f for f in spec.context_files if (root / f).is_file() and not (wt / f).is_file()]

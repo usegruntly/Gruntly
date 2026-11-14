@@ -275,7 +275,7 @@ def code_first(patch: str) -> str:
 
 def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | None = None, patch: str = "",
           request: str = "", contract: list[str] | None = None, note: str = "", answer: str | None = None,
-          holdout: list[str] | None = None, review: dict | None = None, root: Path | None = None, rounds: int | None = None, gap_strong: list[str] | None = None) -> str:
+          review: dict | None = None, root: Path | None = None, rounds: int | None = None, gap_strong: list[str] | None = None) -> str:
     """The single block the caller reads. Child-written text appears only inside [untrusted] fences. With `root`, the flags also
     carry what counting says about how much of the request the diff covers (gruntly.coverage)."""
     def wrap(body: str) -> str:
@@ -298,9 +298,7 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     hints = r.get("review_hint") or []
     flags = ([note] if note else []) + hints + [w for w in (r.get("warnings") or []) if not any(w in h for h in hints)]
     weak = note == LOOSE_NOTE or any("acceptance already passes" in w for w in (r.get("warnings") or []))
-    held = (r.get("gates") or {}).get("holdout")        # True = the parent's own test passed; a dict = it failed; absent = none
-    unproven = (st == "passed" and bool(r.get("applied")) and answer is None and weak and adds_test_file(patch)
-                and held is not True)
+    unproven = st == "passed" and bool(r.get("applied")) and answer is None and weak and adds_test_file(patch)
     if unproven:       # the first thing the caller reads, not a flag in the middle: the only green here is the child's own
         flags = [f for f in flags if f != LOOSE_NOTE and not f.startswith("weak acceptance") and "acceptance already passes" not in f]
     gaps: list[tuple[str, str]] = []
@@ -315,10 +313,6 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
         lines += ["status: passed" + (", " + UNPROVEN if unproven else ""),
                   f"tests: pass (attempts: {r.get('attempts', '?')}, verify: {r.get('verify')})",
                   f"files: {files} (+{ds.get('insertions', 0)} -{ds.get('deletions', 0)}), applied to the working tree, not committed"]
-        if holdout and held is True:
-            kept = ("it stays in your tree, untracked: keep it with your tests or delete it"
-                    if root is None or any((root / h).is_file() for h in holdout) else "nothing was written into your project")
-            lines.append(f"holdout: pass ({', '.join(holdout)}: your test, the child never saw it; {kept})")
     else:
         reason = (r.get("failure_bundle") or {}).get("reason") or st
         lines += [f"status: failed ({reason})", f"files: {files}; partial work kept: gruntly diff {rid}, gruntly discard {rid}"]
@@ -326,9 +320,6 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
         if esc.get("eligible") and gap_strong:   # rare: the guided round failed AND part of the original request is still uncovered
             lines.append(f"escalation: recommended ({esc.get('class')}: {esc.get('why')}; {esc.get('rounds')} rounds; still uncovered: {gap_strong[0]}). "
                          "The local child will not fix this: a full session of your own model should take it over")
-        if holdout and held is not None and held is not True:
-            lines.append(f"holdout: FAILED ({', '.join(holdout)}): the child was told only which of your tests failed, "
-                         "never what they assert; the failing names are below")
     if (st == "passed" and r.get("applied") and gap_strong and (rounds or 0) >= escalation.MIN_ROUNDS and root is not None
             and escalation.when(root) == "hard"):      # rare: a follow-up with guidance still left what was asked uncovered
         lines.append(f"escalation: recommended (incomplete after {rounds} rounds: {gap_strong[0]}). The local child is not covering what was "

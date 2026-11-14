@@ -1,6 +1,5 @@
 """`gruntly agent-run`: one marked result block, and a follow-up that keeps the same run."""
 import io
-import json
 import sys
 
 import pytest
@@ -260,49 +259,16 @@ def test_a_real_run_reports_its_child_in_the_result(run_task, make_spec):
     assert res["child"]["harness"] == "generic" and res["child"]["provider"] == "local"
 
 
-HOLDOUT_TEST = "from calc import add\n\n\ndef test_negative_numbers():\n    assert add(-2, -3) == -5\n"
-
-
-def holdout_run(capsys, monkeypatch, repo, stdin_text, *flags):
-    monkeypatch.chdir(repo)
-    monkeypatch.setattr("sys.stdin", io.StringIO(stdin_text))
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: False, raising=False)
-    assert cli.main(["agent-run", *flags]) == 0
-    return capsys.readouterr().out.strip()
-
-
-def test_a_holdout_on_stdin_runs_after_the_child_and_leaves_no_file_in_the_project(proj, capsys, monkeypatch):
-    out = holdout_run(capsys, monkeypatch, proj, HOLDOUT_TEST, "--holdout", "holdout_calc.py", "fix add() so test_calc passes")
-    assert "status: passed" in out and "holdout: pass (holdout_calc.py" in out and "UNPROVEN" not in out
-    assert "nothing was written into your project" in out
-    assert not (proj / "holdout_calc.py").exists()                                 # the test lives in the run's own record, nowhere else
-    assert "holdout" not in sh(proj, "git", "status", "--short").stdout
-    spec = json.loads(next((proj / ".gruntly" / "runs").glob("r_*/spec.json")).read_text(encoding="utf8"))
-    assert spec["holdout"]["inline"] == {"holdout_calc.py": HOLDOUT_TEST}
-    assert "holdout_calc.py" not in out.split("files:")[1].splitlines()[0]         # never part of what the child changed
-
-
-def test_a_holdout_file_the_parent_wrote_into_the_project_still_works_and_stays(proj, capsys, monkeypatch):
-    (proj / "holdout_calc.py").write_text(HOLDOUT_TEST)
-    out = holdout_run(capsys, monkeypatch, proj, "", "--holdout", "holdout_calc.py", "fix add() so test_calc passes")
-    assert "status: passed" in out and "holdout: pass (holdout_calc.py" in out and "keep it with your tests or delete it" in out
-    assert (proj / "holdout_calc.py").read_text() == HOLDOUT_TEST
-
-
-def test_a_child_that_passes_the_visible_test_but_fails_the_holdout_is_not_a_pass(proj, capsys, monkeypatch):
+def test_a_child_that_fakes_its_test_still_passes_but_the_faked_value_is_in_the_diff_the_parent_reads(proj, capsys, monkeypatch):
+    """There is no hidden test any more: the big agent reads the diff, so a hard-coded value has to be visible in the block, code first."""
     write_config(proj, "hardcode")
-    out = holdout_run(capsys, monkeypatch, proj, HOLDOUT_TEST, "--holdout", "holdout_calc.py", "fix add() so test_calc passes")
-    assert "status: failed" in out and "holdout: FAILED (holdout_calc.py)" in out
-    assert "test_negative_numbers" in out and "assert add(-2" not in out          # which test, never what it asserts
+    out = say(capsys, monkeypatch, proj, "fix add() so test_calc passes")
+    assert "status: passed" in out and "5 if (a, b) == (2, 3)" in out
 
 
-def test_a_holdout_needs_a_file_or_stdin_and_must_be_inside_the_project(proj, capsys, monkeypatch, tmp_path):
-    out = holdout_run(capsys, monkeypatch, proj, "", "--holdout", "nothere.py", "fix add() so test_calc passes")
-    assert "status: error" in out and "no test text arrived" in out
-    outside = tmp_path / "h.py"
-    outside.write_text(HOLDOUT_TEST)
-    out = holdout_run(capsys, monkeypatch, proj, "", "--holdout", str(outside), "fix add() so test_calc passes")
-    assert "status: error" in out and "outside the project" in out
+def test_the_holdout_option_is_gone(proj, monkeypatch):
+    monkeypatch.chdir(proj)
+    assert cli.main(["agent-run", "--holdout", "h.py", "fix add() so test_calc passes"]) != 0
 
 
 def test_a_split_request_starts_with_one_line_saying_which_part_to_look_at():

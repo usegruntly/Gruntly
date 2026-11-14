@@ -25,7 +25,7 @@ Each harness gets the lean setup through its own options (a replaced system prom
 
 ## The child side (`runner.py`, `adapters/`)
 
-`runner.py` takes a spec, makes a worktree (`worktree.py`), asks the child adapter for a command, runs it with an idle guard and a budget, then runs the **gates** (acceptance command, file scope, diff size, test weakening, new dependencies) and the optional holdout, retries with the failure fed back, and writes the result (`result.py`, `markers.py`) that the parent reads. Nothing is committed; `gruntly apply` brings a passing patch into your tree. Secrets are redacted from everything stored or returned (`redact.py`). Stuck children are caught by `escalation.py`; `coverage.py` counts how much of a request a diff covers.
+`runner.py` takes a spec, makes a worktree (`worktree.py`), asks the child adapter for a command, runs it with an idle guard and a budget, then runs the **gates** (acceptance command, file scope, diff size, test weakening, new dependencies), retries with the failure fed back, and writes the result (`result.py`, `markers.py`) that the parent reads. Nothing is committed; `gruntly apply` brings a passing patch into your tree. Secrets are redacted from everything stored or returned (`redact.py`). Stuck children are caught by `escalation.py`; `coverage.py` counts how much of a request a diff covers.
 
 Every child adapter is the same shape (`detect`, `command`, `parse`, `capabilities`, `cancel`). The endpoint a child talks to is always OpenAI-compatible:
 

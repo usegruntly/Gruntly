@@ -187,8 +187,6 @@ def _step_raw(task: dict, plan: list[str], done: list[str], k: int, feedback: st
     raw["brief"] = raw["brief"][:6000]
     raw.update(max_attempts=2, budget_s=STEP_BUDGET_S, apply_on_pass=True, followup=True)
     raw.update(_sized(root))
-    if task.get("holdout"):
-        raw["hide"] = list(task["holdout"]["files"])
     return raw
 
 
@@ -262,8 +260,7 @@ def run(root: Path, sid: str, call=reviewer_call) -> str:
     rules = rulesmod.person_rules(root)
     ask = PLAN_ASK + task["request"] + (f"\n\nThe check that must pass at the end: {task['check']}" if task.get("check") else "")
     planned = _child(root, {"kind": "research", "brief": ask, "allowed_paths": [], "acceptance": [], "max_attempts": 1,
-                            "apply_on_pass": False, "budget_s": STEP_BUDGET_S, **_sized(root),
-                            "hide": list((task.get("holdout") or {}).get("files") or [])})
+                            "apply_on_pass": False, "budget_s": STEP_BUDGET_S, **_sized(root)})
     account(planned["res"])
     plan = parse_steps(planned["answer"])
     if not plan:
@@ -342,36 +339,13 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
     from .agent import CLOSE, DIFF_CHARS as BLOCK_DIFF_CHARS, DIFF_LINES, OPEN, UNPROVEN, adds_test_file, code_first
     from . import do
     patch = "".join(s.get("patch", "") for s in steps if s["status"] == "approved")
-    held, held_run = task.get("holdout"), None
-    if held and status == "passed":
-        from . import holdout as holdmod
-        try:
-            made = holdmod.place(held, root)
-            try:
-                held_run = run_cmd(held["cmd"], root, 300, purge=False)
-            finally:
-                holdmod.remove(made)
-        except (OSError, ValueError) as e:
-            held_run = {"ok": False, "output": str(e)}
-        if not held_run["ok"]:                          # a reviewer can fail a step but never pass a red test of the parent's
-            status, reason = "failed", "the holdout test failed after every step was approved"
     # no check was named, so the whole existing suite was the check: if the child also wrote its own tests, the green is its own
-    unproven = status == "passed" and not task.get("check") and adds_test_file(patch) and not held
+    unproven = status == "passed" and not task.get("check") and adds_test_file(patch)
     lines = [f"run: {sid} (supervised: the child planned and did each step; a reviewer checked every step)",
              f"status: {status}" + (f" ({reason})" if reason else "") + (", " + UNPROVEN if unproven else "")]
     if task.get("check"):
         r = run_cmd(task["check"], root, 600, purge=False)
         lines.append(f"check in your working tree: {'pass' if r['ok'] else 'FAIL'} ({task['check']})")
-    if held:
-        files = ", ".join(held["files"])
-        if held_run is None:
-            lines.append(f"holdout: not run ({files}): the task did not finish")
-        elif held_run["ok"]:
-            lines.append(f"holdout: pass ({files}: your test, no child saw it; " +
-                         ("nothing was written into your project)" if held.get("inline") else "it stays in your tree, untracked)"))
-        else:
-            names = [ln.strip()[:160] for ln in held_run["output"].splitlines() if ln.startswith("FAILED ")]
-            lines.append(f"holdout: FAILED ({files}): " + ("; ".join(names[:6]) or "see its output: gruntly cannot name the tests"))
     for s in steps:
         lines.append(f"step {s['step']}: {s['status']} after {s.get('runs', 1)} run(s): {s['summary']}")
     for i, p in enumerate(plan[len(steps):], len(steps) + 1):

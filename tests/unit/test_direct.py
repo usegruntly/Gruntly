@@ -22,8 +22,8 @@ def cfg(tmp_path, monkeypatch):
     ("gruntly agent-run 'Fix add()'", ["agent-run", "Fix add()"], None),
     ('gruntly agent-run --continue r_1 "make it handle empty input"', ["agent-run", "--continue", "r_1", "make it handle empty input"], None),
     ("gruntly agent-run 'line one\nline two; with a semicolon && an ampersand'", ["agent-run", "line one\nline two; with a semicolon && an ampersand"], None),
-    ("gruntly agent-run --holdout - 'Fix it' <<'EOF'\ndef test_x():\n    assert 1 == 1 and (2 | 1)\nEOF", ["agent-run", "--holdout", "-", "Fix it"],
-     "def test_x():\n    assert 1 == 1 and (2 | 1)\n"),
+    ("gruntly agent-run --ask 'Fix it' <<'EOF'\nmore detail: x == 1 and (2 | 1)\nEOF", ["agent-run", "--ask", "Fix it"],
+     "more detail: x == 1 and (2 | 1)\n"),
     ("gruntly status", ["status"], None)])
 def test_one_gruntly_command_is_accepted_with_its_quoting_and_an_optional_heredoc(cmd, args, stdin):
     assert direct.parse_command(cmd) == (args, stdin)

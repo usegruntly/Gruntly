@@ -6,7 +6,7 @@ read again every turn. This runs the same ten small tasks, in the same order, in
 150k tokens of context, for two arms:
 
   alone      the parent does each task itself
-  delegated  the parent hands each task to gruntly in one call with a holdout test it wrote (`agent-run --holdout`)
+  delegated  the parent hands each task to gruntly in one call and reads the diff (the old `--holdout` option was removed 2026-11-14)
 
 Each task is its own `claude -p --resume SESSION` call, within the 1-hour cache window; after each one the hidden tests (never shown
 to the parent or the child) judge the result. Reported per task: cost, turns, context size, pass, the parent's takeover edits. The
@@ -103,10 +103,8 @@ def task_prompt(arm: str, name: str, spec: dict) -> str:
     if arm == "alone":
         return base + "\nDo the work yourself and run the check to confirm. Reply in two lines."
     return (base + "\nDelegate this to the child agent through gruntly, as your gruntly skill says: one call, `gruntly agent-run` with "
-            "the request in plain words, naming the file and function. You know behaviour the check does not test (empty and "
-            "boundary inputs, error types, not mutating arguments): write one test for it and pass it with `--holdout` in the same "
-            "call (the holdout file goes in the task folder, e.g. "
-            f"{folder}/holdout_{name}.py, and its content on stdin). Follow the skill's result rules. Reply in two lines.")
+            "the request in plain words, naming the file and function. Read the diff for behaviour the check does not test (empty and "
+            "boundary inputs, error types, not mutating arguments) and send the child corrections in words. Follow the skill's result rules. Reply in two lines.")
 
 
 PRIME = ("Read every file in the folder context/ with the Read tool (several per turn is fine), one by one, without summarising "

@@ -45,7 +45,6 @@ DEFAULTS: dict[str, Any] = {
     "max_concurrency": 1,
     "env_allow": [],
     "apply_on_pass": False,
-    "holdout": None,
     "min_context": None,           # None = MIN_CONTEXT: the child harness's own prompt and tools need that much room
     "allow_small_ctx": False,
     "followup": False,             # a follow-up on work already in the tree: the tests are expected to pass before the change
@@ -55,7 +54,7 @@ DEFAULTS: dict[str, Any] = {
 }
 # The child always runs as its harness ships it: its own system prompt and all its tools. These older spec fields chose
 # slimmer prompts and tool sets; they are accepted and ignored so existing configs keep working.
-RETIRED_FIELDS = ("profile", "inline_files", "web", "self_check")
+RETIRED_FIELDS = ("profile", "inline_files", "web", "self_check", "holdout", "hide")     # holdout/hide: removed 2026-11-14; old run records may still carry them
 MIN_CONTEXT = 32_768
 PERMISSION_MODES = ("inherit", "bypass", "accept-edits", "plan")
 _CLAUDE_MODES = {"bypasspermissions": "bypass", "acceptedits": "accept-edits", "default": "accept-edits", "plan": "plan",
@@ -105,8 +104,6 @@ class Spec:
     max_concurrency: int = 1
     env_allow: list[str] = field(default_factory=list)
     apply_on_pass: bool = False
-    holdout: Any = None            # {files: [...], cmd: "..."}: parent-written tests the child never sees
-    hide: list[str] = field(default_factory=list)   # files kept out of the child's worktree, not gated (a supervised task's holdout)
     min_context: int | None = None
     allow_small_ctx: bool = False
     followup: bool = False
@@ -176,22 +173,7 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
         raise SpecError(f"unknown spec fields: {sorted(unknown)}")
     spec = Spec(brief=brief.strip(), **merged)
     _validate(spec)
-    if spec.holdout and repo_root is not None:
-        _check_holdout(spec.holdout, repo_root)
     return spec
-
-
-def _check_holdout(h: dict, repo_root: Path) -> None:
-    """Fail before the child runs, not at gating: a bad holdout path would waste the whole attempt."""
-    root = Path(repo_root).resolve()
-    inline = h.get("inline") or {}
-    for f in h["files"]:
-        p = (root / f).resolve()
-        if not p.is_relative_to(root):
-            raise SpecError(f"holdout file {f!r} is outside the repo. Put it inside the repo (untracked is fine, "
-                            f"e.g. tests/holdout_x.py): gruntly keeps it out of the child's worktree and removes it after gating.")
-        if f not in inline and not p.is_file():
-            raise SpecError(f"holdout file {f!r} does not exist")
 
 
 def _as_list(v):
@@ -232,15 +214,5 @@ def _validate(s: Spec) -> None:
         raise SpecError("rate_limits may only hold rpm, tpm and rpd")
     if s.permissions not in PERMISSION_MODES:
         raise SpecError("permissions must be one of " + ", ".join(PERMISSION_MODES))
-    if s.holdout is not None:
-        h = s.holdout
-        if not isinstance(h, dict) or not h.get("cmd") or not _as_list(h.get("files")):
-            raise SpecError("holdout needs {files: [...], cmd: '...'}")
-        s.holdout = {"files": [str(f) for f in _as_list(h["files"])], "cmd": str(h["cmd"])}
-        inline = h.get("inline")
-        if inline:
-            if not isinstance(inline, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in inline.items()):
-                raise SpecError("holdout inline must map file names to test text")
-            s.holdout["inline"] = dict(inline)
     if s.harness == "generic" and not s.child_cmd:
         raise SpecError("harness 'generic' needs child_cmd")

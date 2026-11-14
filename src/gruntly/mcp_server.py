@@ -52,9 +52,8 @@ def build_server() -> "FastMCP":
         change in plain words, naming the file and function; gruntly finds the files and tests, runs the child, checks
         the result and applies a pass (never commits). Returns one text block (status, tests, files, the whole diff):
         read only that. `passed` and the diff does the whole request = done; a gap = call again with follow_up_run_id
-        and exactly what to change; failed or escalate = send what is missing back once with follow_up_run_id, then do it yourself. Blocks up to max_block seconds; a `running`
-        status means call gruntly_manage(action="wait"). Optional `spec_yaml` (brief, allowed_paths, acceptance,
-        holdout) instead of a request gives exact control and returns JSON; with it, wait=false returns a run id at
+        and exactly what to change; failed or escalate = tell the child in words what it did wrong and what to do instead (never the code) with follow_up_run_id, up to 3 rounds, then tell the person. Blocks up to max_block seconds; a `running`
+        status means call gruntly_manage(action="wait"). Optional `spec_yaml` (brief, allowed_paths, acceptance) instead of a request gives exact control and returns JSON; with it, wait=false returns a run id at
         once and apply_on_pass=false leaves a pass for gruntly_manage(action="apply")."""
         if spec_yaml:
             args = (["run", "--spec", "-", "--max-block", str(max_block)] + (["--apply-on-pass"] if apply_on_pass else [])

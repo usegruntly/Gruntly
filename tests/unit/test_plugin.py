@@ -32,14 +32,15 @@ def test_the_wait_inside_a_slash_command_follows_the_bash_default_timeout(monkey
     assert cli._auto_block() == 100
 
 
-def test_every_page_that_teaches_the_parent_sends_a_failed_run_back_once_before_taking_over():
+def test_every_page_that_teaches_the_parent_directs_the_child_in_words_and_does_not_take_the_job_over():
     root = Path(__file__).resolve().parents[2]
     pages = [PLUGIN / "skills" / "gruntly" / "SKILL.md", PLUGIN / "hooks" / "register.tsx", PLUGIN / "commands" / "gd.md",
              root / "src" / "gruntly" / "GUIDE.md", root / "src" / "gruntly" / "cli.py"]
     for page in pages:
         text = " ".join(page.read_text(encoding="utf8").split())
         assert "--continue" in text, page
-        assert "failed or escalate: do it yourself" not in text and "`failed`/`escalate` = do it yourself" not in text, page
+        assert "if that fails too" not in text and "if that fails too, do it yourself" not in text, page
+        assert "teacher" in text and "never the code" in text, page
 
 
 def test_the_skill_teaches_the_parent_the_rule_and_the_flags_it_could_not_learn_elsewhere():
@@ -48,14 +49,15 @@ def test_the_skill_teaches_the_parent_the_rule_and_the_flags_it_could_not_learn_
     text = (PLUGIN / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").replace("\r\n", "\n")
     front, body = text.split("\n---\n", 1)
     assert "~8+ turns" in front                                    # always loaded: it changes every decision to delegate
-    for needle in ("--context PATH", "may read it, not change it", "leaves no file", "ONE run", "gruntly guide"):
+    for needle in ("--context PATH", "may read it, not change it", "hard-coded", "ONE run", "gruntly guide"):
         assert needle in body, needle
 
 
-def test_the_skill_does_not_pull_against_mode_on_and_leaves_no_holdout_file():
+def test_the_skill_does_not_pull_against_mode_on_and_has_no_holdout():
     """Website session, 2026-11-14: the project was in mode ON but the skill said a one-line edit is cheaper by hand, so the big agent skipped gruntly twice."""
     text = (PLUGIN / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").replace("\r\n", "\n")
     front, body = text.split("\n---\n", 1)
     assert "in mode on, every eligible change" in front and "in auto mode a one-line edit" in body
     assert "ON: delegate every eligible change without asking, small ones too" in body
-    assert "leaves no file" in body and "Do not write the test into the project" in body and "outside the project works too" in body
+    assert "holdout" not in text.lower() and "the teacher, not the doer" in body and "Do not write the code yourself" in body
+    assert "outside the project works too" in body

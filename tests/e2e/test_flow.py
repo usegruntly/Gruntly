@@ -1,6 +1,5 @@
-"""The optimized parent flow: one-call apply, holdout, red-before-green, context preflight, injection boundary."""
+"""The optimized parent flow: one-call apply, red-before-green, context preflight, injection boundary."""
 import json
-import subprocess
 import sys
 
 import pytest
@@ -50,53 +49,11 @@ def test_failed_run_is_never_applied(repo, run_task, make_spec):
     assert "a - b" in (repo / "calc.py").read_text()
 
 
-HOLDOUT = "from calc import add\n\ndef test_holdout_negative():\n    assert add(-2, -3) == -5\n    assert add(0, 0) == 0\n"
-
-
-def test_holdout_files_never_reach_the_child_and_never_enter_the_diff(repo, make_spec):
-    (repo / "holdout_calc.py").write_text(HOLDOUT)
+def test_a_spec_from_an_old_run_record_that_still_names_a_holdout_is_read_without_an_error(repo, make_spec):
+    """The holdout option was removed; run records and specs written before that must still load (the field is ignored)."""
     root = worktree.preflight(repo)
-    spec = make_spec("pass", holdout={"files": ["holdout_calc.py"], "cmd": f'"{sys.executable}" -m pytest -q holdout_calc.py'},
-                     allowed_paths=["calc.py"])
-    rid = runner.prepare(build_spec(spec, root), root)
-    res = runner.execute(root, rid)
-    assert res["status"] == "passed", res
-    assert res["diff_stat"]["paths"] == ["calc.py"]
-    wt = root / ".gruntly" / "worktrees" / rid
-    assert not (wt / "holdout_calc.py").exists()
-
-
-def test_a_holdout_kept_in_the_run_record_is_placed_for_the_check_and_leaves_no_file(repo, make_spec):
-    root = worktree.preflight(repo)
-    spec = make_spec("pass", holdout={"files": ["holdout_calc.py"], "cmd": f'"{sys.executable}" -m pytest -q holdout_calc.py',
-                                      "inline": {"holdout_calc.py": HOLDOUT}}, allowed_paths=["calc.py"])
-    rid = runner.prepare(build_spec(spec, root), root)
-    res = runner.execute(root, rid)
-    assert res["status"] == "passed" and res["gates"]["holdout"] is True, res
-    assert res["diff_stat"]["paths"] == ["calc.py"]
-    assert not (repo / "holdout_calc.py").exists() and not (root / ".gruntly" / "worktrees" / rid / "holdout_calc.py").exists()
-
-
-def test_a_holdout_kept_in_the_run_record_still_catches_a_hardcoded_pass(repo, make_spec):
-    root = worktree.preflight(repo)
-    spec = make_spec("hardcode", holdout={"files": ["holdout_calc.py"], "cmd": f'"{sys.executable}" -m pytest -q holdout_calc.py',
-                                          "inline": {"holdout_calc.py": HOLDOUT}}, allowed_paths=["calc.py"], max_attempts=1)
-    res = runner.execute(root, runner.prepare(build_spec(spec, root), root))
-    assert res["gates"]["holdout"]["ok"] is False and res["status"] == "escalate"
-    assert not (repo / "holdout_calc.py").exists() and "assert add(-2" not in json.dumps(res)
-
-
-def test_holdout_catches_what_the_visible_test_misses(repo, make_spec):
-    """A child that special-cases the visible test passes acceptance but fails the held-out edge cases."""
-    (repo / "holdout_calc.py").write_text(HOLDOUT)
-    root = worktree.preflight(repo)
-    spec = make_spec("hardcode", holdout={"files": ["holdout_calc.py"], "cmd": f'"{sys.executable}" -m pytest -q holdout_calc.py'},
-                     allowed_paths=["calc.py"], max_attempts=1)
-    res = runner.execute(root, runner.prepare(build_spec(spec, root), root))
-    assert res["gates"]["acceptance"] is True
-    assert res["gates"]["holdout"]["ok"] is False and res["status"] == "escalate"
-    # the child may be told which holdout tests failed, but never their bodies or assertion text
-    assert "assert add(-2" not in json.dumps(res)
+    spec = build_spec(make_spec("pass", holdout={"files": ["holdout_calc.py"], "cmd": "pytest -q"}, hide=["x.py"], allowed_paths=["calc.py"]), root)
+    assert not hasattr(spec, "holdout") and not hasattr(spec, "hide")
 
 
 def test_red_before_green_warns_when_acceptance_already_passes(repo, run_task, make_spec):
@@ -178,33 +135,13 @@ def test_stats_recommendation_needs_evidence(repo, run_task, make_spec, capsys):
 def test_guide_prints_the_manual(capsys):
     from gruntly import cli
     assert cli.main(["guide"]) == 0
-    assert "holdout" in capsys.readouterr().out
+    assert "teacher" in capsys.readouterr().out
 
 
 def test_skill_stays_short():
     from pathlib import Path
     words = len((Path(__file__).parents[2] / "plugin" / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").split())
     assert words < 470, words  # it is loaded into context; the full manual is `gruntly guide` (360 until the 8+ turns rule, --context and a pointer were added, 2026-11-14)
-
-
-def test_holdout_outside_the_repo_fails_fast_with_a_clear_message(repo, make_spec, tmp_path):
-    """Found in the benchmark: a parent put its holdout test in a temp dir and got a raw git error after wasting a turn."""
-    from gruntly.spec import SpecError
-    outside = tmp_path / "elsewhere" / "holdout_calc.py"
-    outside.parent.mkdir()
-    outside.write_text(HOLDOUT)
-    root = worktree.preflight(repo)
-    spec = make_spec("pass", holdout={"files": [str(outside)], "cmd": "pytest -q"})
-    with pytest.raises(SpecError) as e:
-        build_spec(spec, root)
-    assert "outside the repo" in str(e.value) and "untracked is fine" in str(e.value)
-
-
-def test_missing_holdout_file_fails_before_the_child_runs(repo, make_spec):
-    from gruntly.spec import SpecError
-    root = worktree.preflight(repo)
-    with pytest.raises(SpecError, match="does not exist"):
-        build_spec(make_spec("pass", holdout={"files": ["nope.py"], "cmd": "pytest -q"}), root)
 
 
 def test_apply_keeps_lf_files_lf_when_autocrlf_is_on(repo, run_task, make_spec):

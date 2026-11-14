@@ -7,7 +7,7 @@ whose dollars gruntly can work out itself, because it sees every response's `usa
 and as the cheapest baseline for the parents that do.
 
 What the tool accepts: one `gruntly ...` command, run WITHOUT a shell (so nothing can be chained, piped, redirected or substituted), with one
-optional heredoc (`<<'EOF' ... EOF`) whose body becomes the command's standard input, which is how a holdout test is handed over. Anything else
+optional heredoc (`<<'EOF' ... EOF`) whose body becomes the command's standard input (a long request). Anything else
 is refused with the reason, and the model sees the refusal. Run as `python -m gruntly.direct`; the task is on stdin, one JSON object comes back on
 stdout.
 """

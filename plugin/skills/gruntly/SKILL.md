@@ -10,17 +10,15 @@ One foreground call must finish the run. Never use `run_in_background`: it ends 
 
 **Bigger task, location unknown:** `gruntly agent-run --supervised --check 'CMD' 'task'`: the child plans and works in small steps, your model reviews each outside this session.
 
-**Holdout** (behaviour the tests miss): `gruntly agent-run --holdout holdout_x.py 'request' <<'EOF'`, the test, `EOF`. The child never sees it; a pass needs it green. Do not write the test into the project: gruntly keeps it in its own record and leaves no file.
-
 **Read-only source:** `--context PATH` (repeatable): the child may read it, not change it; otherwise every file the request names must change. A path outside the project works too (small files only).
 
-**Batch:** several small edits go in ONE run with one holdout; in auto mode a one-line edit is cheaper done yourself.
+**Batch:** several small edits go in ONE run; in auto mode a one-line edit is cheaper done yourself.
 
 **Lookup:** `gruntly agent-run --ask 'question'`. More flags (`--review`, `--explore`): `gruntly guide`. **Rules:** only what the person stated: `gruntly rules add 'rule'`, `gruntly rules remove N`.
 
 **After a run**
-- `passed`: check the diff against the request (validation, error types, empty and boundary inputs, no mutation of arguments, names kept). Complete: one line. Gap: `gruntly agent-run --continue RUN_ID 'exactly what to change'`. No follow-ups about style or the child's own tests.
-- `failed`, `escalate`: send what the block says is missing back once with `--continue`; if that fails too, do it yourself (`gruntly discard RUN_ID` first if the partial work is unwanted). `refused`: do it yourself.
+- `passed`: read the diff against the request. The child's test can be faked (hard-coded value, loosened assertion); also check validation, error types, boundary inputs, mutated arguments, kept names. Complete: one line. No follow-ups about style.
+- Gap, fake, `failed` or `escalate`: you are the teacher, not the doer. Tell the child in plain words what it did and what to do instead, never the code: `gruntly agent-run --continue RUN_ID 'you hard-coded 5 for that input; make it work for any input'`. Up to 3 rounds, then tell the person which part keeps failing and wait. Do not write the code yourself unless the person says so. `refused`: the reason says what to change in the request; if it still cannot run, do it yourself.
 - `running`: `gruntly wait RUN_ID`. `error`: `gruntly doctor`.
 
 **Mode** `on`, `off` or `auto`: `gruntly mode <word> [session]`, reply in one line. ON: delegate every eligible change without asking, small ones too (the ~8+ turns rule is for auto). OFF: do it yourself.
