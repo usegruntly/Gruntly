@@ -39,8 +39,10 @@ def preamble(spec, cwd=None) -> str:
 def research(spec, cwd=None) -> str:
     return (f"{_where(cwd)}"
             "You are working in a temporary git worktree that is only for reading. Answer the question below with your tools: "
-            "read files, run commands, search or fetch the web. Do not change any file. Reply with the answer only, as short "
-            "facts, and give the source (file path or URL) for each. If you cannot find or reach something, say so; never guess.\n\n"
+            "read files, run commands, search or fetch the web. Do not change any file in the worktree. If the question names a folder "
+            "outside the project for what you make (screenshots, a helper script), you may write there and nowhere else. Reply with the "
+            "answer only, as short facts, and give the source (file path or URL) for each. If you cannot find or reach something, say so; "
+            "never guess.\n\n"
             f"QUESTION:\n{spec.brief}")
 
 

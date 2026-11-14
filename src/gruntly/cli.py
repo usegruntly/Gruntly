@@ -488,9 +488,12 @@ def cmd_agent_run(a) -> int:
             _spawn(root, ["_supervise", sid])
             print(supervise.wait(root, sid, max(int(a.max_block), 30)))
             return 0
-        if a.ask and not a.cont:
+        ask, why = a.ask, ""
+        if not ask and not a.cont and not getattr(a, "explore", False) and agent.no_edit(request):
+            ask, why = True, agent.NO_EDIT_NOTE
+        if ask and not a.cont:
             o = _ask_one(root, request, max(int(a.max_block), 30), a)
-            print(agent.block(o["res"], None, error=o["error"], answer=o["answer"]))
+            print(agent.block(o["res"], None, error=o["error"], answer=o["answer"], note=why))
             return 0
         if a.cont:
             parts = [(request, a.cont)]

@@ -55,8 +55,8 @@ def named_paths(request: str, files: list[str]) -> list[str]:
     out: list[str] = []
     for p in do.candidates(request)[2]:
         hit = [f for f in files if f == p or f.endswith("/" + p)]
-        if len(hit) == 1 and not do.is_test_path(hit[0]) and hit[0] not in out:
-            out.append(hit[0])
+        if len(hit) == 1 and not do.is_test_path(hit[0]) and hit[0] not in out and not do.only_run(request, {p, hit[0]}):
+            out.append(hit[0])      # a script only run ("then python pack.py") is not a file the diff was meant to change
     return out
 
 

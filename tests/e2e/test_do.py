@@ -205,6 +205,28 @@ def test_a_long_changed_line_shows_what_changed_not_its_first_3600_characters():
     assert all(len(ln) < 400 for ln in out.splitlines())
 
 
+def test_a_packed_line_changed_in_two_places_shows_both_places_not_the_text_between(tmp_path):
+    """Website session, 2026-11-14: the page is one JSON line; a style edit near the top and a heading edit far below made the 'changed part' the whole
+    stretch between them, and four runs came back 'diff truncated' with the edit to the page's source hidden behind it."""
+    mid = "x:1;" * 2500                       # 10000 characters nobody touched
+    old = '"<style>.hl{line-height:1.12}' + mid + '<h1>OLD HEADING</h1>"'
+    new = '"<style>.hl{line-height:1.08}' + mid + '<h1>NEW HEADING</h1>"'
+    patch = ("diff --git a/index.html b/index.html\n@@ -1 +1 @@\n-" + old + "\n+" + new + "\n"
+             "diff --git a/site_src.html b/site_src.html\n@@ -5 +5 @@\n-a { x: 1 }\n+a { x: 2 }\n")
+    out = do.trim_patch(patch, 80, 3600, ".gruntly/runs/r_1/apply.patch")
+    for word in ("1.12", "1.08", "OLD HEADING", "NEW HEADING", "a { x: 2 }"):
+        assert word in out, out
+    assert "more lines" not in out and len(out) < 1500 and out.count("x:1;") < 100     # the context around each place, not the 2500 untouched pieces between
+    assert all(len(ln) < 400 for ln in out.splitlines())
+
+
+def test_a_line_too_big_to_compare_piece_by_piece_still_shows_where_it_starts_and_ends(tmp_path):
+    mid = "a;" * 10000                         # more pieces than the comparison takes
+    patch = ("diff --git a/p.html b/p.html\n@@ -1 +1 @@\n-FIRST_OLD" + mid + "LAST_OLD\n+FIRST_NEW" + mid + "LAST_NEW\n")
+    out = do.trim_patch(patch, 80, 3600, "w")
+    assert "FIRST_OLD" in out and "LAST_NEW" in out and "characters)" in out and len(out) < 1500
+
+
 def test_a_short_diff_is_shown_exactly_as_before():
     patch = "diff --git a/a.py b/a.py\n@@ -1,2 +1,2 @@\n-x = 1\n+x = 2\n keep\n"
     out = do.trim_patch(patch, 60, 2400, "w")

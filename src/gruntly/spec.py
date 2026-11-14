@@ -192,6 +192,8 @@ def _validate(s: Spec) -> None:
         raise SpecError("base must be 'head' or 'working-tree'")
     if s.kind not in ("code", "research"):
         raise SpecError("kind must be 'code' or 'research'")
+    if s.kind == "research":       # a question makes no edit to wait for and none to stall on: the time budget is its limit
+        s.stall_s = s.first_edit_s = 0     # (a research run was stopped 'no edit after 420s' while it was still measuring, 2026-11-14)
     if s.max_attempts < 1:
         raise SpecError("max_attempts must be >= 1")
     norm = []

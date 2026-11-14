@@ -10,6 +10,7 @@ Anything unclear is a refusal with a reason, which costs nothing: the caller jus
 from __future__ import annotations
 
 import ast
+import difflib
 import os
 import re
 import tomllib
@@ -28,6 +29,14 @@ MAX_TESTS = 3
 MAX_INDEX_FILES = 3000
 MAX_FILE_BYTES = 300_000
 RED_TIMEOUT_S = 60
+# What stands in front of a file name that is a command to RUN, not a file to change: "run: python -I pack.py", "then pack.py", "with pack.py".
+COMMAND_MENTION = re.compile(r"(?:\bpython3?(?:\.exe)?(?:\s+-\w+)*|\bpy\s+-\d+|\brun:?|\busing|\bwith|\bthen|\bvia)\s+$", re.I)
+
+
+def only_run(request: str, names: set[str]) -> bool:
+    """True when every place the request writes one of `names` (a path and its bare file name) is a command to run."""
+    spots = [m.start() for m in re.finditer("|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)), request)]
+    return bool(spots) and all(COMMAND_MENTION.search(request[max(0, s - 30):s]) for s in spots)
 # Words that are legitimately function names but far more often plain English in a request. They only count as a
 # target when written `like_this` or with parentheses.
 GENERIC = {"the", "and", "for", "with", "from", "that", "this", "when", "then", "than", "into", "not", "use", "using",
@@ -293,8 +302,16 @@ def _tail(text: str, n: int = 10) -> str:
 LONG_LINE, LINE_CONTEXT = 300, 60       # a changed line longer than this is shown as its changed part plus this much around it
 
 
-def _clip_pair(old: str, new: str) -> tuple[str, str]:
-    """Two versions of one long line, each cut down to the part that differs and LINE_CONTEXT characters around it."""
+MAX_HUNKS = 6              # changed places shown for one long line
+MAX_PIECES = 6000          # a long line is compared piece by piece only when it is not bigger than this, so the comparison stays quick
+_PIECES = re.compile(r"(?<=\\n)|(?<=[;{}>])")      # where a packed line is cut into pieces: after an escaped newline, ; { } >
+
+
+def _hunks(old: str, new: str) -> list[tuple[int, int, int, int]]:
+    """The places two versions of one long line differ, as (old start, old end, new start, new end). One place when they differ in one
+    stretch. A packed page (the whole template in one JSON line) with a style change at the top and a heading change far below is two
+    places: the single stretch from the first to the last change was thousands of characters of untouched text between the two edits
+    (website session, 2026-11-14: the run's diff came back 'truncated' and the edit to the page's source never showed)."""
     m = min(len(old), len(new))
     p = 0
     while p < m and old[p] == new[p]:
@@ -302,12 +319,45 @@ def _clip_pair(old: str, new: str) -> tuple[str, str]:
     s = 0
     while s < m - p and old[len(old) - 1 - s] == new[len(new) - 1 - s]:
         s += 1
-    lo = max(0, p - LINE_CONTEXT)
+    one = [(p, len(old) - s, p, len(new) - s)]
+    mo, mn = old[p:len(old) - s], new[p:len(new) - s]
+    if max(len(mo), len(mn)) <= LONG_LINE:
+        return one
+    a, b = [x for x in _PIECES.split(mo) if x], [x for x in _PIECES.split(mn) if x]
+    if len(a) > MAX_PIECES or len(b) > MAX_PIECES:
+        return one
+    ao, bo = [0], [0]
+    for x in a:
+        ao.append(ao[-1] + len(x))
+    for x in b:
+        bo.append(bo[-1] + len(x))
+    spans: list[list[int]] = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        span = [p + ao[i1], p + ao[i2], p + bo[j1], p + bo[j2]]
+        if spans and span[0] - spans[-1][1] < 2 * LINE_CONTEXT:     # close enough that their surroundings would overlap: one place
+            spans[-1][1], spans[-1][3] = span[1], span[3]
+        else:
+            spans.append(span)
+    return [tuple(x) for x in spans] or one       # type: ignore[misc]
 
-    def cut(t: str) -> str:
-        hi = min(len(t), len(t) - s + LINE_CONTEXT)
-        return ("..." if lo > 0 else "") + t[lo:hi] + ("..." if hi < len(t) else "")
-    return cut(old), cut(new)
+
+def _clip_pair(old: str, new: str) -> list[tuple[str, str]]:
+    """Two versions of one long line as (old, new) pairs, one pair per place they differ, each cut down to the changed part and
+    LINE_CONTEXT characters around it."""
+    hunks = _hunks(old, new)
+
+    def cut(t: str, a: int, b: int) -> str:
+        lo, hi = max(0, a - LINE_CONTEXT), min(len(t), b + LINE_CONTEXT)
+        body = t[lo:hi]
+        if len(body) > LONG_LINE * 3:         # a whole block added or removed: its start and its end, not all of it
+            body = body[: LINE_CONTEXT * 2] + f"... ({len(body)} characters) ..." + body[-LINE_CONTEXT * 2:]
+        return ("..." if lo > 0 else "") + body + ("..." if hi < len(t) else "")
+    pairs = [(cut(old, a, b), cut(new, c, d)) for a, b, c, d in hunks[:MAX_HUNKS]]
+    if len(hunks) > MAX_HUNKS:
+        pairs[-1] = (pairs[-1][0], pairs[-1][1] + f"   [+{len(hunks) - MAX_HUNKS} more changed places in this line]")
+    return pairs
 
 
 def _clip_long_lines(keep: list[str]) -> tuple[list[str], bool]:
@@ -333,7 +383,10 @@ def _clip_long_lines(keep: list[str]) -> tuple[list[str], bool]:
             o = olds[n][1:] if n < len(olds) else None
             w = news[n][1:] if n < len(news) else None
             if o is not None and w is not None and max(len(o), len(w)) > LONG_LINE:
-                o, w, clipped = *_clip_pair(o, w), True
+                for po, pw in _clip_pair(o, w):
+                    out += ["-" + po, "+" + pw]
+                clipped = True
+                continue
             elif o is not None and len(o) > LONG_LINE:
                 o, clipped = o[: LINE_CONTEXT * 2] + f"... ({len(o)} characters)", True
             elif w is not None and len(w) > LONG_LINE:

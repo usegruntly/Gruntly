@@ -226,6 +226,56 @@ def test_an_answer_that_says_added_or_changed_is_still_an_answer_not_narrated_wo
     assert "status: passed (research" in out and "Listeners added by the intro" in out and "narrated" not in out, out
 
 
+def test_the_no_edit_reader_takes_a_ban_on_every_file_and_nothing_narrower():
+    for yes in ("Do NOT modify any file in the repo (the run will look 'failed' because of that). Task: take screenshots",
+                "Take the measurements. Do not edit any file.", "Without modifying any file, tell me how wide the h1 is",
+                "do not change the code, only look at it\nreport", "this is a read-only task: render index.html at 390px"):
+        assert agent.no_edit(yes), yes
+    for no in ("fix add() in calc.py. Do not modify any other file.", "do not change any code in the tests.",
+               "do not modify any file except calc.py", "Do not touch any file other than calc.py", "do not modify any file in tests/",
+               "do not change the code style of calc.py", "replace the text and do not change anything else", "fix the bug in calc.py"):
+        assert not agent.no_edit(no), no
+
+
+def test_a_request_that_says_no_file_may_change_runs_as_a_question_not_as_a_change(repo, capsys, monkeypatch):
+    """Website session, 2026-11-14/15: 'Do NOT modify any file ... screenshots saved outside the repo' named index.html, so it became a code run
+    scoped to index.html, 'Change only: index.html', whose check wanted index.html changed: four runs 'failed' by design and the child asked the
+    person which of two contradictory orders to follow."""
+    import re
+    write_config(repo, "answer")
+    out = say(capsys, monkeypatch, repo, "Do NOT modify any file in the repo. Take a screenshot of the page that calc.py serves and save it "
+                                         "outside the repo in /tmp/shots. Report the path.")
+    assert "status: passed (research" in out and "read as a question" in out and "status: failed" not in out, out
+    rid = re.search(r"run: (r_\w+)", out).group(1)
+    spec = json.loads((repo / ".gruntly" / "runs" / rid / "spec.json").read_text(encoding="utf8"))
+    assert spec["kind"] == "research" and spec["acceptance"] == [] and spec["allowed_paths"] == []
+    assert "Change only" not in spec["brief"]
+
+
+def test_a_question_has_no_first_edit_or_stall_limit(repo):
+    """A research run was stopped 'no edit after 420s' in the middle of its measuring (2026-11-14): a question never edits."""
+    from gruntly import spec as specmod
+    s = specmod.build_spec({"kind": "research", "brief": "how wide is the h1?", "allowed_paths": [], "acceptance": []}, repo)
+    assert s.stall_s == 0 and s.first_edit_s == 0
+    c = specmod.build_spec({"kind": "code", "brief": "x", "allowed_paths": ["calc.py"], "acceptance": [{"cmd": "true"}]}, repo)
+    assert c.stall_s > 0 and c.first_edit_s > 0
+
+
+def test_the_question_prompt_lets_the_child_save_what_it_makes_outside_the_project_only():
+    from gruntly import prompt, spec as specmod
+    text = prompt.research(specmod.Spec(kind="research", brief="screenshot the page into /tmp/shots"))
+    assert "outside the project" in text and "nowhere else" in text and "Do not change any file in the worktree" in text
+
+
+def test_a_page_edit_flag_does_not_say_twice_that_no_test_ran_and_ignores_a_script_that_was_only_run():
+    r = {"run_id": "r1", "status": "passed", "applied": True, "diff_stat": {"paths": ["site_src.html"]},
+         "review_hint": ["the child edited files but ran no test itself (only gruntly's own check ran)"]}
+    out = agent.block(r, None, note=agent.TEXT_NOTE)
+    assert "no tests apply to this kind of file" in out and "ran no test itself" not in out
+    other = agent.block(r, None, note="")
+    assert "ran no test itself" in other                      # a code run still hears it
+
+
 def test_ask_fails_if_the_child_changes_a_file(repo, capsys, monkeypatch):
     write_config(repo, "pass")           # the "pass" child edits calc.py, which a research run must not do
     out = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")

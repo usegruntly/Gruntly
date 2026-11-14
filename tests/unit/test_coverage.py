@@ -32,6 +32,19 @@ def proj(tmp_path):
     return r
 
 
+def test_a_script_the_request_only_runs_is_not_a_file_the_diff_missed(proj):
+    """Website session: 'After editing site_src.html run: python -I pack.py' came back flagged 'the request names pack.py and the diff does not touch it'."""
+    (proj / "pack.py").write_text("print(1)\n")
+    (proj / "site_src.html").write_text("<p>x</p>\n")
+    git(proj, "add", "-A")
+    git(proj, "commit", "-qm", "site")
+    req = "In site_src.html change the h1 line-height. After editing site_src.html run: python -I pack.py"
+    texts = " ".join(coverage.facts(req, patch("site_src.html"), proj))
+    assert "pack.py" not in texts
+    texts = " ".join(coverage.facts("In site_src.html change the h1, and fix pack.py so it prints the size", patch("site_src.html"), proj))
+    assert "pack.py" in texts                                  # named to be changed and not touched: still said
+
+
 def test_parts_counts_numbered_and_lettered_items():
     assert coverage.parts("Do it. (1) store it (2) the model (3) the service (4) the CLI") == 4
     assert coverage.parts("Steps:\n1. one\n2. two\n3) three") == 3

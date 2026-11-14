@@ -25,6 +25,23 @@ LEAN_PROMPT = prompts.DELEGATING          # the delegating parent's prompt (see 
 
 
 BROAD = re.compile(r"\b(everywhere|across the (?:repo|repository|codebase|project)|throughout|in every file|in all files|all files)\b", re.I)
+# A request that says in so many words that no file may change (screenshots, measurements, a look at something) is a question for the child, not a change:
+# as a change it was scoped to the page it only had to look at, told "change only index.html" and failed its own check (website session, 2026-11-14/15,
+# four runs). The noun must end the phrase ("any file.", "any file in the repo (", "any file, "), so "do not change any code in the tests" stays a change.
+NO_EDIT = re.compile(
+    r"\b(?:do not|don't|dont|never|must not|should not|may not|without)\s+"
+    r"(?:modify|modifying|edit|editing|change|changing|touch|touching|alter|altering|write to|writing to)\s+"
+    r"(?:any|a|the|your)\s+(?:files?|code|source|repo(?:sitory)?|project)"
+    r"(?:\s+(?:in|of|inside|within)\s+(?:the|this)\s+(?:repo(?:sitory)?|project|worktree|folder|directory))?"
+    r"\s*(?=[.;:,!)\]\n(\-—]|$)|\bread[- ]only (?:task|run|job|question|check)\b", re.I | re.M)
+NO_EDIT_NOTE = ("read as a question: the request says no file may change, so it ran like --ask (nothing is edited and no check wants a changed "
+                "file). Anything it should save, such as screenshots, goes in a folder outside the project that the request names")
+
+
+def no_edit(request: str) -> bool:
+    return bool(NO_EDIT.search(request))
+
+
 LOOSE_NOTE = ("no test covered this code, so no test failed before the change; the pass only shows the existing suite "
               "still passes plus whatever test the child added. Check edge cases in the diff yourself")
 
@@ -112,8 +129,7 @@ def text_plan(request: str, root: Path, context: list[str] | None = None):
     return plan, raw
 
 
-# What stands in front of a file name that is a command to RUN, not a file to change: "run: python -I pack.py", "then pack.py", "with pack.py".
-COMMAND_MENTION = re.compile(r"(?:\bpython3?(?:\.exe)?(?:\s+-\w+)*|\bpy\s+-\d+|\brun:?|\busing|\bwith|\bthen|\bvia)\s+$", re.I)
+COMMAND_MENTION = do.COMMAND_MENTION
 
 
 def py_targets(request: str, files: list[str]) -> list[str]:
@@ -125,10 +141,8 @@ def py_targets(request: str, files: list[str]) -> list[str]:
         if not f.endswith(".py"):
             continue
         names = {f, f.rsplit("/", 1)[-1]}
-        for m in re.finditer("|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)), request):
-            if not COMMAND_MENTION.search(request[max(0, m.start() - 30):m.start()]):
-                out.append(f)
-                break
+        if any(n in request for n in names) and not do.only_run(request, names):
+            out.append(f)
     return out
 
 
@@ -316,6 +330,8 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
     lines = [f"run: {rid}"]
     hints = r.get("review_hint") or []
     flags = ([note] if note else []) + hints + [w for w in (r.get("warnings") or []) if not any(w in h for h in hints)]
+    if note == TEXT_NOTE:      # a page or a doc has no test to run: "ran no test itself" says the same thing a second time
+        flags = [f for f in flags if not f.startswith("the child edited files but ran no test itself")]
     weak = note == LOOSE_NOTE or any("acceptance already passes" in w for w in (r.get("warnings") or []))
     unproven = st == "passed" and bool(r.get("applied")) and answer is None and weak and adds_test_file(patch)
     if unproven:       # the first thing the caller reads, not a flag in the middle: the only green here is the child's own
