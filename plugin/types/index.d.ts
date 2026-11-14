@@ -34,7 +34,7 @@ declare module 'claude-code' {
     gruntly: {
       feed: Record<string, Row[]>
       mode: { mode: Mode; source: string }
-      ctx: { tokens: number; window: number }
+      ctx: { tokens: number; window: number; soft: number; hard: number }
     }
   }
 }

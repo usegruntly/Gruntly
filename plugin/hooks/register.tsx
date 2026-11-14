@@ -8,7 +8,7 @@ import type { Mode, Row } from '../types'
 
 const feeds = atom({ plugin: 'gruntly', key: 'feed' } as const, {}, { shape: 'feed-1' })
 const modeAtom = atom({ plugin: 'gruntly', key: 'mode' } as const, { mode: 'auto', source: 'default' }, { shape: 'mode-1' })
-const ctxAtom = atom({ plugin: 'gruntly', key: 'ctx' } as const, { tokens: 0, window: 0 }, { shape: 'ctx-1' })
+const ctxAtom = atom({ plugin: 'gruntly', key: 'ctx' } as const, { tokens: 0, window: 0, soft: 100_000, hard: 250_000 }, { shape: 'ctx-2' })
 
 // Context size. Every turn of the big agent re-reads the whole conversation, so a long chat makes each later turn dearer, and that is
 // what gruntly's saving has to beat (measured on a real website chat: 47k tokens at the start, 620k at the end, a turn 20 times dearer).
@@ -23,8 +23,24 @@ const COMPACT_INSTRUCTIONS =
   'directs, reads diffs, and corrects the small model in words and never in code. Drop: tool output, file contents, screenshots, ' +
   'scripts, command lines and long reasoning; keep file paths and line numbers instead of content.'
 
-function contextLevel(tokens: number): 0 | 1 | 2 {
-  return tokens >= CTX_HARD ? 2 : tokens >= CTX_SOFT ? 1 : 0
+// Where the warning starts is worked out by `gruntly context` from the big model's prices (compacting pays back within 20 more turns above
+// `soft`, within 5 above `hard`) and written to .gruntly/context.json at every gruntly call. Without that file, or without a price for the model,
+// the two constants above stay: nothing is guessed.
+async function readThresholds($: any): Promise<{ soft: number; hard: number }> {
+  try {
+    const root = await rootPrefix($)
+    const d = JSON.parse(String(await $.fs.read(`${root}.gruntly/context.json`)))
+    if (Number.isFinite(d.soft) && Number.isFinite(d.hard) && d.soft >= 20_000 && d.hard > d.soft) {
+      return { soft: d.soft, hard: d.hard }
+    }
+  } catch {
+    // no file, or one that is not ours: the defaults
+  }
+  return { soft: CTX_SOFT, hard: CTX_HARD }
+}
+
+function contextLevel(tokens: number, soft: number, hard: number): 0 | 1 | 2 {
+  return tokens >= hard ? 2 : tokens >= soft ? 1 : 0
 }
 
 function contextHint(tokens: number): string {
@@ -166,8 +182,9 @@ export const register: Register = on => {
   let shown = 0 // the highest level already announced with a toast; falls back when the context shrinks
   on('session.measure', async ($, e, next) => {
     const tokens = e.context.tokens ?? 0
-    await update($, ctxAtom, () => ({ tokens, window: e.context.window }))
-    const level = contextLevel(tokens)
+    const th = await readThresholds($)
+    await update($, ctxAtom, () => ({ tokens, window: e.context.window, soft: th.soft, hard: th.hard }))
+    const level = contextLevel(tokens, th.soft, th.hard)
     if (level < shown) {
       shown = level
     }
@@ -209,7 +226,7 @@ export const register: Register = on => {
     }
     const { Box, Text } = $.ui.resolve(e)
     const c = await read($, ctxAtom)
-    const level = m.mode === 'on' && c ? contextLevel(c.tokens) : 0
+    const level = m.mode === 'on' && c ? contextLevel(c.tokens, c.soft, c.hard) : 0
     return (
       <Box>
         <Text color={m.mode === 'on' ? 'success' : 'warning'}>

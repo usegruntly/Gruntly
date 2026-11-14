@@ -82,6 +82,7 @@ def test_the_compaction_hint_only_asks_and_never_compacts_by_itself():
     by itself. (Claude Code refuses session.compact from a slash command, so the built-in /compact is what the person types.)"""
     text = (PLUGIN / "hooks" / "register.tsx").read_text(encoding="utf8")
     assert "CTX_SOFT = 100_000" in text and "CTX_HARD = 250_000" in text and "To make the most of gruntly: /compact" in text
+    assert ".gruntly/context.json" in text and "readThresholds" in text      # the formula's thresholds, the constants when there is no file
     assert "on('session.measure'" in text and "on('session.compact', { trigger: 'manual' }" in text
     assert "$.session.compact(" not in text                              # no call that compacts: the engine does it when the person types /compact
     block = text.split("const COMPACT_INSTRUCTIONS =")[1].split("function contextLevel")[0].lower()

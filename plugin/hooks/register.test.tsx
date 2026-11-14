@@ -5,6 +5,8 @@ import { expect, test } from 'claude-code/testing'
 const measure = (tokens: number) =>
   ({ context: { tokens, window: 1_000_000, percent: Math.round(tokens / 10_000) }, rateLimits: [], changed: ['context'] }) as any
 
+const files: { context?: string } = {}
+
 function engine($: any, on: any, mode: string) {
   const seen = { toasts: [] as string[], compactions: [] as any[] }
   on('command.register', () => ({ value: { command: 'gruntly' } }))
@@ -12,7 +14,13 @@ function engine($: any, on: any, mode: string) {
   on('session.id', () => ({ value: 's1' }))
   on('session.measure', (_: any, e: any) => ({ changed: e.changed }))
   on('fs.exists', () => ({ value: true }))
-  on('fs.read', () => ({ value: `${mode}\n` }))
+  on('fs.read', (_: any, e: any) => {
+    const path = String(e.path ?? e.args?.[0] ?? '')
+    if (path.endsWith('context.json')) {
+      return files.context === undefined ? { deny: 'not found' } : { value: files.context }
+    }
+    return { value: `${mode}\n` }
+  })
   on('ui.toast', (_: any, e: any) => {
     seen.toasts.push(String(e.text ?? e.args?.[0] ?? ''))
     return { value: undefined }
@@ -77,4 +85,24 @@ test('typing /compact with gruntly off leaves the summary alone', async ($, on) 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'hello', toolUses: [] }] } as any)
   expect(seen.compactions[0].instructions).toBeUndefined()
+})
+
+test('the warning starts where `gruntly context` says, and the defaults stay when there is no file', async ($, on) => {
+  files.context = JSON.stringify({ soft: 60_000, hard: 90_000, source: 'formula' })
+  const seen = engine($, on, 'on')
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.session.measure(measure(50_000))
+  expect(seen.toasts.length).toBe(0)
+  await $.session.measure(measure(70_000)) // above the formula's 60k, far below the default 100k
+  expect(seen.toasts.length).toBe(1)
+  files.context = undefined
+})
+
+test('a file that is not ours is ignored and the defaults stay', async ($, on) => {
+  files.context = 'not json'
+  const seen = engine($, on, 'on')
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.session.measure(measure(70_000))
+  expect(seen.toasts.length).toBe(0) // the default soft threshold is 100k
+  files.context = undefined
 })
