@@ -135,6 +135,10 @@ elif scenario == "already_done":
     print("The task is already done: add() returns a + b, nothing to change.")
 elif scenario == "answer":
     print("The maintainer is Ada Example (source: https://example.test/about).")
+elif scenario == "answer_with_claim":
+    # a research answer that happens to say "added" and "changed": that is a description, not a claim of work
+    print('{"type":"tool_use","part":{"type":"tool","tool":"read","state":{"status":"completed","input":{"filePath":"calc.py"}}}}')
+    print("Listeners added by the intro: click, touchstart and keydown. The skip function changed nothing else; it is done in one place.")
 elif scenario == "server_down":
     print("fetch failed: ECONNREFUSED 127.0.0.1:1234", file=sys.stderr)
     sys.exit(1)

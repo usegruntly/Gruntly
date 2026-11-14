@@ -227,6 +227,34 @@ def test_a_text_substitution_gets_neither_conventions_nor_a_request_for_new_test
     assert "Add tests" in raw["brief"] and any("test_gruntly_calc.py" in p for p in raw["allowed_paths"])
 
 
+def test_a_python_file_named_only_as_a_command_to_run_is_not_the_target(proj):
+    files = ["pack.py", "calc.py", "site_src.html"]
+    real = "After editing site_src.html run: python -I pack.py   (it rebuilds index.html from site_src.html)"
+    assert agent.py_targets(real, files) == []
+    assert agent.py_targets("then pack.py, using calc.py", files) == []
+    assert agent.py_targets("fix pack.py so it prints the size", files) == ["pack.py"]
+    assert agent.py_targets("change calc.py; afterwards run python pack.py", files) == ["calc.py"]
+
+
+def test_a_request_to_edit_a_page_that_only_mentions_a_script_is_a_page_edit_with_no_new_test_file(proj):
+    (proj / "pack.py").write_text("print('pack')\n")
+    (proj / "site_src.html").write_text("<p>x</p>\n")
+    sh(proj, "git", "add", "-A")
+    sh(proj, "git", "commit", "-qm", "page")
+    req = ("In site_src.html, inside the markers only (no new file). Make the click be swallowed (size 3, events, limit 600 ms). "
+           "After editing site_src.html run: python -I pack.py")
+    refusal = do.Refusal("no test found that covers pack.py. Write a failing test first, or use a spec file.")
+    plan, raw = agent.loose_plan(req, proj, refusal)
+    assert raw["allowed_paths"] == ["site_src.html"] and "test_gruntly" not in raw["brief"] and "pack.py" not in raw["acceptance"][0]["cmd"]
+    # and a Python task that forbids new files gets no request for a new test file either
+    (proj / "test_calc.py").unlink()
+    sh(proj, "git", "add", "-A")
+    sh(proj, "git", "commit", "-qm", "no tests")
+    plan, raw = agent.loose_plan("fix add() in calc.py so it handles empty input. Do not create any new file.", proj,
+                                 do.Refusal("no test found that covers calc.py. Write a failing test first, or use a spec file."))
+    assert "Add tests" not in raw["brief"] and not any("test_gruntly" in p for p in raw["allowed_paths"])
+
+
 def test_the_version_is_the_checkouts_not_the_one_frozen_at_install_time():
     import tomllib
     from pathlib import Path

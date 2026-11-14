@@ -59,7 +59,8 @@ MAX_HINTS = 4
 # A request that only swaps text ("replace every X with Y", a rename): the conventions above (empty input, sizes) are noise there, and a brief that
 # asks for new tests contradicts the request. Seen 2026-11-14: a rename in two helper scripts came back with a 201-line test file nobody asked for,
 # because gruntly's own brief told the child to add one. "Change nothing else" alone is not enough to count: it limits scope, not behaviour.
-MECHANICAL = re.compile(r"\b(replace (?:every|each|all|only)\b|renam(?:e|ed|ing)\b|swap\b|find and replace)", re.I)
+MECHANICAL = re.compile(r"\b(replace (?:every|each|all|only)\b|renam(?:e|ed|ing)\b|swap\b|find and replace|no new files?\b|"
+                        r"(?:do not|don't|never) create (?:any )?(?:new )?files?\b|without creating (?:a |any )?(?:new )?files?\b)", re.I)
 
 
 def is_mechanical(request: str) -> bool:

@@ -219,6 +219,13 @@ def test_a_long_request_is_piped_with_a_dash_not_quoted(proj, capsys, monkeypatc
     assert "status: passed" in out and "calc.py" in out
 
 
+def test_an_answer_that_says_added_or_changed_is_still_an_answer_not_narrated_work(repo, capsys, monkeypatch):
+    """Website session, 2026-11-14: two of three --ask runs came back 'failed (narrated work)' because the answer said 'Listeners added by ...'."""
+    write_config(repo, "answer_with_claim")
+    out = say(capsys, monkeypatch, repo, "how do the intro's listeners work?", "--ask")
+    assert "status: passed (research" in out and "Listeners added by the intro" in out and "narrated" not in out, out
+
+
 def test_ask_fails_if_the_child_changes_a_file(repo, capsys, monkeypatch):
     write_config(repo, "pass")           # the "pass" child edits calc.py, which a research run must not do
     out = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")

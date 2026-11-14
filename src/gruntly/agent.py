@@ -112,11 +112,30 @@ def text_plan(request: str, root: Path, context: list[str] | None = None):
     return plan, raw
 
 
+# What stands in front of a file name that is a command to RUN, not a file to change: "run: python -I pack.py", "then pack.py", "with pack.py".
+COMMAND_MENTION = re.compile(r"(?:\bpython3?(?:\.exe)?(?:\s+-\w+)*|\bpy\s+-\d+|\brun:?|\busing|\bwith|\bthen|\bvia)\s+$", re.I)
+
+
+def py_targets(request: str, files: list[str]) -> list[str]:
+    """The tracked .py files the request names as something to change. A name that follows `python`, `run`, `using`, `with`, `then` is a command to
+    run: in the website session 'After editing site_src.html run: python -I pack.py' made pack.py the target of an HTML edit, so gruntly checked
+    pack.py compiles, told the child to add a test file the request had forbidden, and a 20-second edit ran for minutes."""
+    out = []
+    for f in files:
+        if not f.endswith(".py"):
+            continue
+        names = {f, f.rsplit("/", 1)[-1]}
+        for m in re.finditer("|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)), request):
+            if not COMMAND_MENTION.search(request[max(0, m.start() - 30):m.start()]):
+                out.append(f)
+                break
+    return out
+
+
 def loose_plan(request: str, root: Path, refusal: "do.Refusal", context: list[str] | None = None):
     """When no test covers the target, run anyway against the whole existing suite and let the child add a test.
     Only for that one refusal; every other refusal (too many files, tests already pass, ...) stays a refusal."""
-    if refusal.reason.startswith("this project has no Python files") or not [
-            f for f in do.tracked(root) if f.endswith(".py") and f in request]:
+    if refusal.reason.startswith("this project has no Python files") or not py_targets(request, do.tracked(root)):
         t = text_plan(request, root, context)      # the request names files that are not Python
         if t is not None:
             return t
