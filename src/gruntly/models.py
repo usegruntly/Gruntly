@@ -246,8 +246,10 @@ def fetch_cached(name: str, endpoint: str = "http://127.0.0.1:1234/v1", refresh:
     return ms, None
 
 
-def line(m: Model, width: int = 100) -> str:
-    """One display line: id, context, then the facts the endpoint gave."""
+def line(m: Model, width: int = 100, price: str | None = None) -> str:
+    """One display line: id, context, then the facts the endpoint gave, then the price when it is known (the listing's own price fact is
+    replaced by it, so it is not said twice)."""
     ctx = f"{m.context:,} ctx" if m.context else ""
-    facts = " · ".join(f"{k}: {v}" if not isinstance(v, bool) else k for k, v in m.info.items())
-    return f"{m.id}" + (f"  [{ctx}]" if ctx else "") + (f"  {facts}" if facts else "")[:width + 60]
+    facts = " · ".join(f"{k}: {v}" if not isinstance(v, bool) else k for k, v in m.info.items() if not (price and k == "price"))
+    return (f"{m.id}" + (f"  [{ctx}]" if ctx else "") + (f"  {facts}" if facts else "")[:width + 60]
+            + (f"  | {price}" if price else ""))

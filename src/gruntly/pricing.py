@@ -89,6 +89,53 @@ def _listing_price(provider: str, model: str) -> Price | None:
     return None
 
 
+def per_token(per_mtok: float) -> str:
+    """Dollars per million tokens as dollars per ONE token, written out in full (2.0 -> 0.000002)."""
+    return f"{per_mtok / 1e6:.10f}".rstrip("0").rstrip(".") or "0"
+
+
+def describe(provider: str, model: str, table: list[Price] | None = None, listing: dict | None = None, local: bool = False) -> dict:
+    """What a model costs, for a listing of models: `status` is free (a local server, or a listing that says $0), priced (with the rates per
+    million tokens and per token, and where the rate came from) or unknown. Never a made-up number: unknown stays unknown, as in `cost`.
+    `table` is the loaded price table (load it once for a long list); `listing` is the model's own pricing object from the provider's listing."""
+    from . import models
+    if local:
+        return {"status": "free", "note": "your own compute; gruntly does not price it"}
+    rates = None
+    for p in table if table is not None else load():
+        if p.provider == provider and fnmatch.fnmatch(model, p.model):
+            rates = (p.input, p.output, p.cache_read, p.cache_write, p.source, p.as_of)
+            break
+    if rates is None:
+        nums = models.price_numbers(listing)
+        if nums:
+            rates = (nums[0], nums[1], None, None, "model listing", "")
+    if rates is None:
+        return {"status": "unknown", "note": f"no price for {provider}/{model}; add one to {user_files()[0]}"}
+    i, o, cr, cw, source, as_of = rates
+    out = {"status": "free" if i == 0 and o == 0 else "priced", "input_per_mtok": i, "output_per_mtok": o,
+           "input_per_token": per_token(i), "output_per_token": per_token(o), "source": source, "as_of": as_of}
+    if cr is not None:
+        out["cache_read_per_mtok"] = cr
+    if cw is not None:
+        out["cache_write_per_mtok"] = cw
+    return out
+
+
+def describe_text(d: dict) -> str:
+    """One short phrase for a model line."""
+    if d["status"] == "unknown":
+        return "price unknown"
+    if d["status"] == "free" and "input_per_mtok" not in d:
+        return "free (your own compute)"
+    src = d.get("source", "")
+    where = "listing" if src == "model listing" else "gruntly's table" if src.startswith("packaged") else "your prices.toml"
+    if d["status"] == "free":
+        return f"free ($0, {where})"
+    return (f"in ${d['input_per_mtok']:g} / out ${d['output_per_mtok']:g} per Mtok "
+            f"(${d['input_per_token']} / ${d['output_per_token']} per token, {where})")
+
+
 def price_for(provider: str, model: str | None, root: Path | None = None) -> Price | None:
     if not model:
         return None

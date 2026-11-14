@@ -849,29 +849,41 @@ def _local_endpoint() -> str:
 
 def cmd_models(a) -> int:
     """gruntly models [provider]: every model the account (or local server) offers, as the endpoint reports them."""
-    from . import keys, models as mm, onboard, providers
-    names = [a.provider] if a.provider else ["local"] + [n for n, p in providers.PROVIDERS.items() if keys.lookup(n, p.key_env)[1]]
+    from . import keys, models as mm, onboard, pricing, providers
+    names = ([a.provider] if a.provider else
+             ["local"] + [n for n, p in providers.PROVIDERS.items() if keys.lookup(n, p.key_env)[1]] + ["anthropic"])
     rc, dump = 0, {}
     for n in names:
-        if n != "local" and n not in providers.PROVIDERS and n not in providers.LOCAL:
-            print(f"unknown provider {n!r}; known: local, {', '.join([*providers.PROVIDERS, *providers.LOCAL])}", file=sys.stderr)
+        if n not in ("local", "anthropic") and n not in providers.PROVIDERS and n not in providers.LOCAL:
+            print(f"unknown provider {n!r}; known: local, anthropic, {', '.join([*providers.PROVIDERS, *providers.LOCAL])}", file=sys.stderr)
             return 2
-        try:
-            ms, age = mm.fetch_cached(n, _local_endpoint(), refresh=a.refresh)
-        except mm.ModelsError as e:
-            print(f"{n}: {e}", file=sys.stderr)
-            rc = 1
-            continue
+        age = None
+        if n == "anthropic":
+            # Claude through Claude Code (your own login): there is no listing to fetch, so these are the models gruntly's price table knows.
+            ms = [mm.Model(p.model) for p in pricing.load() if p.provider == "anthropic" and "*" not in p.model]
+        else:
+            try:
+                ms, age = mm.fetch_cached(n, _local_endpoint(), refresh=a.refresh)
+            except mm.ModelsError as e:
+                print(f"{n}: {e}", file=sys.stderr)
+                rc = 1
+                continue
         if a.filter:
             ms = [m for m in ms if a.filter.lower() in (m.id + json.dumps(m.info)).lower()]
         if a.json:
-            dump[n] = [m.raw for m in ms]
+            table = pricing.load()
+            local = n == "local" or n in providers.LOCAL
+            dump[n] = [{"id": m.id, **(m.raw or {}), "gruntly_price": pricing.describe(n, m.id, table, (m.raw or {}).get("pricing"), local=local)} for m in ms]
             continue
         print(f"{n}: {len(ms)} model(s) downloaded in LM Studio, whether loaded or not" if n == "local" else
+              f"anthropic: {len(ms)} model(s) in gruntly's price table (Claude Code's own login; not a live listing)" if n == "anthropic" else
               f"{n}: {len(ms)} model(s), as the endpoint lists them (a listing does not say which are free or usable on your account)"
               + (f"; from a copy {int(age // 3600)} h old, add --refresh for a live list" if age is not None else ""))
+        if n not in ("local", "anthropic") and n not in providers.LOCAL:
+            print("  Prices: the provider's listing when it has them, else gruntly's table or your ~/.config/gruntly/prices.toml; \"price unknown\" means none has one.")
         onboard.show_models(n, ms)
-        onboard.print_docs(n)
+        if n != "anthropic":
+            onboard.print_docs(n)
         print()
     if a.json:
         print(json.dumps(dump, indent=2, ensure_ascii=False))

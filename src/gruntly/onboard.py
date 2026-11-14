@@ -184,8 +184,15 @@ def choose_provider(current: str | None = None) -> str | None:
 
 # ------------------------------------------------------------------------------------------------------ models
 def show_models(name: str, ms: list[modelsmod.Model], number: bool = False) -> None:
+    from . import pricing
+    try:
+        table = pricing.load()
+    except pricing.PriceError:
+        table = pricing.load(user=False)          # a broken prices.toml of yours never hides the list
+    local = name == "local" or name in providers.LOCAL
     for i, m in enumerate(ms, 1):
-        say(("  %3d. " % i if number else "  ") + modelsmod.line(m))
+        d = pricing.describe(name, m.id, table, (m.raw or {}).get("pricing"), local=local)
+        say(("  %3d. " % i if number else "  ") + modelsmod.line(m, price=pricing.describe_text(d)))
 
 
 def choose_model(name: str, endpoint: str, current: str | None = None) -> str | None:
