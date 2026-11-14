@@ -44,14 +44,14 @@ test('with gruntly ON it speaks in three steps: a quiet hint, a good moment, a r
 
   await $.session.measure(measure(160_000)) // level 2: a good moment
   expect(seen.toasts.length).toBe(1)
-  expect(seen.toasts[0]).toContain('good moment to /compact')
+  expect(seen.toasts[0]).toContain('Good moment to /compact')
 
   await $.session.measure(measure(170_000)) // the same level again: no second pop-up
   expect(seen.toasts.length).toBe(1)
 
   await $.session.measure(measure(260_000)) // level 3: please
   expect(seen.toasts.length).toBe(2)
-  expect(seen.toasts[1]).toContain('please /compact now')
+  expect(seen.toasts[1]).toContain('Please /compact')
   expect(seen.toasts[1]).not.toMatch(/\d+k/) // no numbers for the person to keep track of
 })
 

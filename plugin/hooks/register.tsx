@@ -17,9 +17,9 @@ const CTX_LEVELS = [100_000, 150_000, 250_000]
 // Three messages and no numbers. The person is asked, never forced; the colours step from a hint to a request.
 const CTX_MESSAGE = [
   '',
-  'this chat is getting long. At a natural pause, /compact would make the rest of it cheaper.',
-  'good moment to /compact: from here it pays for itself within a few more turns.',
-  'please /compact now: every turn re-reads a very long chat and costs more than compacting would.',
+  'Getting long. /compact helps gruntly save more.',
+  'Good moment to /compact and get more from gruntly.',
+  'Please /compact: gruntly saves less on a chat this long.',
 ]
 const CTX_COLOR = ['', 'suggestion', 'warning', 'error']
 // What the summary must keep. It names nothing that only exists in one project (a log, a kickoff file): gruntly keeps its own run records.

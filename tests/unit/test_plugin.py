@@ -81,7 +81,7 @@ def test_the_compaction_hint_only_asks_and_never_compacts_by_itself():
     """Every turn re-reads the whole chat, so a long chat makes each later turn dearer; with gruntly ON the person is asked to /compact, nothing compacts
     by itself. (Claude Code refuses session.compact from a slash command, so the built-in /compact is what the person types.)"""
     text = (PLUGIN / "hooks" / "register.tsx").read_text(encoding="utf8")
-    assert "CTX_LEVELS = [100_000, 150_000, 250_000]" in text and "please /compact now" in text and "good moment to /compact" in text
+    assert "CTX_LEVELS = [100_000, 150_000, 250_000]" in text and "Please /compact: gruntly saves less on a chat this long." in text and "Good moment to /compact and get more from gruntly." in text
     assert ".gruntly/context.json" in text and "readLevels" in text      # the formula's levels, the constants when there is no file
     assert "on('session.measure'" in text and "on('session.compact', { trigger: 'manual' }" in text
     assert "$.session.compact(" not in text                              # no call that compacts: the engine does it when the person types /compact
