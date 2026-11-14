@@ -63,6 +63,11 @@ def named_paths(request: str, files: list[str]) -> list[str]:
 ABS_PATH = re.compile(r"""(?:[A-Za-z]:[\\/]|\\\\)[^\s'"`<>|]*|(?<![\w.:/])/(?:[\w.~-]+/)+[\w.~-]*""")
 
 
+# A file's name is not a code name: "ctx_outside.txt" read like the snake_case name ctx_outside and was reported as a name the diff never added
+# (real run, 2026-11-14, a reference file that only had to be read).
+FILE_NAME = re.compile(r"\b[\w.-]+\.(?:txt|md|html?|css|json|toml|ya?ml|csv|ini|cfg|xml|svg|rst)\b", re.I)
+
+
 def code_names(request: str) -> list[str]:
     """Names that look like code: a lone backticked word or flag, snake_case, CamelCase, CONSTANT_NAMES. Plain English and the
     language's own names (ValueError, True, ...) are left out, because they exist everywhere and would flag nothing real."""
@@ -74,9 +79,10 @@ def code_names(request: str) -> list[str]:
             found.append(s)
         elif re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\(\))?", s):      # `word`, `a.b`, `f()`: not a path or a usage line
             found += re.findall(r"[A-Za-z_]\w*", s)[-1:]
-    found += re.findall(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b", request)
-    found += re.findall(r"\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\b", request)
-    found += re.findall(r"\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b", request)
+    bare = FILE_NAME.sub(" ", request)
+    found += re.findall(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b", bare)
+    found += re.findall(r"\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\b", bare)
+    found += re.findall(r"\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b", bare)
     out: list[str] = []
     for n in found:
         if len(n) >= 4 and n.lower() not in do.GENERIC and n not in BUILTIN and n not in out:

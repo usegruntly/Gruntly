@@ -157,3 +157,9 @@ def test_a_path_outside_the_project_is_not_a_name_the_diff_should_have_added():
     assert "head_block" not in coverage.code_names(posix) and "set_title" in coverage.code_names(posix)      # a real name beside the path stays
     assert "head_block" in coverage.code_names("Fix head_block in src/api/user_client.py")                       # a name in the project still counts
     assert "user_client" in coverage.code_names("Fix get_user in src/api/user_client.py")                        # and a relative path is not mistaken for one outside
+
+
+def test_the_name_of_a_text_or_page_file_is_not_a_code_name():
+    """Real run, 2026-11-14: 'the exact text of ctx_outside.txt' made the block say the request names ctx_outside, which the diff never adds."""
+    assert coverage.code_names("copy the text of ctx_outside.txt into my_page.html, then call make_slug()") == ["make_slug"]
+    assert coverage.code_names("Update site_config.json and the README_DRAFT.md") == []
