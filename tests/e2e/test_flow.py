@@ -164,7 +164,7 @@ def test_guide_prints_the_manual(capsys):
 def test_skill_stays_short():
     from pathlib import Path
     words = len((Path(__file__).parents[2] / "plugin" / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").split())
-    assert words < 360, words  # it is loaded into context; the full manual is `gruntly guide`
+    assert words < 430, words  # it is loaded into context; the full manual is `gruntly guide` (360 until the 8+ turns rule, --context and a pointer were added, 2026-11-14)
 
 
 def test_holdout_outside_the_repo_fails_fast_with_a_clear_message(repo, make_spec, tmp_path):

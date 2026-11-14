@@ -40,3 +40,13 @@ def test_every_page_that_teaches_the_parent_sends_a_failed_run_back_once_before_
         text = " ".join(page.read_text(encoding="utf8").split())
         assert "--continue" in text, page
         assert "failed or escalate: do it yourself" not in text and "`failed`/`escalate` = do it yourself" not in text, page
+
+
+def test_the_skill_teaches_the_parent_the_rule_and_the_flags_it_could_not_learn_elsewhere():
+    """Website session, 2026-11-14: the big agent only knows what it is told. The 8+ turns rule was only in the manual (the description says 'call it directly',
+    so the body may never be loaded), and --context was only in `gruntly guide` and --help."""
+    text = (PLUGIN / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").replace("\r\n", "\n")
+    front, body = text.split("\n---\n", 1)
+    assert "~8+ turns" in front                                    # always loaded: it changes every decision to delegate
+    for needle in ("--context PATH", "may read it, not change it", "replaces an existing untracked file", "ONE run", "gruntly guide"):
+        assert needle in body, needle

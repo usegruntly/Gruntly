@@ -1,7 +1,7 @@
 {
   "name": "gruntly",
   "displayName": "Gruntly",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "Hand the grunt work to small models. Delegates well-scoped coding tasks to a small-model agent (local or hosted) and verifies the result with gates before you take it back.",
   "author": {
     "name": "usegruntly"
