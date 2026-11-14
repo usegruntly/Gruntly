@@ -31,6 +31,15 @@ The big agent decides and directs; the small model is its hands. Every turn of t
 - If what the person wants is ambiguous (a look, a colour scheme, wording), ask them before you delegate: a build in the wrong direction costs a rebuild and its tests.
 What stays with the big agent: decisions, wording of claims, what to build next, the child's short answers and diffs, and at most one small crop when a report flags a problem. The person's own screenshots remain the ground truth. The child can be wrong about what it sees: ask for numbers and quoted lines, not impressions.
 
+## When compacting a long chat pays (`gruntly context`)
+Every turn of the big agent re-reads the whole chat from the cache, and that is paid again on every turn. Compacting costs something once (the summariser reads the chat and writes a summary, which is written to the cache) and then each later turn re-reads less. With C = tokens in the chat now, B = what a compaction keeps anyway (about 50k), S = the summary (about 5k), N = turns still to come, and r, w, o = the big model's cache-read, cache-write and output price per token:
+
+    compacting costs  C*r + S*(o + w)     it saves  (C - B - S)*r  on each later turn
+    it pays when      N*(C - B - S)*r  >=  C*r + S*(o + w)
+    smallest chat that pays   (N*(B+S)*r + S*(o+w)) / ((N-1)*r)
+
+`gruntly context --tokens 300000 --turns 20` applies it with your project's models and prices and says cheaper, about equal or dearer. With Sonnet 5.5 it gives about 95k tokens for 20 more turns and 244k for 5, which is where the plugin starts to ask (amber, then red). A model without a price keeps the defaults (100k, 250k): nothing is guessed. The summary could be written by the small model instead; `gruntly context --child-window N [--child-local]` says whether that would be cheaper and whether its window holds the chat.
+
 ## When to delegate
 In mode `on` the person chose to delegate every eligible change, small ones too: this section then only decides what is eligible (not design, not ambiguous debugging, not security code). In auto mode, all must hold: an executable check proves the work done; the task is mechanical; doing it yourself would take ~8+ turns or large file reads. Below that the fixed cost of delegating (a call and reading the block) is more than the work: measured on ten ~4-turn tasks, delegating cost about 45% more than doing them directly. Never delegate design, ambiguous debugging or security-sensitive code. `gruntly stats` reports pass rate per harness/model; it says `avoid` below 70% over 10+ runs.
 

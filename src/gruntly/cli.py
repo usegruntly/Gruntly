@@ -468,6 +468,11 @@ def cmd_agent_run(a) -> int:
             return 0
         request = " ".join(a.request) if a.request and a.request != ["-"] else (sys.stdin.read() if not sys.stdin.isatty() else "")
         root = wtmod.preflight(Path.cwd())
+        try:
+            from . import compaction
+            compaction.refresh(root)          # where the Claude Code plugin starts asking the person to compact, from the models' prices
+        except Exception:  # noqa: BLE001 - a hint file never stops a run
+            pass
         from . import mode as modemod
         off = modemod.refusal(root)
         if off:                                   # switched off: say so in the usual block, run nothing
@@ -890,6 +895,59 @@ def cmd_models(a) -> int:
     return rc
 
 
+def cmd_context(a) -> int:
+    """gruntly context: when compacting a long conversation is cheaper than carrying on (the formula is in compaction.py)."""
+    from . import compaction as cp, pricing
+    try:
+        root = _root()
+    except Exception:  # noqa: BLE001 - works outside a project too, from the global settings
+        root = None
+    m = cp.project_models(root)
+    if a.parent_model:
+        m["parent_model"] = a.parent_model
+        m["parent_provider"] = "anthropic" if a.parent_model.startswith("claude") else m["parent_provider"]
+    if a.child_model:
+        m["child_model"] = cp.ALIASES.get(a.child_model, a.child_model)
+    if a.child_local:
+        m["child_local"] = True
+    big = pricing.price_for(m["parent_provider"], m["parent_model"], root) if m["parent_model"] and m["parent_provider"] else None
+    small = None if m["child_local"] else (pricing.price_for(m["child_provider"], m["child_model"], root) if m["child_model"] else None)
+    base, summary = a.base or cp.BASE_TOKENS, a.summary or cp.SUMMARY_TOKENS
+    t = cp.thresholds(big, base, summary)
+    out = {"big_model": m["parent_model"], "small_model": m["child_model"], "thresholds": t}
+    if a.tokens:
+        out["advice"] = cp.advice(a.tokens, a.turns, big, small, m["child_local"], a.child_window, base, summary)
+    if a.write and root is not None:
+        cp.refresh(root)
+    if a.json:
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        return 0
+    if big is None:
+        print(f"big model: {m['parent_model'] or 'not set'}: no price for it, so nothing is guessed. {t['why']}: warn at {t['soft']:,} tokens, red at {t['hard']:,}.")
+    else:
+        r = cp.rates(big)
+        print(f"big model: {m['parent_model']}  (cache read ${r.read * 1e6:g}, cache write ${r.write * 1e6:g}, output ${r.out * 1e6:g} per Mtok)")
+        print(f"  {t['why']}.")
+    sm = ("free, local" if m["child_local"] else f"in ${small.input:g} / out ${small.output:g} per Mtok" if small else "price unknown")
+    print(f"small model: {m['child_model'] or 'not set'}  ({sm})")
+    ad = out.get("advice")
+    if ad and ad["verdict"] != "unknown":
+        print(f"At {ad['context']:,} tokens with {ad['turns_left']} more turns: compacting costs ${ad['compaction_cost']:.4f} once and saves "
+              f"${ad['saved_per_turn']:.4f} on each later turn"
+              + (f", paying back after {ad['pays_back_after_turns']} turns" if ad['pays_back_after_turns'] else "") + f".")
+        print(f"  Verdict: {ad['verdict']} ({ad['saving_percent_of_carrying_on']}% of what carrying on would cost in re-reads).")
+        s = ad["summary_by"]
+        line = f"  Who writes the summary: big model ${s['big_model']:.4f}"
+        if "small_model" in s:
+            line += f", small model ${s['small_model']:.4f}"
+        fits = s["small_model_window_holds_it"]
+        line += f" (small model's window {'holds it' if fits else 'is too small' if fits is False else 'unknown: pass --child-window'})"
+        print(line + (f"; cheaper: {s['cheaper']}" if s.get("cheaper") else "") + ". The big model's `/compact` is what runs today.")
+    elif ad:
+        print(f"  {ad['note']}")
+    return 0
+
+
 def cmd_use(a) -> int:
     """gruntly use [provider] [model]: choose the provider and model, saved to this project or to your global settings."""
     from . import models as mm, onboard, providers
@@ -1258,6 +1316,17 @@ def build_parser() -> argparse.ArgumentParser:
     mo.add_argument("--json", action="store_true", help="the endpoint's own data for each model")
     mo.add_argument("--filter", help="only models whose id or info contains this text")
     mo.add_argument("--refresh", action="store_true", help="ignore the day-old copy of a hosted provider's list and ask the provider")
+    cx = add("context", cmd_context)
+    cx.add_argument("--tokens", type=int, help="the context of the chat now, in tokens: say whether compacting pays at this size")
+    cx.add_argument("--turns", type=int, default=20, help="how many more turns you expect the chat to have (default 20)")
+    cx.add_argument("--parent-model", help="the big model (default: the project's [parent] model)")
+    cx.add_argument("--child-model", help="the small model (default: the project's model; haiku, sonnet and opus are understood)")
+    cx.add_argument("--child-local", action="store_true", help="the small model runs on your own machine (free in API dollars)")
+    cx.add_argument("--child-window", type=int, help="the small model's context window in tokens, to say whether it could write the summary")
+    cx.add_argument("--base", type=int, help="tokens a compaction keeps (system prompt, tools, memory; default 50000)")
+    cx.add_argument("--summary", type=int, help="tokens the summary takes (default 5000)")
+    cx.add_argument("--json", action="store_true", help="machine-readable")
+    cx.add_argument("--write", action="store_true", help="save the thresholds to .gruntly/context.json, where the Claude Code plugin reads them")
     vf = add("verify", cmd_verify)
     vf.add_argument("provider", nargs="?", help="one provider (default: every one with a key, and every local server)")
     vf.add_argument("--model", help="the model to call (default: the provider's default model; without one only the model list is checked)")
