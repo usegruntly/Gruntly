@@ -181,6 +181,44 @@ def test_ask_honours_context_files_inside_and_outside_the_project(repo, tmp_path
     assert "OUTSIDE-REFERENCE-TEXT" in spec["brief"] and spec["context_files"] == ["notes.txt"]
 
 
+def test_ask_leaves_no_worktree_behind_once_the_answer_is_read(repo, capsys, monkeypatch):
+    """Seven research worktrees piled up in the website repo's `git worktree list`: an answer is stored, the copy of the project is not needed."""
+    write_config(repo, "answer")
+    (repo / "README.md").write_text("not python\n")
+    out = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")
+    assert "Ada Example" in out
+    assert not list((repo / ".gruntly" / "worktrees").glob("r_*"))
+    assert len(sh(repo, "git", "worktree", "list").stdout.strip().splitlines()) == 1
+
+
+def test_show_prints_the_block_of_a_finished_run_again(proj, capsys, monkeypatch):
+    """The long build call's output was lost in the website session and the block was rebuilt by hand from raw JSON, five turns."""
+    import re
+    first = say(capsys, monkeypatch, proj, "fix add() so test_calc passes")
+    rid = re.search(r"run: (r_\w+)", first).group(1)
+    again = say(capsys, monkeypatch, proj, "", "--show", rid)
+    assert again.startswith(agent.OPEN) and again.endswith(agent.CLOSE), again
+    assert f"run: {rid}" in again and "status: passed" in again and "calc.py" in again and "a + b" in again
+    assert [ln for ln in again.splitlines() if ln.startswith("files:")] == [ln for ln in first.splitlines() if ln.startswith("files:")]
+
+
+def test_show_prints_a_research_answer_and_names_an_unknown_run(repo, capsys, monkeypatch):
+    import re
+    write_config(repo, "answer")
+    (repo / "README.md").write_text("not python\n")
+    first = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")
+    rid = re.search(r"run: (r_\w+)", first).group(1)
+    shown = say(capsys, monkeypatch, repo, "", "--show", rid)
+    assert "status: passed (research" in shown and "Ada Example" in shown and "[untrusted answer" in shown
+    missing = say(capsys, monkeypatch, repo, "", "--show", "r_19990101_0000")
+    assert "status: error" in missing and "no run" in missing
+
+
+def test_a_long_request_is_piped_with_a_dash_not_quoted(proj, capsys, monkeypatch):
+    out = say(capsys, monkeypatch, proj, "fix add() so test_calc passes\nand keep every other function exactly as it is", "-")
+    assert "status: passed" in out and "calc.py" in out
+
+
 def test_ask_fails_if_the_child_changes_a_file(repo, capsys, monkeypatch):
     write_config(repo, "pass")           # the "pass" child edits calc.py, which a research run must not do
     out = say(capsys, monkeypatch, repo, "who maintains this?", "--ask")

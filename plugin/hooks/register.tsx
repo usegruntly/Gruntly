@@ -19,7 +19,8 @@ const HINT_ON =
   "and do not run extraction scripts: ask the child, gruntly agent-run --ask 'QUESTION; answer in at most 30 lines, quote line " +
   "numbers' (it can run code, render pages in a headless browser and look at the screenshots, and report numbers and suspects), " +
   'and work from its short answer; look at one small crop yourself only when it flags a problem. Design, security, claims and ' +
-  "decisions stay with you. To delegate a change, run in the foreground with Bash timeout 600000: gruntly agent-run 'WHAT TO " +
+  'decisions stay with you; if what the person wants is ambiguous (a look, a colour scheme, wording), ask them before delegating. ' +
+  "A long request: pipe it, gruntly agent-run - <<'EOF'. A lost or cut block: gruntly agent-run --show RUN_ID. To delegate a change, run in the foreground with Bash timeout 600000: gruntly agent-run 'WHAT TO " +
   "CHANGE, naming the file and function'. Read only the block between === GRUNTLY RESULT === and === END ===: it has the " +
   'status, the tests and the whole diff, so do not open files or rerun tests. Read the diff yourself: a small model can fake its own test ' +
   '(a hard-coded value). passed and the diff does the whole request: reply in one line. A gap, a fake, or failed or escalate: ' +

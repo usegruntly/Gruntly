@@ -26,6 +26,9 @@ The big agent decides and directs; the small model is its hands. Every turn of t
 - Look: `gruntly agent-run --ask "Render index.html at 360, 390, 768, 1024 and 1440 px with headless Chrome (scroll the page first so reveals fire), look at every screenshot, and report horizontal overflow, overlapping or clipped text and boxes of unequal height, naming the width for each. At most 20 lines"`.
 - Edit: `gruntly agent-run 'WHAT TO CHANGE, naming the file'`, then read the diff.
 - A file outside the project that the child must read: `--context PATH` (small text files travel in the request; for a screenshot or a large file, put it inside the project).
+- A long request (a spec with several parts): do not quote it, pipe it: `gruntly agent-run - <<'EOF'` then the text, then `EOF`. Quoting a long text inside `"$(cat file)"` broke on the website session. A small model often drops parts of a long spec: expect to teach once.
+- A block that never reached you (the tool result was lost) or was cut: `gruntly agent-run --show RUN_ID` prints it again from what the run stored (`gruntly status` lists run ids). `gruntly wait RUN_ID` prints raw JSON; do not rebuild a block from it by hand.
+- If what the person wants is ambiguous (a look, a colour scheme, wording), ask them before you delegate: a build in the wrong direction costs a rebuild and its tests.
 What stays with the big agent: decisions, wording of claims, what to build next, the child's short answers and diffs, and at most one small crop when a report flags a problem. The person's own screenshots remain the ground truth. The child can be wrong about what it sees: ask for numbers and quoted lines, not impressions.
 
 ## When to delegate

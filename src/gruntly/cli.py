@@ -254,7 +254,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 if concurrency > 1:
                     raw["max_concurrency"] = concurrency
                 rid = runner.prepare(build_spec(raw, root), root)
-                _note_request(root, rid, request)
+                _note_request(root, rid, request, note=out["note"])
                 _spawn_worker(root, rid)
                 out["res"] = _wait(root, rid, budget_s)
         _part_details(root, out)
@@ -263,12 +263,12 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
     return out
 
 
-def _note_request(root: Path, rid: str, request: str, cont: str | None = None) -> None:
+def _note_request(root: Path, rid: str, request: str, cont: str | None = None, note: str = "") -> None:
     """What the first request was and where the work started, carried along a chain of follow-ups: the original request is what the
     work so far is measured against when deciding whether the child will ever get there."""
     st = store.Store.existing(root, rid)
     if not cont:
-        st.write_json("request.json", {"request": request})
+        st.write_json("request.json", {"request": request, **({"note": note} if note else {})})
         return
     old = store.Store.existing(root, cont)
     state = old.read_json("state.json", {})
@@ -313,6 +313,28 @@ def _part_details(root: Path, out: dict) -> None:
         names |= set(re.findall(r"^@@[^@]*@@\s*(?:async\s+)?(?:def|class)\s+(\w+)", patch, re.M))  # edited, not added
         paths = [x for x in (res.get("diff_stat") or {}).get("paths", []) if not do.is_test_path(x)]
         out["contract"], _ = do.contract_and_shape(root, paths, list(names))
+
+
+def _show_run(root: Path, rid: str) -> str:
+    """`agent-run --show RUN`: the block of a run printed again from what the run stored. For a call whose output never reached the big agent
+    (a lost tool result) or was cut: before this, `gruntly wait` printed raw JSON and the block had to be put together by hand, five turns
+    in the website session on 2026-11-14."""
+    from . import agent
+    try:
+        st = store.Store.existing(root, rid)
+    except Exception:  # noqa: BLE001 - any "no such run" shape
+        return agent.block(None, None, error=f"no run {rid!r} in this project (`gruntly status` lists them)")
+    res = _wait(root, rid, 1)
+    answer = None
+    f = st.dir / "answer.txt"
+    if res.get("status") == "passed" and f.is_file():
+        answer = f.read_text(encoding="utf8", errors="replace")
+    req = st.read_json("request.json", {}) or {}
+    out: dict = {"res": res, "patch": "", "contract": None}
+    if answer is None:
+        _part_details(root, out)
+    return agent.block(res, None, patch=out.get("patch", ""), request=req.get("request", ""), contract=out.get("contract"),
+                       note=req.get("note", ""), answer=answer, root=root, rounds=out.get("rounds"), gap_strong=out.get("gap_strong"))
 
 
 def _review_one(root: Path, o: dict, request: str, a, left_s: float) -> dict | None:
@@ -428,6 +450,8 @@ def _ask_one(root: Path, question: str, budget_s: int, a=None) -> dict:
         f = root / ".gruntly" / "runs" / rid / "answer.txt"
         if (out["res"] or {}).get("status") == "passed":
             out["answer"] = f.read_text(encoding="utf8", errors="replace") if f.is_file() else ""
+        if (out["res"] or {}).get("status") not in (None, "running"):
+            wtmod.remove(root, rid)               # nothing to continue or apply: the answer is stored, the copy of the project is not needed
     except Exception as e:  # noqa: BLE001
         out["error"] = f"{type(e).__name__}: {e}"
     return out
@@ -439,6 +463,9 @@ def cmd_agent_run(a) -> int:
     from . import agent, do
     blocks: list[str] = []
     try:
+        if getattr(a, "show", None):              # reading a finished run's block again changes nothing: it works in every mode
+            print(_show_run(wtmod.preflight(Path.cwd()), a.show))
+            return 0
         request = " ".join(a.request) if a.request and a.request != ["-"] else (sys.stdin.read() if not sys.stdin.isatty() else "")
         root = wtmod.preflight(Path.cwd())
         from . import mode as modemod
@@ -1268,6 +1295,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("request", nargs="*", help="what to change (or the follow-up when --continue is given)")
     g.add_argument("--continue", dest="cont", metavar="RUN", help="send a follow-up to the same run (the child keeps its context)")
     g.add_argument("--attempts", type=int)
+    g.add_argument("--show", metavar="RUN", help="print the result block of a finished run again (a call whose output was lost or cut)")
     g.add_argument("--ask", action="store_true", help="research: the small agent answers a question with its own tools "
                    "(web, shell, files); no tests, no diff, nothing applied")
     g.add_argument("--max-block", type=int, default=540, help="seconds to wait in this one call (the caller's Bash timeout must be longer)")

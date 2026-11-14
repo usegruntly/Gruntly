@@ -60,6 +60,7 @@ def test_mode_on_makes_the_big_agent_a_director_in_every_place_that_teaches_it()
     for page in (PLUGIN / "skills" / "gruntly" / "SKILL.md", PLUGIN / "hooks" / "register.tsx"):
         text = " ".join(page.read_text(encoding="utf8").split())
         assert "director" in text.lower() and "--ask" in text and "screenshots" in text, page
+        assert "--show RUN_ID" in text and "ambiguous" in text.lower(), page          # a lost block is re-printed; a vague wish is asked about first
         assert "files read first yourself" not in text, page          # the old line that sent reading back to the big agent
     guide = (root / "src" / "gruntly" / "GUIDE.md").read_text(encoding="utf8")
     assert "## Director mode" in guide and "Ingest:" in guide and "Look:" in guide
