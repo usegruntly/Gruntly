@@ -8,6 +8,29 @@ import type { Mode, Row } from '../types'
 
 const feeds = atom({ plugin: 'gruntly', key: 'feed' } as const, {}, { shape: 'feed-1' })
 const modeAtom = atom({ plugin: 'gruntly', key: 'mode' } as const, { mode: 'auto', source: 'default' }, { shape: 'mode-1' })
+const ctxAtom = atom({ plugin: 'gruntly', key: 'ctx' } as const, { tokens: 0, window: 0 }, { shape: 'ctx-1' })
+
+// Context size. Every turn of the big agent re-reads the whole conversation, so a long chat makes each later turn dearer, and that is
+// what gruntly's saving has to beat (measured on a real website chat: 47k tokens at the start, 620k at the end, a turn 20 times dearer).
+// With gruntly ON the person is asked, never forced, to compact: nothing here compacts by itself. `/gruntly compact` is the person's own call.
+const CTX_SOFT = 100_000
+const CTX_HARD = 250_000
+// What the summary must keep. It names nothing that only exists in one project (a log, a kickoff file): gruntly keeps its own run records.
+const COMPACT_INSTRUCTIONS =
+  "Keep: the person's goal for this chat and every decision they made, with the reason; what is done and what is still open; " +
+  'the gruntly run ids with a one-line outcome and the files each changed (the runs themselves are stored under .gruntly/runs); ' +
+  'every rule the person stated (gruntly rules) and the gruntly rules of work: the small model reads, looks and edits, the big agent ' +
+  'directs, reads diffs, and corrects the small model in words and never in code. Drop: tool output, file contents, screenshots, ' +
+  'scripts, command lines and long reasoning; keep file paths and line numbers instead of content.'
+
+function contextLevel(tokens: number): 0 | 1 | 2 {
+  return tokens >= CTX_HARD ? 2 : tokens >= CTX_SOFT ? 1 : 0
+}
+
+function contextHint(tokens: number): string {
+  const k = `${Math.round(tokens / 1000)}k`
+  return `context ${k} tokens, every turn re-reads it. To make the most of gruntly: /compact`
+}
 
 // The switch: session beats project beats auto. The CLI (`gruntly mode`) reads and writes the same two files and is what
 // enforces `off`; this module writes them for /gruntly and tells Claude the mode.
@@ -97,8 +120,8 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'gruntly',
-      description: 'Switch gruntly: on = delegate whenever eligible, off = never, auto = Claude decides',
-      argumentHint: 'on|off|auto|follow [session]',
+      description: 'Switch gruntly: on = delegate whenever eligible, off = never, auto = Claude decides; compact = shrink this chat',
+      argumentHint: 'on|off|auto|follow [session]|compact',
     })
     const m = await readMode($)
     await update($, modeAtom, () => m)
@@ -108,6 +131,9 @@ export const register: Register = on => {
   on('command.run', { command: 'gruntly' }, async ($, e) => {
     const [word, scopeWord] = e.args.trim().toLowerCase().split(/\s+/)
     const now = await readMode($)
+    if (word === 'compact') {
+      return { text: 'Type /compact. With gruntly ON its summary is told what to keep: the goal, decisions, open items, run ids and rules.' }
+    }
     if (!word || word === 'status') {
       return {
         text: `gruntly mode: ${now.mode} (from ${now.source}). /gruntly on|off|auto sets it for this project; add "session" for this chat only; "follow session" returns this chat to the project's setting.`,
@@ -115,7 +141,7 @@ export const register: Register = on => {
     }
     const isFollow = word === 'follow'
     if (!MODES.includes(word) && !isFollow) {
-      return { text: 'Usage: /gruntly on|off|auto [session]   or   /gruntly follow session' }
+      return { text: 'Usage: /gruntly on|off|auto [session]   or   /gruntly follow session   or   /gruntly compact' }
     }
     const scope = isFollow || scopeWord === 'session' ? 'session' : 'project'
     const root = await rootPrefix($)
@@ -128,6 +154,32 @@ export const register: Register = on => {
     const note = !isFollow && after.mode !== word ? ` (note: ${after.source} setting ${after.mode} takes priority)` : ''
     return { text: `${what}${note}.` }
   })
+
+  on('session.compact', { trigger: 'manual' }, async ($, e, next) => {
+    const m = await readMode($)
+    if (m.mode !== 'on' || (e.instructions ?? '').trim()) {
+      return next(e) // not ON, or the person typed their own instructions: leave the summary alone
+    }
+    return next({ ...e, instructions: COMPACT_INSTRUCTIONS })
+  }).catch(($, e, next) => next(e))
+
+  let shown = 0 // the highest level already announced with a toast; falls back when the context shrinks
+  on('session.measure', async ($, e, next) => {
+    const tokens = e.context.tokens ?? 0
+    await update($, ctxAtom, () => ({ tokens, window: e.context.window }))
+    const level = contextLevel(tokens)
+    if (level < shown) {
+      shown = level
+    }
+    if (level > shown) {
+      shown = level
+      const m = await readMode($)
+      if (m.mode === 'on') {
+        $.ui.toast(`gruntly: this chat's ${contextHint(tokens)} (or start a fresh chat).`, { timeoutMs: 12000 })
+      }
+    }
+    return next(e)
+  }).catch(($, e, next) => next(e)) // a bug here must never block anything
 
   on('prompt.submit', async ($, e, next) => {
     const m = await readMode($) // the files may have been changed by `gruntly mode` in a terminal
@@ -156,12 +208,18 @@ export const register: Register = on => {
       return next(e)
     }
     const { Box, Text } = $.ui.resolve(e)
+    const c = await read($, ctxAtom)
+    const level = m.mode === 'on' && c ? contextLevel(c.tokens) : 0
     return (
       <Box>
         <Text color={m.mode === 'on' ? 'success' : 'warning'}>
           {`◆ gruntly ${m.mode.toUpperCase()}`}
         </Text>
-        <Text dimColor>{` (${m.source}) · /gruntly auto to let Claude decide`}</Text>
+        {level > 0 && c ? (
+          <Text color={level === 2 ? 'error' : 'warning'}>{` · ${contextHint(c.tokens)}`}</Text>
+        ) : (
+          <Text dimColor>{` (${m.source}) · /gruntly auto to let Claude decide`}</Text>
+        )}
       </Box>
     )
   })

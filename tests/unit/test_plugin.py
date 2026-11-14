@@ -75,3 +75,15 @@ def test_the_skill_does_not_pull_against_mode_on_and_has_no_holdout():
     assert "delegate every eligible change, small ones too" in body
     assert "holdout" not in text.lower() and "the teacher, not the doer" in body and "Do not write the code yourself" in body
     assert "outside the project works too" in body
+
+
+def test_the_compaction_hint_only_asks_and_never_compacts_by_itself():
+    """Every turn re-reads the whole chat, so a long chat makes each later turn dearer; with gruntly ON the person is asked to /compact, nothing compacts
+    by itself. (Claude Code refuses session.compact from a slash command, so the built-in /compact is what the person types.)"""
+    text = (PLUGIN / "hooks" / "register.tsx").read_text(encoding="utf8")
+    assert "CTX_SOFT = 100_000" in text and "CTX_HARD = 250_000" in text and "To make the most of gruntly: /compact" in text
+    assert "on('session.measure'" in text and "on('session.compact', { trigger: 'manual' }" in text
+    assert "$.session.compact(" not in text                              # no call that compacts: the engine does it when the person types /compact
+    block = text.split("const COMPACT_INSTRUCTIONS =")[1].split("function contextLevel")[0].lower()
+    assert "kickoff" not in block and " log" not in block                 # names no project file: gruntly keeps its own run records
+    assert '"version": "0.12.6"' in (PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf8")
