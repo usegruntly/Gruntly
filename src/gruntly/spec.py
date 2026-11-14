@@ -184,12 +184,13 @@ def build_spec(raw: dict, repo_root: Path | None = None) -> Spec:
 def _check_holdout(h: dict, repo_root: Path) -> None:
     """Fail before the child runs, not at gating: a bad holdout path would waste the whole attempt."""
     root = Path(repo_root).resolve()
+    inline = h.get("inline") or {}
     for f in h["files"]:
         p = (root / f).resolve()
         if not p.is_relative_to(root):
             raise SpecError(f"holdout file {f!r} is outside the repo. Put it inside the repo (untracked is fine, "
                             f"e.g. tests/holdout_x.py): gruntly keeps it out of the child's worktree and removes it after gating.")
-        if not p.is_file():
+        if f not in inline and not p.is_file():
             raise SpecError(f"holdout file {f!r} does not exist")
 
 
@@ -236,5 +237,10 @@ def _validate(s: Spec) -> None:
         if not isinstance(h, dict) or not h.get("cmd") or not _as_list(h.get("files")):
             raise SpecError("holdout needs {files: [...], cmd: '...'}")
         s.holdout = {"files": [str(f) for f in _as_list(h["files"])], "cmd": str(h["cmd"])}
+        inline = h.get("inline")
+        if inline:
+            if not isinstance(inline, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in inline.items()):
+                raise SpecError("holdout inline must map file names to test text")
+            s.holdout["inline"] = dict(inline)
     if s.harness == "generic" and not s.child_cmd:
         raise SpecError("harness 'generic' needs child_cmd")

@@ -316,8 +316,8 @@ def block(result: dict | None, p: "do.Plan | None", refusal=None, error: str | N
                   f"tests: pass (attempts: {r.get('attempts', '?')}, verify: {r.get('verify')})",
                   f"files: {files} (+{ds.get('insertions', 0)} -{ds.get('deletions', 0)}), applied to the working tree, not committed"]
         if holdout and held is True:
-            kept = ("it stays in .gruntly/, which git ignores" if all(h.startswith(".gruntly/") for h in holdout)
-                    else "it stays in your tree, untracked: keep it with your tests or delete it")
+            kept = ("it stays in your tree, untracked: keep it with your tests or delete it"
+                    if root is None or any((root / h).is_file() for h in holdout) else "nothing was written into your project")
             lines.append(f"holdout: pass ({', '.join(holdout)}: your test, the child never saw it; {kept})")
     else:
         reason = (r.get("failure_bundle") or {}).get("reason") or st

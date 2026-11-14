@@ -344,7 +344,15 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
     patch = "".join(s.get("patch", "") for s in steps if s["status"] == "approved")
     held, held_run = task.get("holdout"), None
     if held and status == "passed":
-        held_run = run_cmd(held["cmd"], root, 300, purge=False)
+        from . import holdout as holdmod
+        try:
+            made = holdmod.place(held, root)
+            try:
+                held_run = run_cmd(held["cmd"], root, 300, purge=False)
+            finally:
+                holdmod.remove(made)
+        except (OSError, ValueError) as e:
+            held_run = {"ok": False, "output": str(e)}
         if not held_run["ok"]:                          # a reviewer can fail a step but never pass a red test of the parent's
             status, reason = "failed", "the holdout test failed after every step was approved"
     # no check was named, so the whole existing suite was the check: if the child also wrote its own tests, the green is its own
@@ -359,7 +367,8 @@ def _finish(root: Path, d: Path, sid: str, task: dict, status: str, reason: str,
         if held_run is None:
             lines.append(f"holdout: not run ({files}): the task did not finish")
         elif held_run["ok"]:
-            lines.append(f"holdout: pass ({files}: your test, no child saw it; it stays in your tree, untracked)")
+            lines.append(f"holdout: pass ({files}: your test, no child saw it; " +
+                         ("nothing was written into your project)" if held.get("inline") else "it stays in your tree, untracked)"))
         else:
             names = [ln.strip()[:160] for ln in held_run["output"].splitlines() if ln.startswith("FAILED ")]
             lines.append(f"holdout: FAILED ({files}): " + ("; ".join(names[:6]) or "see its output: gruntly cannot name the tests"))

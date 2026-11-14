@@ -252,21 +252,18 @@ def run_gates(spec: Spec, wt: Path, base: str, root: Path, main_fp: str, secrets
 
 def _holdout_gate(h: dict, wt: Path, root: Path, secrets: list[str]) -> dict:
     """Copy the parent's held-out tests in, run them, remove them. The child never sees them."""
+    from . import holdout
     copied: list[Path] = []
     try:
-        for rel in h["files"]:
-            src, dst = root / rel, wt / rel
-            if not src.is_file():
-                return {"ok": False, "tail": f"holdout file missing: {rel}"}
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src, dst)
-            copied.append(dst)
+        try:
+            copied = holdout.place(h, wt, root)
+        except (OSError, ValueError) as e:
+            return {"ok": False, "tail": str(e)[:300]}
         r = acceptance.run_cmd(h["cmd"], wt, 300)
         return {"ok": r["ok"], "cmd": h["cmd"], "tail": "" if r["ok"] else
                 resmod.tail_lines(redact(r["output"], secrets), resmod.GATE_TAIL_LINES)}
     finally:
-        for f in copied:
-            f.unlink(missing_ok=True)
+        holdout.remove(copied)
 
 
 def first_failure(gates: dict) -> str | None:

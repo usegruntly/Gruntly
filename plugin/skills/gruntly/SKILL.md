@@ -10,7 +10,7 @@ One foreground call must finish the run. Never use `run_in_background`: it ends 
 
 **Bigger task, location unknown:** `gruntly agent-run --supervised --check 'CMD' 'task'`: the child plans and works in small steps, your model reviews each outside this session.
 
-**Holdout** (behaviour the tests miss): `gruntly agent-run --holdout .gruntly/holdouts/x.py 'request' <<'EOF'`, the test, `EOF`. The child never sees it; a pass needs it green. Git ignores that folder; open project files relative to the current directory. Text on stdin replaces an existing untracked file.
+**Holdout** (behaviour the tests miss): `gruntly agent-run --holdout holdout_x.py 'request' <<'EOF'`, the test, `EOF`. The child never sees it; a pass needs it green. Do not write the test into the project: gruntly keeps it in its own record and leaves no file.
 
 **Read-only source:** `--context PATH` (repeatable): the child may read it, not change it; otherwise every file the request names must change. A path outside the project works too (small files only).
 

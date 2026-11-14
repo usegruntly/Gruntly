@@ -66,6 +66,26 @@ def test_holdout_files_never_reach_the_child_and_never_enter_the_diff(repo, make
     assert not (wt / "holdout_calc.py").exists()
 
 
+def test_a_holdout_kept_in_the_run_record_is_placed_for_the_check_and_leaves_no_file(repo, make_spec):
+    root = worktree.preflight(repo)
+    spec = make_spec("pass", holdout={"files": ["holdout_calc.py"], "cmd": f'"{sys.executable}" -m pytest -q holdout_calc.py',
+                                      "inline": {"holdout_calc.py": HOLDOUT}}, allowed_paths=["calc.py"])
+    rid = runner.prepare(build_spec(spec, root), root)
+    res = runner.execute(root, rid)
+    assert res["status"] == "passed" and res["gates"]["holdout"] is True, res
+    assert res["diff_stat"]["paths"] == ["calc.py"]
+    assert not (repo / "holdout_calc.py").exists() and not (root / ".gruntly" / "worktrees" / rid / "holdout_calc.py").exists()
+
+
+def test_a_holdout_kept_in_the_run_record_still_catches_a_hardcoded_pass(repo, make_spec):
+    root = worktree.preflight(repo)
+    spec = make_spec("hardcode", holdout={"files": ["holdout_calc.py"], "cmd": f'"{sys.executable}" -m pytest -q holdout_calc.py',
+                                          "inline": {"holdout_calc.py": HOLDOUT}}, allowed_paths=["calc.py"], max_attempts=1)
+    res = runner.execute(root, runner.prepare(build_spec(spec, root), root))
+    assert res["gates"]["holdout"]["ok"] is False and res["status"] == "escalate"
+    assert not (repo / "holdout_calc.py").exists() and "assert add(-2" not in json.dumps(res)
+
+
 def test_holdout_catches_what_the_visible_test_misses(repo, make_spec):
     """A child that special-cases the visible test passes acceptance but fails the held-out edge cases."""
     (repo / "holdout_calc.py").write_text(HOLDOUT)

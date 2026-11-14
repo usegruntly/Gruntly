@@ -1,5 +1,6 @@
 """`gruntly agent-run`: one marked result block, and a follow-up that keeps the same run."""
 import io
+import json
 import sys
 
 import pytest
@@ -270,18 +271,22 @@ def holdout_run(capsys, monkeypatch, repo, stdin_text, *flags):
     return capsys.readouterr().out.strip()
 
 
-def test_a_holdout_on_stdin_is_written_run_after_the_child_and_never_in_the_diff(proj, capsys, monkeypatch):
+def test_a_holdout_on_stdin_runs_after_the_child_and_leaves_no_file_in_the_project(proj, capsys, monkeypatch):
     out = holdout_run(capsys, monkeypatch, proj, HOLDOUT_TEST, "--holdout", "holdout_calc.py", "fix add() so test_calc passes")
     assert "status: passed" in out and "holdout: pass (holdout_calc.py" in out and "UNPROVEN" not in out
-    assert (proj / "holdout_calc.py").read_text() == HOLDOUT_TEST                  # kept, untracked, for the parent to keep or delete
+    assert "nothing was written into your project" in out
+    assert not (proj / "holdout_calc.py").exists()                                 # the test lives in the run's own record, nowhere else
+    assert "holdout" not in sh(proj, "git", "status", "--short").stdout
+    spec = json.loads(next((proj / ".gruntly" / "runs").glob("r_*/spec.json")).read_text(encoding="utf8"))
+    assert spec["holdout"]["inline"] == {"holdout_calc.py": HOLDOUT_TEST}
     assert "holdout_calc.py" not in out.split("files:")[1].splitlines()[0]         # never part of what the child changed
 
 
-def test_a_holdout_in_the_ignored_gruntly_folder_works_and_never_shows_in_git_status(proj, capsys, monkeypatch):
-    out = holdout_run(capsys, monkeypatch, proj, HOLDOUT_TEST, "--holdout", ".gruntly/holdouts/holdout_calc.py", "fix add() so test_calc passes")
-    assert "status: passed" in out and "holdout: pass (.gruntly/holdouts/holdout_calc.py" in out and "UNPROVEN" not in out
-    assert (proj / ".gruntly" / "holdouts" / "holdout_calc.py").read_text() == HOLDOUT_TEST
-    assert "holdouts" not in sh(proj, "git", "status", "--short").stdout                  # nothing for the parent to clean up or commit by mistake
+def test_a_holdout_file_the_parent_wrote_into_the_project_still_works_and_stays(proj, capsys, monkeypatch):
+    (proj / "holdout_calc.py").write_text(HOLDOUT_TEST)
+    out = holdout_run(capsys, monkeypatch, proj, "", "--holdout", "holdout_calc.py", "fix add() so test_calc passes")
+    assert "status: passed" in out and "holdout: pass (holdout_calc.py" in out and "keep it with your tests or delete it" in out
+    assert (proj / "holdout_calc.py").read_text() == HOLDOUT_TEST
 
 
 def test_a_child_that_passes_the_visible_test_but_fails_the_holdout_is_not_a_pass(proj, capsys, monkeypatch):
@@ -293,7 +298,7 @@ def test_a_child_that_passes_the_visible_test_but_fails_the_holdout_is_not_a_pas
 
 def test_a_holdout_needs_a_file_or_stdin_and_must_be_inside_the_project(proj, capsys, monkeypatch, tmp_path):
     out = holdout_run(capsys, monkeypatch, proj, "", "--holdout", "nothere.py", "fix add() so test_calc passes")
-    assert "status: error" in out and "does not exist" in out
+    assert "status: error" in out and "no test text arrived" in out
     outside = tmp_path / "h.py"
     outside.write_text(HOLDOUT_TEST)
     out = holdout_run(capsys, monkeypatch, proj, "", "--holdout", str(outside), "fix add() so test_calc passes")

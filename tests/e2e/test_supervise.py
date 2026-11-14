@@ -142,6 +142,20 @@ def test_a_supervised_task_runs_the_holdout_once_at_the_end_and_a_red_holdout_fa
     assert "test_impossible" in block
 
 
+def test_a_supervised_holdout_kept_in_the_record_is_placed_only_while_it_runs(repo):
+    write_config(repo, "supervised")
+    sid = supervise.new_id()
+    text = "from calc import add\n\n\ndef test_negative():\n    assert add(-2, -3) == -5\n"
+    task = {"request": "Make add() in calc.py add.", "check": None, "model": None,
+            "holdout": {"files": ["holdout_calc.py"], "inline": {"holdout_calc.py": text},
+                        "cmd": f'"{sys.executable}" -m pytest -q -p no:cacheprovider holdout_calc.py'}}
+    supervise._write(supervise.sup_dir(repo, sid), "task.json", task)
+    block = supervise.run(repo, sid, call=Reviewer("APPROVE", "APPROVE: done"))
+    assert "status: passed" in block and "holdout: pass (holdout_calc.py" in block and "nothing was written into your project" in block
+    assert not (repo / "holdout_calc.py").exists()
+    assert not any("holdout_calc" in p or "test_negative" in p for p in prompts(repo))
+
+
 def test_every_step_review_shares_one_byte_identical_system_prompt_and_only_the_plan_review_skips_the_cache(repo):
     write_config(repo, "supervised")
     rulesmod.add(repo, "Do not rename add()")
