@@ -412,12 +412,16 @@ def _apply_later(root: Path, out: dict) -> None:
     _part_details(root, out)
 
 
-def _ask_one(root: Path, question: str, budget_s: int) -> dict:
-    """A research run: the child answers with its harness's own tools; the worktree only guards the main tree."""
+def _ask_one(root: Path, question: str, budget_s: int, a=None) -> dict:
+    """A research run: the child answers with its harness's own tools; the worktree only guards the main tree.
+    `--context` works here too (it used to be ignored): a file in the project is named for the child to start with, one outside travels as text."""
+    from . import agent
     out: dict = {"res": None, "error": None, "answer": None}
     try:
         raw = {"kind": "research", "brief": question, "allowed_paths": [], "acceptance": [], "apply_on_pass": False,
                "max_attempts": 1, "budget_s": max(budget_s - 20, 60)}
+        if a is not None:
+            agent.apply_context(raw, _context_paths(a, root), _context_outside(a, root))
         rid = runner.prepare(build_spec(raw, root), root)
         _spawn_worker(root, rid)
         out["res"] = _wait(root, rid, budget_s)
@@ -453,7 +457,7 @@ def cmd_agent_run(a) -> int:
             print(supervise.wait(root, sid, max(int(a.max_block), 30)))
             return 0
         if a.ask and not a.cont:
-            o = _ask_one(root, request, max(int(a.max_block), 30))
+            o = _ask_one(root, request, max(int(a.max_block), 30), a)
             print(agent.block(o["res"], None, error=o["error"], answer=o["answer"]))
             return 0
         if a.cont:

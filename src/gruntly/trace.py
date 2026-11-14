@@ -10,6 +10,7 @@ diff itself is not taken from here: events are agent-reported, and the worktree'
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections import Counter
@@ -64,7 +65,9 @@ def _what(kind: str, args, cmd: str) -> str:
 
 def _call(tool: str, args, ok: bool) -> Call:
     try:
-        sig = tool + json.dumps(args, sort_keys=True, default=str)[:400]
+        # The WHOLE input counts. Cut at 400 characters, two different scripts that open with the same unpacking boilerplate looked identical,
+        # and a child extracting facts from a bundled page was stopped as "going round in circles" after six of them (real run, 2026-11-14).
+        sig = tool + hashlib.sha1(json.dumps(args, sort_keys=True, default=str).encode("utf8", "replace")).hexdigest()
     except (TypeError, ValueError):
         sig = tool
     kind = kind_of(tool)

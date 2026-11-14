@@ -5,7 +5,7 @@ Three modes, so nobody has to say "use gruntly" or "don't use gruntly" in every 
 | Mode | What happens |
 |---|---|
 | `auto` | The default. The skill decides when delegating pays. |
-| `on` | Claude delegates every eligible change without asking first. "Eligible" is still the skill's rules: a bounded change where the file can be named, tests exist or the change is mechanical. Small edits go too: the "~8+ turns" rule belongs to `auto` and does not apply here (a run costs the big agent a turn or two more than a one-line edit by hand; that is the choice `on` makes). Design, security and wide investigation stay with Claude. |
+| `on` | Director mode. Claude delegates every eligible change without asking first, and asks the small model to read, extract and look (`agent-run --ask`) instead of reading pages, logs, bundles and screenshots itself, so its own context stays small. "Eligible" is still the skill's rules: a bounded change where the file can be named, tests exist or the change is mechanical. Small edits go too: the "~8+ turns" rule belongs to `auto` and does not apply here (a run costs the big agent a turn or two more than a one-line edit by hand; that is the choice `on` makes). Design, security and wide investigation stay with Claude. |
 | `off` | gruntly refuses new work with one line (`status: refused ... switched OFF ...`) and Claude does everything itself. `wait`, `apply`, `diff` and `discard` still work, so a run already in flight can be finished. |
 
 **Where it is set** (most specific wins): the environment variable `GRUNTLY_MODE`, then this Claude Code **session**, then this **project**, then `auto`.

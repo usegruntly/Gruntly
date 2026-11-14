@@ -20,6 +20,14 @@ Run it in the foreground with a long Bash timeout (600000 ms). Never use `run_in
 - The person's rules: `gruntly rules add 'rule'` when they state a lasting rule about the code, `gruntly rules remove N` when they lift it. Children and reviewers follow `.gruntly/rules.md`; reviewers also read CLAUDE.md and AGENTS.md.
 - An intent instead of a location (the child finds the code): `gruntly agent-run --explore [--check 'CMD'] 'what has to be true'`. Scope is the whole project except the check's own files (tests may change where the task needs it; a deleted or loosened assertion is still rejected); the check is the whole suite unless given. Plan the steps yourself and send one step per call.
 
+## Director mode (`gruntly mode on`)
+The big agent decides and directs; the small model is its hands. Every turn of the big agent re-reads everything already in its context, so anything it reads itself (a page, a bundle, a log, a screenshot, an extraction script's output) is paid for again on every later turn. Let the child read and report instead:
+- Ingest: `gruntly agent-run --ask "In 'explainer.html' find the last scene (small agent merges with three agents, they enter the big one, the logo appears). Return the CSS keyframes and JS timings for it and the colours it uses, at most 40 lines, quote line numbers"`.
+- Look: `gruntly agent-run --ask "Render index.html at 360, 390, 768, 1024 and 1440 px with headless Chrome (scroll the page first so reveals fire), look at every screenshot, and report horizontal overflow, overlapping or clipped text and boxes of unequal height, naming the width for each. At most 20 lines"`.
+- Edit: `gruntly agent-run 'WHAT TO CHANGE, naming the file'`, then read the diff.
+- A file outside the project that the child must read: `--context PATH` (small text files travel in the request; for a screenshot or a large file, put it inside the project).
+What stays with the big agent: decisions, wording of claims, what to build next, the child's short answers and diffs, and at most one small crop when a report flags a problem. The person's own screenshots remain the ground truth. The child can be wrong about what it sees: ask for numbers and quoted lines, not impressions.
+
 ## When to delegate
 In mode `on` the person chose to delegate every eligible change, small ones too: this section then only decides what is eligible (not design, not ambiguous debugging, not security code). In auto mode, all must hold: an executable check proves the work done; the task is mechanical; doing it yourself would take ~8+ turns or large file reads. Below that the fixed cost of delegating (a call and reading the block) is more than the work: measured on ten ~4-turn tasks, delegating cost about 45% more than doing them directly. Never delegate design, ambiguous debugging or security-sensitive code. `gruntly stats` reports pass rate per harness/model; it says `avoid` below 70% over 10+ runs.
 

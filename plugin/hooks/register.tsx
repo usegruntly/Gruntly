@@ -14,9 +14,12 @@ const modeAtom = atom({ plugin: 'gruntly', key: 'mode' } as const, { mode: 'auto
 const MODES = ['auto', 'on', 'off']
 // The whole usage is here, so Claude can delegate without first loading the skill (a paid turn).
 const HINT_ON =
-  'Gruntly mode is ON for this project: delegate every eligible change without asking the person first (a bounded change ' +
-  'where you can name the file, tests exist or the change is mechanical). Do design, security, and changes that need many ' +
-  "files read first yourself. To delegate, run in the foreground with Bash timeout 600000: gruntly agent-run 'WHAT TO " +
+  'Gruntly mode is ON for this project: delegate every eligible change without asking the person first, small ones too. ' +
+  'You are the DIRECTOR and the small model is your hands. Do not read pages, bundles, logs, long files or screenshots yourself, ' +
+  "and do not run extraction scripts: ask the child, gruntly agent-run --ask 'QUESTION; answer in at most 30 lines, quote line " +
+  "numbers' (it can run code, render pages in a headless browser and look at the screenshots, and report numbers and suspects), " +
+  'and work from its short answer; look at one small crop yourself only when it flags a problem. Design, security, claims and ' +
+  "decisions stay with you. To delegate a change, run in the foreground with Bash timeout 600000: gruntly agent-run 'WHAT TO " +
   "CHANGE, naming the file and function'. Read only the block between === GRUNTLY RESULT === and === END ===: it has the " +
   'status, the tests and the whole diff, so do not open files or rerun tests. Read the diff yourself: a small model can fake its own test ' +
   '(a hard-coded value). passed and the diff does the whole request: reply in one line. A gap, a fake, or failed or escalate: ' +

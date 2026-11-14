@@ -1,5 +1,6 @@
 """`gruntly agent-run`: one marked result block, and a follow-up that keeps the same run."""
 import io
+import json
 import sys
 
 import pytest
@@ -166,6 +167,18 @@ def test_ask_returns_the_childs_answer_without_a_diff_or_tests(repo, capsys, mon
     assert out.startswith(agent.OPEN) and out.endswith(agent.CLOSE), out
     assert "status: passed (research" in out and "Ada Example" in out and "[untrusted answer" in out
     assert "tests:" not in out and "[untrusted diff" not in out
+
+
+def test_ask_honours_context_files_inside_and_outside_the_project(repo, tmp_path, capsys, monkeypatch):
+    """--ask used to ignore --context without a word: a director that points the child at a file needs it to arrive."""
+    write_config(repo, "answer")
+    (repo / "notes.txt").write_text("inside notes\n")
+    outside = tmp_path / "ref.txt"
+    outside.write_text("OUTSIDE-REFERENCE-TEXT\n", encoding="utf8")
+    out = say(capsys, monkeypatch, repo, "summarise notes.txt", "--ask", "--context", "notes.txt", "--context", str(outside))
+    assert "status: passed (research" in out, out
+    spec = json.loads(next((repo / ".gruntly" / "runs").glob("r_*/spec.json")).read_text(encoding="utf8"))
+    assert "OUTSIDE-REFERENCE-TEXT" in spec["brief"] and spec["context_files"] == ["notes.txt"]
 
 
 def test_ask_fails_if_the_child_changes_a_file(repo, capsys, monkeypatch):

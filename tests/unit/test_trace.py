@@ -71,3 +71,17 @@ def test_narrated_work_needs_a_trace_no_edit_no_change_and_a_claim():
     assert not trace.narrated_work([], said, 0)                              # no trace (Hermes): the empty diff says it
     assert not trace.narrated_work(_calls("read"), "I could not find add().", 0)
     assert not trace.narrated_work(_calls("read"), "It is already done, nothing to change.", 0)
+
+def _bash_event(cmd):
+    return json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": cmd}}]}})
+
+
+def test_two_long_scripts_that_differ_only_after_their_first_400_characters_are_not_the_same_call():
+    """Real run, 2026-11-14: a child pulling facts out of a bundled page wrote many scripts that opened with the same unpacking code and
+    differed at the end; the guard compared only the first 400 characters and stopped it as a loop."""
+    common = "cd /w && python - <<'EOF'\n" + "import base64, gzip, json, re\n" * 40
+    a = trace.calls_from(_bash_event(common + "print('scene one')"))[0]
+    b = trace.calls_from(_bash_event(common + "print('scene two')"))[0]
+    again = trace.calls_from(_bash_event(common + "print('scene one')"))[0]
+    assert a.sig != b.sig and a.sig == again.sig
+    assert trace.summarize([a, b]).get("max_repeat") == 1 and trace.summarize([a, again]).get("max_repeat") == 2

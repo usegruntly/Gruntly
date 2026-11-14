@@ -53,11 +53,24 @@ def test_the_skill_teaches_the_parent_the_rule_and_the_flags_it_could_not_learn_
         assert needle in body, needle
 
 
+def test_mode_on_makes_the_big_agent_a_director_in_every_place_that_teaches_it():
+    """Website session, 2026-11-14: it unpacked an 800 KB page with its own scripts because its instructions said never to delegate reading. In
+    mode on the big agent asks the child (agent-run --ask) and works from a short answer; its own context is what every later turn re-reads."""
+    root = Path(__file__).resolve().parents[2]
+    for page in (PLUGIN / "skills" / "gruntly" / "SKILL.md", PLUGIN / "hooks" / "register.tsx"):
+        text = " ".join(page.read_text(encoding="utf8").split())
+        assert "director" in text.lower() and "--ask" in text and "screenshots" in text, page
+        assert "files read first yourself" not in text, page          # the old line that sent reading back to the big agent
+    guide = (root / "src" / "gruntly" / "GUIDE.md").read_text(encoding="utf8")
+    assert "## Director mode" in guide and "Ingest:" in guide and "Look:" in guide
+    assert "Director mode" in (root / "docs" / "mode.md").read_text(encoding="utf8")
+
+
 def test_the_skill_does_not_pull_against_mode_on_and_has_no_holdout():
     """Website session, 2026-11-14: the project was in mode ON but the skill said a one-line edit is cheaper by hand, so the big agent skipped gruntly twice."""
     text = (PLUGIN / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").replace("\r\n", "\n")
     front, body = text.split("\n---\n", 1)
     assert "in mode on, every eligible change" in front and "in auto mode a one-line edit" in body
-    assert "ON: delegate every eligible change without asking, small ones too" in body
+    assert "delegate every eligible change, small ones too" in body
     assert "holdout" not in text.lower() and "the teacher, not the doer" in body and "Do not write the code yourself" in body
     assert "outside the project works too" in body
