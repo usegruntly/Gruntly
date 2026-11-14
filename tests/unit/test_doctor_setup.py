@@ -96,5 +96,6 @@ def test_the_human_view_is_one_readable_line_per_check(project, capsys):
     (project / ".gruntly.toml").write_text('harness = "claude"\nmodel = "haiku"\n')
     out = run_doctor(capsys, "--human").splitlines()
     assert out[0] == "everything this project needs is in place"
-    assert any(line.startswith("  [ok  ] model_server: not needed") for line in out) and any(line.startswith("  [warn] sandbox") for line in out)
+    assert any(line.startswith("  [ok  ] model_server: not needed") for line in out)
+    assert any(line.startswith(("  [ok  ] sandbox", "  [warn] sandbox")) for line in out)         # a warning where level 1 is unavailable (Windows), ok on Linux
     assert not any(line.lstrip().startswith("{") for line in out)                        # not a dump of JSON
