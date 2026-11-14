@@ -32,23 +32,27 @@ function engine($: any, on: any, mode: string) {
   return seen
 }
 
-test('with gruntly ON it asks once, in words, to compact when the context passes 100k', async ($, on) => {
+test('with gruntly ON it speaks in three steps: a quiet hint, a good moment, a request', async ($, on) => {
   const seen = engine($, on, 'on')
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  await $.session.measure(measure(90_000))
+  await $.session.measure(measure(90_000)) // below the first level: nothing
   expect(seen.toasts.length).toBe(0)
 
-  await $.session.measure(measure(120_000))
-  expect(seen.toasts.length).toBe(1)
-  expect(seen.toasts[0]).toContain('/compact')
-  expect(seen.toasts[0]).toContain('120k')
+  await $.session.measure(measure(110_000)) // level 1: a hint in the row only, no pop-up
+  expect(seen.toasts.length).toBe(0)
 
-  await $.session.measure(measure(140_000)) // the same level again: no second toast
+  await $.session.measure(measure(160_000)) // level 2: a good moment
+  expect(seen.toasts.length).toBe(1)
+  expect(seen.toasts[0]).toContain('good moment to /compact')
+
+  await $.session.measure(measure(170_000)) // the same level again: no second pop-up
   expect(seen.toasts.length).toBe(1)
 
-  await $.session.measure(measure(260_000)) // the stronger level speaks once more
+  await $.session.measure(measure(260_000)) // level 3: please
   expect(seen.toasts.length).toBe(2)
+  expect(seen.toasts[1]).toContain('please /compact now')
+  expect(seen.toasts[1]).not.toMatch(/\d+k/) // no numbers for the person to keep track of
 })
 
 test('with gruntly on auto or off it stays quiet', async ($, on) => {
@@ -88,12 +92,12 @@ test('typing /compact with gruntly off leaves the summary alone', async ($, on) 
 })
 
 test('the warning starts where `gruntly context` says, and the defaults stay when there is no file', async ($, on) => {
-  files.context = JSON.stringify({ soft: 60_000, hard: 90_000, source: 'formula' })
+  files.context = JSON.stringify({ levels: [50_000, 90_000, 150_000], source: 'formula' })
   const seen = engine($, on, 'on')
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.session.measure(measure(50_000))
   expect(seen.toasts.length).toBe(0)
-  await $.session.measure(measure(70_000)) // above the formula's 60k, far below the default 100k
+  await $.session.measure(measure(95_000)) // the formula's second level is 90k, far below the default 150k
   expect(seen.toasts.length).toBe(1)
   files.context = undefined
 })
@@ -103,6 +107,6 @@ test('a file that is not ours is ignored and the defaults stay', async ($, on) =
   const seen = engine($, on, 'on')
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.session.measure(measure(70_000))
-  expect(seen.toasts.length).toBe(0) // the default soft threshold is 100k
+  expect(seen.toasts.length).toBe(0) // the first default level is 100k
   files.context = undefined
 })

@@ -923,7 +923,7 @@ def cmd_context(a) -> int:
         print(json.dumps(out, indent=2, ensure_ascii=False))
         return 0
     if big is None:
-        print(f"big model: {m['parent_model'] or 'not set'}: no price for it, so nothing is guessed. {t['why']}: warn at {t['soft']:,} tokens, red at {t['hard']:,}.")
+        print(f"big model: {m['parent_model'] or 'not set'}: no price for it, so nothing is guessed. {t['why']}: {', '.join(f'{x:,}' for x in t['levels'])} tokens.")
     else:
         r = cp.rates(big)
         print(f"big model: {m['parent_model']}  (cache read ${r.read * 1e6:g}, cache write ${r.write * 1e6:g}, output ${r.out * 1e6:g} per Mtok)")

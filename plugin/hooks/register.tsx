@@ -8,13 +8,20 @@ import type { Mode, Row } from '../types'
 
 const feeds = atom({ plugin: 'gruntly', key: 'feed' } as const, {}, { shape: 'feed-1' })
 const modeAtom = atom({ plugin: 'gruntly', key: 'mode' } as const, { mode: 'auto', source: 'default' }, { shape: 'mode-1' })
-const ctxAtom = atom({ plugin: 'gruntly', key: 'ctx' } as const, { tokens: 0, window: 0, soft: 100_000, hard: 250_000 }, { shape: 'ctx-2' })
+const ctxAtom = atom({ plugin: 'gruntly', key: 'ctx' } as const, { tokens: 0, window: 0, levels: [100_000, 150_000, 250_000] }, { shape: 'ctx-3' })
 
 // Context size. Every turn of the big agent re-reads the whole conversation, so a long chat makes each later turn dearer, and that is
 // what gruntly's saving has to beat (measured on a real website chat: 47k tokens at the start, 620k at the end, a turn 20 times dearer).
 // With gruntly ON the person is asked, never forced, to compact: nothing here compacts by itself. `/gruntly compact` is the person's own call.
-const CTX_SOFT = 100_000
-const CTX_HARD = 250_000
+const CTX_LEVELS = [100_000, 150_000, 250_000]
+// Three messages and no numbers. The person is asked, never forced; the colours step from a hint to a request.
+const CTX_MESSAGE = [
+  '',
+  'this chat is getting long. At a natural pause, /compact would make the rest of it cheaper.',
+  'good moment to /compact: from here it pays for itself within a few more turns.',
+  'please /compact now: every turn re-reads a very long chat and costs more than compacting would.',
+]
+const CTX_COLOR = ['', 'suggestion', 'warning', 'error']
 // What the summary must keep. It names nothing that only exists in one project (a log, a kickoff file): gruntly keeps its own run records.
 const COMPACT_INSTRUCTIONS =
   "Keep: the person's goal for this chat and every decision they made, with the reason; what is done and what is still open; " +
@@ -23,29 +30,25 @@ const COMPACT_INSTRUCTIONS =
   'directs, reads diffs, and corrects the small model in words and never in code. Drop: tool output, file contents, screenshots, ' +
   'scripts, command lines and long reasoning; keep file paths and line numbers instead of content.'
 
-// Where the warning starts is worked out by `gruntly context` from the big model's prices (compacting pays back within 20 more turns above
-// `soft`, within 5 above `hard`) and written to .gruntly/context.json at every gruntly call. Without that file, or without a price for the model,
-// the two constants above stay: nothing is guessed.
-async function readThresholds($: any): Promise<{ soft: number; hard: number }> {
+// Where the three messages start is worked out by `gruntly context` from the big model's prices (compacting pays for itself within 20, 10 and 5
+// more turns) and written to .gruntly/context.json at every gruntly call. Without that file, or without a price for the model, CTX_LEVELS stay:
+// nothing is guessed.
+async function readLevels($: any): Promise<number[]> {
   try {
     const root = await rootPrefix($)
     const d = JSON.parse(String(await $.fs.read(`${root}.gruntly/context.json`)))
-    if (Number.isFinite(d.soft) && Number.isFinite(d.hard) && d.soft >= 20_000 && d.hard > d.soft) {
-      return { soft: d.soft, hard: d.hard }
+    const l = d.levels
+    if (Array.isArray(l) && l.length === 3 && l.every((x: any) => Number.isFinite(x)) && l[0] >= 20_000 && l[0] < l[1] && l[1] < l[2]) {
+      return l
     }
   } catch {
     // no file, or one that is not ours: the defaults
   }
-  return { soft: CTX_SOFT, hard: CTX_HARD }
+  return CTX_LEVELS
 }
 
-function contextLevel(tokens: number, soft: number, hard: number): 0 | 1 | 2 {
-  return tokens >= hard ? 2 : tokens >= soft ? 1 : 0
-}
-
-function contextHint(tokens: number): string {
-  const k = `${Math.round(tokens / 1000)}k`
-  return `context ${k} tokens, every turn re-reads it. To make the most of gruntly: /compact`
+function contextLevel(tokens: number, levels: number[]): 0 | 1 | 2 | 3 {
+  return tokens >= levels[2] ? 3 : tokens >= levels[1] ? 2 : tokens >= levels[0] ? 1 : 0
 }
 
 // The switch: session beats project beats auto. The CLI (`gruntly mode`) reads and writes the same two files and is what
@@ -182,17 +185,18 @@ export const register: Register = on => {
   let shown = 0 // the highest level already announced with a toast; falls back when the context shrinks
   on('session.measure', async ($, e, next) => {
     const tokens = e.context.tokens ?? 0
-    const th = await readThresholds($)
-    await update($, ctxAtom, () => ({ tokens, window: e.context.window, soft: th.soft, hard: th.hard }))
-    const level = contextLevel(tokens, th.soft, th.hard)
+    const levels = await readLevels($)
+    await update($, ctxAtom, () => ({ tokens, window: e.context.window, levels }))
+    const level = contextLevel(tokens, levels)
     if (level < shown) {
       shown = level
     }
     if (level > shown) {
       shown = level
       const m = await readMode($)
-      if (m.mode === 'on') {
-        $.ui.toast(`gruntly: this chat's ${contextHint(tokens)} (or start a fresh chat).`, { timeoutMs: 12000 })
+      // the first level is a quiet hint in the row only; a toast speaks once for each of the other two
+      if (m.mode === 'on' && level >= 2) {
+        $.ui.toast(`gruntly: ${CTX_MESSAGE[level]}`, { timeoutMs: 12000 })
       }
     }
     return next(e)
@@ -226,14 +230,14 @@ export const register: Register = on => {
     }
     const { Box, Text } = $.ui.resolve(e)
     const c = await read($, ctxAtom)
-    const level = m.mode === 'on' && c ? contextLevel(c.tokens, c.soft, c.hard) : 0
+    const level = m.mode === 'on' && c ? contextLevel(c.tokens, c.levels) : 0
     return (
       <Box>
         <Text color={m.mode === 'on' ? 'success' : 'warning'}>
           {`◆ gruntly ${m.mode.toUpperCase()}`}
         </Text>
         {level > 0 && c ? (
-          <Text color={level === 2 ? 'error' : 'warning'}>{` · ${contextHint(c.tokens)}`}</Text>
+          <Text color={CTX_COLOR[level] as any}>{` · ${CTX_MESSAGE[level]}`}</Text>
         ) : (
           <Text dimColor>{` (${m.source}) · /gruntly auto to let Claude decide`}</Text>
         )}

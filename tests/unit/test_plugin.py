@@ -81,10 +81,10 @@ def test_the_compaction_hint_only_asks_and_never_compacts_by_itself():
     """Every turn re-reads the whole chat, so a long chat makes each later turn dearer; with gruntly ON the person is asked to /compact, nothing compacts
     by itself. (Claude Code refuses session.compact from a slash command, so the built-in /compact is what the person types.)"""
     text = (PLUGIN / "hooks" / "register.tsx").read_text(encoding="utf8")
-    assert "CTX_SOFT = 100_000" in text and "CTX_HARD = 250_000" in text and "To make the most of gruntly: /compact" in text
-    assert ".gruntly/context.json" in text and "readThresholds" in text      # the formula's thresholds, the constants when there is no file
+    assert "CTX_LEVELS = [100_000, 150_000, 250_000]" in text and "please /compact now" in text and "good moment to /compact" in text
+    assert ".gruntly/context.json" in text and "readLevels" in text      # the formula's levels, the constants when there is no file
     assert "on('session.measure'" in text and "on('session.compact', { trigger: 'manual' }" in text
     assert "$.session.compact(" not in text                              # no call that compacts: the engine does it when the person types /compact
-    block = text.split("const COMPACT_INSTRUCTIONS =")[1].split("function contextLevel")[0].lower()
+    block = text.split("const COMPACT_INSTRUCTIONS =")[1].split("// Where the three messages start")[0].lower()
     assert "kickoff" not in block and " log" not in block                 # names no project file: gruntly keeps its own run records
     assert '"version": "0.12.6"' in (PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf8")

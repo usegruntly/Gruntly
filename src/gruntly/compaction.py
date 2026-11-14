@@ -33,8 +33,11 @@ from . import pricing
 
 BASE_TOKENS = 50_000        # measured: the website chat's context at its first turn was 47k
 SUMMARY_TOKENS = 5_000
-SOFT_TURNS, HARD_TURNS = 20, 5          # "soft": a chat expected to go on; "hard": one that is nearly over
-DEFAULT_SOFT, DEFAULT_HARD = 100_000, 250_000
+# Three plain messages, no numbers for the person to keep track of. Each level starts where compacting pays for itself within this many turns:
+# 1 "suggested" (a long chat: if you can compact, fine), 2 "a good moment" (the usual case: 10 was the 25th percentile of the turns left in
+# chats that had reached 50-100k, measured on 153 chats), 3 "please compact" (every turn now costs more than compacting would).
+LEVEL_TURNS = (20, 10, 5)
+DEFAULT_LEVELS = (100_000, 150_000, 250_000)      # where the three messages start for a model with no price: nothing is guessed
 EQUAL_BAND = 0.10                       # within 10% of the compaction's own cost counts as "about equal"
 ALIASES = {"haiku": "claude-haiku-5-5", "sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5"}     # names Claude Code's own child flag uses
 
@@ -74,17 +77,18 @@ def threshold(turns: int, base: int, summary: int, r: Rates) -> int | None:
 
 
 def thresholds(big: pricing.Price | None, base: int = BASE_TOKENS, summary: int = SUMMARY_TOKENS) -> dict:
-    """Where the warning starts (`soft`) and turns red (`hard`). From the formula when the big model's price is known, else the defaults."""
+    """Where the three messages start (`levels`, in tokens). From the formula when the big model's price is known, else the defaults."""
     if big is not None:
         r = rates(big)
-        soft, hard = threshold(SOFT_TURNS, base, summary, r), threshold(HARD_TURNS, base, summary, r)
-        if soft and hard:
-            soft = max(soft, base + summary + 10_000)
-            hard = max(hard, soft + 50_000)
-            return {"soft": soft, "hard": hard, "source": "formula",
-                    "why": f"compacting pays back within {SOFT_TURNS} more turns above {soft:,} tokens and within {HARD_TURNS} above {hard:,}"}
-    return {"soft": DEFAULT_SOFT, "hard": DEFAULT_HARD, "source": "default",
-            "why": "no price for the big model, so the default thresholds stay"}
+        raw = [threshold(n, base, summary, r) for n in LEVEL_TURNS]
+        if all(raw):
+            first = max(raw[0], base + summary + 10_000)
+            second = max(raw[1], first + 20_000)
+            third = max(raw[2], second + 40_000)
+            return {"levels": [first, second, third], "source": "formula",
+                    "why": f"compacting pays for itself within {LEVEL_TURNS[0]}, {LEVEL_TURNS[1]} and {LEVEL_TURNS[2]} more turns above "
+                           f"{first:,}, {second:,} and {third:,} tokens"}
+    return {"levels": list(DEFAULT_LEVELS), "source": "default", "why": "no price for the big model, so the default levels stay"}
 
 
 def advice(context: int, turns_left: int, big: pricing.Price | None, small: pricing.Price | None = None, small_local: bool = False,

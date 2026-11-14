@@ -13,8 +13,10 @@ def sonnet():
 
 def test_the_formula_lands_on_the_defaults_for_sonnet_5_5():
     t = cp.thresholds(sonnet())
-    assert t["source"] == "formula" and 94_000 <= t["soft"] <= 96_000 and 243_000 <= t["hard"] <= 245_000
-    assert abs(t["soft"] - cp.DEFAULT_SOFT) < 6_000 and abs(t["hard"] - cp.DEFAULT_HARD) < 7_000      # the defaults were chosen first
+    first, second, third = t["levels"]
+    assert t["source"] == "formula" and 94_000 <= first <= 96_000 and 138_000 <= second <= 140_000 and 243_000 <= third <= 245_000
+    d = cp.DEFAULT_LEVELS
+    assert abs(first - d[0]) < 6_000 and abs(second - d[1]) < 12_000 and abs(third - d[2]) < 7_000      # the defaults were chosen first
 
 
 def test_what_compacting_costs_and_when_it_pays_back():
@@ -38,7 +40,7 @@ def test_the_verdict_goes_from_dearer_to_equal_to_cheaper_as_the_context_grows()
 
 def test_without_a_price_nothing_is_guessed_and_the_defaults_stay():
     t = cp.thresholds(None)
-    assert (t["soft"], t["hard"], t["source"]) == (cp.DEFAULT_SOFT, cp.DEFAULT_HARD, "default")
+    assert (tuple(t["levels"]), t["source"]) == (cp.DEFAULT_LEVELS, "default")
     a = cp.advice(300_000, 20, None)
     assert a["verdict"] == "unknown" and "compaction_cost" not in a
 
@@ -63,12 +65,12 @@ def test_refresh_writes_the_thresholds_the_plugin_reads_and_only_when_they_chang
     (repo / ".gruntly.toml").write_text('harness = "claude"\nmodel = "haiku"\n[parent]\nmodel = "claude-sonnet-5-5"\n')
     t = cp.refresh(repo)
     f = repo / ".gruntly" / "context.json"
-    assert json.loads(f.read_text())["soft"] == t["soft"] and t["source"] == "formula" and t["parent_model"] == "claude-sonnet-5-5"
+    assert json.loads(f.read_text())["levels"] == t["levels"] and t["source"] == "formula" and t["parent_model"] == "claude-sonnet-5-5"
     stamp = f.stat().st_mtime_ns
     cp.refresh(repo)
     assert f.stat().st_mtime_ns == stamp
     (repo / ".gruntly.toml").write_text('[parent]\nmodel = "no-such-model"\n')
-    assert cp.refresh(repo)["source"] == "default" and json.loads(f.read_text())["soft"] == cp.DEFAULT_SOFT
+    assert cp.refresh(repo)["source"] == "default" and tuple(json.loads(f.read_text())["levels"]) == cp.DEFAULT_LEVELS
 
 
 def test_the_context_command_prints_the_verdict_and_json(repo, capsys, monkeypatch):
