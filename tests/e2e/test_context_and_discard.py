@@ -55,11 +55,61 @@ def test_the_plan_marks_the_context_file_as_context_and_forbids_changing_it(repo
     assert "source.txt" not in raw["acceptance"][0]["cmd"] and "my page.html" in raw["acceptance"][0]["cmd"]
 
 
-def test_a_context_path_outside_the_project_is_dropped_not_an_error(repo, tmp_path, monkeypatch):
+def test_context_paths_keeps_only_the_files_inside_the_project(repo, tmp_path, monkeypatch):
     import argparse
     monkeypatch.chdir(repo)
     a = argparse.Namespace(context=[str(tmp_path / "elsewhere.txt"), "site/source.txt"])
     assert cli._context_paths(a, repo) == ["site/source.txt"]
+
+
+# A --context file outside the project used to be dropped without a word: the child works in a copy of the project and could not open it, so
+# it answered "the file is missing from my worktree" (two failed runs in the website session, 2026-11-14). Now its text travels in the brief.
+def test_a_context_file_outside_the_project_travels_as_text(repo, tmp_path, monkeypatch):
+    import argparse
+    monkeypatch.chdir(repo)
+    snippet = tmp_path / "snippet.txt"
+    snippet.write_text("    line one\n    line two\n", encoding="utf8")
+    a = argparse.Namespace(context=[str(snippet), "site/source.txt"])
+    assert cli._context_outside(a, repo) == [("snippet.txt", "    line one\n    line two\n")]
+    raw = {"brief": "do the thing", "allowed_paths": ["a.html"], "context_files": []}
+    agent.apply_context(raw, ["site/source.txt"], cli._context_outside(a, repo))
+    assert "    line one\n    line two" in raw["brief"] and "--- snippet.txt ---" in raw["brief"] and "NOT files in the project" in raw["brief"]
+    assert raw["context_files"] == ["site/source.txt"]                      # the one inside the project is still just read
+
+
+def test_a_context_file_outside_the_project_that_cannot_be_used_is_an_error_not_a_silent_drop(repo, tmp_path, monkeypatch):
+    import argparse
+
+    import pytest
+    monkeypatch.chdir(repo)
+    with pytest.raises(ValueError, match="does not exist"):
+        cli._context_outside(argparse.Namespace(context=[str(tmp_path / "gone.txt")]), repo)
+    big = tmp_path / "big.txt"
+    big.write_text("x" * (agent.CONTEXT_EMBED_MAX + 1), encoding="utf8")
+    with pytest.raises(ValueError, match="cannot open paths outside"):
+        cli._context_outside(argparse.Namespace(context=[str(big)]), repo)
+    blob = tmp_path / "blob.bin"
+    blob.write_bytes(b"\xff\xfe\x00\x80")
+    with pytest.raises(ValueError, match="not readable text"):
+        cli._context_outside(argparse.Namespace(context=[str(blob)]), repo)
+
+
+def test_a_run_with_an_outside_context_file_puts_its_text_in_the_childs_brief(repo, tmp_path, capsys, monkeypatch):
+    web = site(repo)
+    write_config(repo, "edit_page")
+    snippet = tmp_path / "snippet.txt"
+    snippet.write_text("UNIQUE-REFERENCE-TEXT\n", encoding="utf8")
+    out = say(capsys, monkeypatch, repo, 'In "my page.html" replace [placeholder] with the reference text. Change nothing else.', "--context", str(snippet))
+    assert "status: passed" in out, out
+    spec = json.loads(next((repo / ".gruntly" / "runs").glob("r_*/spec.json")).read_text(encoding="utf8"))
+    assert "UNIQUE-REFERENCE-TEXT" in spec["brief"] and web.joinpath("source.txt").read_text() == "hello\n"
+
+
+def test_an_unusable_outside_context_file_stops_the_call_with_a_clear_block(repo, tmp_path, capsys, monkeypatch):
+    site(repo)
+    write_config(repo, "edit_page")
+    out = say(capsys, monkeypatch, repo, REQUEST, "--context", str(tmp_path / "gone.txt"))
+    assert "status: error" in out and "does not exist" in out and not (repo / ".gruntly" / "runs").exists()
 
 
 def test_a_discarded_run_leaves_one_line_of_evidence_behind(run_task, make_spec, capsys, monkeypatch):

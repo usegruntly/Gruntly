@@ -56,6 +56,15 @@ HINT_RULES = [
 ]
 MAX_HINTS = 4
 
+# A request that only swaps text ("replace every X with Y", a rename): the conventions above (empty input, sizes) are noise there, and a brief that
+# asks for new tests contradicts the request. Seen 2026-11-14: a rename in two helper scripts came back with a 201-line test file nobody asked for,
+# because gruntly's own brief told the child to add one. "Change nothing else" alone is not enough to count: it limits scope, not behaviour.
+MECHANICAL = re.compile(r"\b(replace (?:every|each|all|only)\b|renam(?:e|ed|ing)\b|swap\b|find and replace)", re.I)
+
+
+def is_mechanical(request: str) -> bool:
+    return bool(MECHANICAL.search(request))
+
 
 def settings(root: Path) -> dict:
     """The `[do]` table of .gruntly.toml: diff (show the applied diff to the caller), hints (add the conventions)."""
@@ -97,6 +106,8 @@ def contract_and_shape(root: Path, targets: list[str], names: list[str]) -> tupl
 
 
 def hints_for(request: str, decorator_shape: bool) -> list[str]:
+    if is_mechanical(request):
+        return []
     out = []
     low = request.lower()
     for pattern, text in HINT_RULES:
@@ -278,11 +289,69 @@ def _tail(text: str, n: int = 10) -> str:
     return "\n".join(text.strip().splitlines()[-n:])[:1200]
 
 
+LONG_LINE, LINE_CONTEXT = 300, 60       # a changed line longer than this is shown as its changed part plus this much around it
+
+
+def _clip_pair(old: str, new: str) -> tuple[str, str]:
+    """Two versions of one long line, each cut down to the part that differs and LINE_CONTEXT characters around it."""
+    m = min(len(old), len(new))
+    p = 0
+    while p < m and old[p] == new[p]:
+        p += 1
+    s = 0
+    while s < m - p and old[len(old) - 1 - s] == new[len(new) - 1 - s]:
+        s += 1
+    lo = max(0, p - LINE_CONTEXT)
+
+    def cut(t: str) -> str:
+        hi = min(len(t), len(t) - s + LINE_CONTEXT)
+        return ("..." if lo > 0 else "") + t[lo:hi] + ("..." if hi < len(t) else "")
+    return cut(old), cut(new)
+
+
+def _clip_long_lines(keep: list[str]) -> tuple[list[str], bool]:
+    """Pages and bundles have lines of tens of thousands of characters: cut at a character budget, the first changed line used it all and the
+    real change never showed (website session, 2026-11-14: four runs came back 'diff truncated' with the edit not in the block)."""
+    out, clipped, i = [], False, 0
+    while i < len(keep):
+        if not keep[i].startswith("-"):
+            ln = keep[i]
+            if len(ln) > LONG_LINE and ln[:1] in "+-":
+                ln, clipped = ln[: LINE_CONTEXT * 2] + f"... ({len(keep[i]) - 1} characters)", True
+            out.append(ln)
+            i += 1
+            continue
+        j = i
+        while j < len(keep) and keep[j].startswith("-"):
+            j += 1
+        k = j
+        while k < len(keep) and keep[k].startswith("+"):
+            k += 1
+        olds, news = keep[i:j], keep[j:k]
+        for n in range(max(len(olds), len(news))):
+            o = olds[n][1:] if n < len(olds) else None
+            w = news[n][1:] if n < len(news) else None
+            if o is not None and w is not None and max(len(o), len(w)) > LONG_LINE:
+                o, w, clipped = *_clip_pair(o, w), True
+            elif o is not None and len(o) > LONG_LINE:
+                o, clipped = o[: LINE_CONTEXT * 2] + f"... ({len(o)} characters)", True
+            elif w is not None and len(w) > LONG_LINE:
+                w, clipped = w[: LINE_CONTEXT * 2] + f"... ({len(w)} characters)", True
+            if o is not None:
+                out.append("-" + o)
+            if w is not None:
+                out.append("+" + w)
+        i = k
+    return out, clipped
+
+
 def trim_patch(patch: str, max_lines: int, max_chars: int, where: str) -> str:
     keep = [ln for ln in patch.splitlines() if not ln.startswith(("index ", "--- ", "+++ ", "new file mode", "deleted file mode"))]
+    keep, clipped = _clip_long_lines(keep)
     shown = "\n".join(keep[:max_lines])[:max_chars]
     more = len(keep) - len(shown.splitlines())
-    return shown + (f"\n... ({more} more lines in {where})" if more > 0 else "")
+    note = f"\n(lines over {LONG_LINE} characters are cut to the part that changed; the whole line is in {where})" if clipped else ""
+    return shown + note + (f"\n... ({more} more lines in {where})" if more > 0 else "")
 
 
 def render(result: dict | None, p: Plan | None, refusal: Refusal | None = None, error: str | None = None,

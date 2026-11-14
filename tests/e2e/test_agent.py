@@ -5,6 +5,7 @@ import sys
 import pytest
 
 from gruntly import agent, cli
+from tests.conftest import sh
 from tests.e2e.test_do import write_config  # noqa: F401  (same fake child setup)
 
 
@@ -274,6 +275,13 @@ def test_a_holdout_on_stdin_is_written_run_after_the_child_and_never_in_the_diff
     assert "status: passed" in out and "holdout: pass (holdout_calc.py" in out and "UNPROVEN" not in out
     assert (proj / "holdout_calc.py").read_text() == HOLDOUT_TEST                  # kept, untracked, for the parent to keep or delete
     assert "holdout_calc.py" not in out.split("files:")[1].splitlines()[0]         # never part of what the child changed
+
+
+def test_a_holdout_in_the_ignored_gruntly_folder_works_and_never_shows_in_git_status(proj, capsys, monkeypatch):
+    out = holdout_run(capsys, monkeypatch, proj, HOLDOUT_TEST, "--holdout", ".gruntly/holdouts/holdout_calc.py", "fix add() so test_calc passes")
+    assert "status: passed" in out and "holdout: pass (.gruntly/holdouts/holdout_calc.py" in out and "UNPROVEN" not in out
+    assert (proj / ".gruntly" / "holdouts" / "holdout_calc.py").read_text() == HOLDOUT_TEST
+    assert "holdouts" not in sh(proj, "git", "status", "--short").stdout                  # nothing for the parent to clean up or commit by mistake
 
 
 def test_a_child_that_passes_the_visible_test_but_fails_the_holdout_is_not_a_pass(proj, capsys, monkeypatch):

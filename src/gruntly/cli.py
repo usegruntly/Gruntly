@@ -208,7 +208,7 @@ def _holdout(a, root: Path, request_in_args: bool) -> dict | None:
 
 
 def _context_paths(a, root: Path) -> list[str]:
-    """The --context files as paths relative to the project. One outside the project is dropped: the child can read it by its absolute path."""
+    """The --context files that are inside the project, as paths relative to it. Files outside it travel as text: see _context_outside."""
     out: list[str] = []
     for p in getattr(a, "context", None) or []:
         f = Path(p)
@@ -218,6 +218,35 @@ def _context_paths(a, root: Path) -> list[str]:
         except ValueError:
             continue
     return list(dict.fromkeys(out))
+
+
+def _context_outside(a, root: Path) -> list[tuple[str, str]]:
+    """The --context files that are NOT in the project, as (name, text). The child cannot open a path outside its copy of the project, so
+    a small one travels in the brief (agent.context_block); a missing or large one is an error, never a silent drop (the old behaviour
+    made two runs fail on 2026-11-14 with the child saying the file did not exist)."""
+    from . import agent
+    out: list[tuple[str, str]] = []
+    base = Path(root).resolve()
+    for p in getattr(a, "context", None) or []:
+        f = Path(p)
+        f = (f if f.is_absolute() else Path.cwd() / f).resolve()
+        try:
+            f.relative_to(base)
+            continue                                     # inside the project: handled by _context_paths
+        except ValueError:
+            pass
+        if not f.is_file():
+            raise ValueError(f"--context file {p!r} does not exist")
+        try:
+            text = f.read_text(encoding="utf8")
+        except (OSError, UnicodeDecodeError) as e:
+            raise ValueError(f"--context file {p!r} is outside the project and is not readable text ({type(e).__name__})") from None
+        if len(text) > agent.CONTEXT_EMBED_MAX:
+            raise ValueError(f"--context file {p!r} is outside the project and has {len(text)} characters (more than "
+                             f"{agent.CONTEXT_EMBED_MAX}): the child cannot open paths outside its copy of the project. Put the file inside "
+                             f"the project (untracked is fine), or cut it down")
+        out.append((f.name, text))
+    return out
 
 
 def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = None, apply_on_pass: bool = True,
@@ -230,13 +259,15 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
     ho = getattr(a, "_holdout", None)
     ctx = _context_paths(a, root)
     try:
+        outside = _context_outside(a, root)
+        guide = request + agent.context_block(outside)       # a follow-up carries the reference text in its guidance
         if cont:
             st = store.Store.existing(root, cont)
             if (root / ".gruntly" / "worktrees" / cont).is_dir():
                 sj = st.read_json("spec.json")
                 st.write_json("spec.json", {**sj, **({"holdout": ho} if ho else {}),
                                             "allowed_paths": agent.widen_scope(sj.get("allowed_paths") or ["**"], request, root)})
-                st.write_json("continue.json", {"guidance": request, "attempts": a.attempts})
+                st.write_json("continue.json", {"guidance": guide, "attempts": a.attempts})
                 (st.dir / "result.json").unlink(missing_ok=True)
                 st.set_state("queued")
                 _spawn_worker(root, cont)
@@ -248,7 +279,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
                 raw = {k: old[k] for k in ("allowed_paths", "context_files", "acceptance", "tests_writable") if k in old}
                 head = old["brief"].rsplit("\n\nMake the failing tests pass", 1)[0]
                 raw.update(brief=head + "\n\nThe code already contains a first attempt that passes the tests. Change it as "
-                           "follows, and keep the tests passing:\n" + request, apply_on_pass=True, max_attempts=2, followup=True)
+                           "follows, and keep the tests passing:\n" + guide, apply_on_pass=True, max_attempts=2, followup=True)
                 held = ho or old.get("holdout")
                 if held and all((root / f).is_file() for f in held["files"]):
                     raw["holdout"] = held
@@ -262,7 +293,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
         elif getattr(a, "explore", False):
             p, raw = agent.explore_plan(request, root, getattr(a, "check", None))
             out["p"] = p
-            agent.apply_context(raw, ctx)
+            agent.apply_context(raw, ctx, outside)
             raw["apply_on_pass"] = apply_on_pass
             if ho:
                 raw["holdout"] = ho
@@ -286,7 +317,7 @@ def _agent_one(root: Path, request: str, a, budget_s: int, cont: str | None = No
             if raw is not None:
                 out["p"] = p
                 agent.open_scope(raw, request)
-                agent.apply_context(raw, ctx)
+                agent.apply_context(raw, ctx, outside)
                 raw["apply_on_pass"] = apply_on_pass
                 if ho:
                     raw["holdout"] = ho
@@ -488,6 +519,7 @@ def cmd_agent_run(a) -> int:
             print(agent.block(None, None, refusal=do.Refusal(off)))
             return 0
         a._holdout = _holdout(a, root, bool(a.request and a.request != ["-"]))
+        _context_outside(a, root)                 # a context file that cannot be used stops the call here, before any run starts
         if getattr(a, "supervised", False) and not a.cont:
             from . import supervise
             sid = supervise.new_id()

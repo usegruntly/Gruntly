@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from gruntly import cli, do
+from gruntly import agent, cli, do
 
 FAKE = str(Path(__file__).parents[1] / "fake_child" / "fake_child.py")
 
@@ -193,6 +193,47 @@ def test_a_long_diff_is_capped_and_points_at_the_full_patch():
     patch = "diff --git a/a.py b/a.py\n" + "\n".join(f"+line {i}" for i in range(300))
     out = do.trim_patch(patch, 60, 2400, ".gruntly/runs/r_1/apply.patch")
     assert len(out.splitlines()) <= 62 and "more lines in .gruntly/runs/r_1/apply.patch" in out
+
+
+def test_a_long_changed_line_shows_what_changed_not_its_first_3600_characters():
+    head, tail = "<p>" + "a" * 20000, "b" * 20000 + "</p>"
+    patch = ("diff --git a/p.html b/p.html\n@@ -1,3 +1,3 @@\n context line\n-" + head + "OLD WORDS" + tail + "\n+" + head + "NEW WORDS" + tail
+             + "\n-" + "x" * 5000 + "\n+" + "x" * 2500 + "y" + "x" * 2499 + "\n tail context\n")
+    out = do.trim_patch(patch, 80, 3600, ".gruntly/runs/r_1/apply.patch")
+    assert "OLD WORDS" in out and "NEW WORDS" in out and "more lines" not in out and len(out) < 1500
+    assert "tail context" in out and "are cut to the part that changed" in out
+    assert all(len(ln) < 400 for ln in out.splitlines())
+
+
+def test_a_short_diff_is_shown_exactly_as_before():
+    patch = "diff --git a/a.py b/a.py\n@@ -1,2 +1,2 @@\n-x = 1\n+x = 2\n keep\n"
+    out = do.trim_patch(patch, 60, 2400, "w")
+    assert out == "diff --git a/a.py b/a.py\n@@ -1,2 +1,2 @@\n-x = 1\n+x = 2\n keep"
+
+
+def test_a_text_substitution_gets_neither_conventions_nor_a_request_for_new_tests(proj):
+    swap = 'In calc.py replace every occurrence of the text "add" with "plus". Change nothing else.'
+    assert do.is_mechanical(swap) and do.is_mechanical("rename the helper in calc.py to total")
+    assert not do.is_mechanical("make parse() raise ValueError on empty input. Change nothing else in the file.")
+    assert do.hints_for(swap, False) == [] and do.hints_for("fix the window size limit", False)
+    (proj / "test_calc.py").unlink()
+    sh(proj, "git", "add", "-A")
+    sh(proj, "git", "commit", "-qm", "no tests")
+    refusal = do.Refusal("no test found that covers calc.py. Write a failing test first, or use a spec file.")
+    plan, raw = agent.loose_plan(swap, proj, refusal)
+    assert "Add tests" not in raw["brief"] and "Conventions to follow" not in raw["brief"] and "Do not create any new file" in raw["brief"]
+    assert raw["allowed_paths"] == ["calc.py"]
+    plan, raw = agent.loose_plan("fix add() in calc.py so it handles empty input", proj, refusal)       # new behaviour: unchanged
+    assert "Add tests" in raw["brief"] and any("test_gruntly_calc.py" in p for p in raw["allowed_paths"])
+
+
+def test_the_version_is_the_checkouts_not_the_one_frozen_at_install_time():
+    import tomllib
+    from pathlib import Path
+
+    import gruntly
+    meta = tomllib.loads((Path(gruntly.__file__).resolve().parents[2] / "pyproject.toml").read_text(encoding="utf8"))["project"]
+    assert gruntly._checkout_version() == meta["version"] == gruntly.__version__
 
 
 # ---- B: a more defined brief, built by code, at no cost to the caller

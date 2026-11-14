@@ -50,3 +50,12 @@ def test_the_skill_teaches_the_parent_the_rule_and_the_flags_it_could_not_learn_
     assert "~8+ turns" in front                                    # always loaded: it changes every decision to delegate
     for needle in ("--context PATH", "may read it, not change it", "replaces an existing untracked file", "ONE run", "gruntly guide"):
         assert needle in body, needle
+
+
+def test_the_skill_does_not_pull_against_mode_on_and_keeps_holdouts_out_of_the_project():
+    """Website session, 2026-11-14: the project was in mode ON but the skill said a one-line edit is cheaper by hand, so the big agent skipped gruntly twice."""
+    text = (PLUGIN / "skills" / "gruntly" / "SKILL.md").read_text(encoding="utf8").replace("\r\n", "\n")
+    front, body = text.split("\n---\n", 1)
+    assert "in mode on, every eligible change" in front and "in auto mode a one-line edit" in body
+    assert "ON: delegate every eligible change without asking, small ones too" in body
+    assert ".gruntly/holdouts/x.py" in body and "holdout_x.py" not in body and "outside the project works too" in body

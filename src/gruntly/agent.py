@@ -67,8 +67,26 @@ def named_files(request: str, files: list[str]) -> list[str]:
     return list(dict.fromkeys(hits))
 
 
-def apply_context(raw: dict, ctx: list[str]) -> None:
-    """Files named with --context: the child is told to read them, and the scope gate refuses any change to them."""
+CONTEXT_EMBED_MAX = 8000       # characters of a --context file from outside the project that go into the brief
+
+
+def context_block(outside: list[tuple[str, str]] | None) -> str:
+    """Text of --context files that are not in the project. The child works in a copy of the project and cannot read a path outside it
+    (2026-11-14: it answered 'the file is missing from my worktree' twice), so the text itself goes into its instructions."""
+    if not outside:
+        return ""
+    parts = ["\n\nReference text from the caller. These are NOT files in the project: read them here, create no file for them, change nothing because of them "
+             "except as the request says:"]
+    for name, text in outside:
+        parts.append(f"--- {name} ---\n{text.rstrip()}\n--- end of {name} ---")
+    return "\n".join(parts)
+
+
+def apply_context(raw: dict, ctx: list[str], outside: list[tuple[str, str]] | None = None) -> None:
+    """Files named with --context: the child is told to read them, and the scope gate refuses any change to them.
+    `outside` is the text of context files that live outside the project (see context_block)."""
+    if outside:
+        raw["brief"] = raw["brief"] + context_block(outside)
     if not ctx:
         return
     raw["context_files"] = list(dict.fromkeys([*(raw.get("context_files") or []), *ctx]))
@@ -124,13 +142,18 @@ def loose_plan(request: str, root: Path, refusal: "do.Refusal", context: list[st
     raw = do.spec_for(request, plan, root)
     tdir = (tests[0].rsplit("/", 1)[0] + "/") if tests and "/" in tests[0] else ""
     new_test = f"{tdir}test_gruntly_{Path(targets[0]).stem}.py"
+    mechanical = do.is_mechanical(request)
     if broad or refusal.reason.startswith("the tests already pass"):
         tail = "The existing tests pass today and must still pass when you are done; no new test is needed."
+    elif mechanical:
+        tail = ("This is a text substitution and the check only compiles the files. Do not create any new file (no test either) and change "
+                "only the text that was asked.")
     else:
         tail = (f"No test covers this yet. Add tests for the new behaviour in {new_test} (empty input, invalid arguments, "
                 "unchanged behaviour of the rest), and keep the whole existing suite passing.")
     raw["brief"] = raw["brief"].replace("Make the failing tests pass.", tail)
-    raw["allowed_paths"] = list(raw["allowed_paths"]) + [new_test]
+    if not mechanical:
+        raw["allowed_paths"] = list(raw["allowed_paths"]) + [new_test]
     if broad:
         raw["allowed_paths"] = ["*.py", "**/*.py"]
         raw["brief"] = raw["brief"].replace("Change only: " + ", ".join(targets) + ".", "Any .py file in the repo may change.")
