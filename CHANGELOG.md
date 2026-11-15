@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **New headline: "Pay small agent prices for big agent work."** (was "Pay big agent prices only for big agent work."). Changed in the README header, `docs/brand/README.md` and the social preview (`svg/social-preview.svg` and the rendered `github/social-preview-1280x640.png`; the line is 3 characters shorter, so the SVG text width went from 918 to 857). The GitHub repository social preview is set in the repository settings, so upload the new PNG there by hand.
 - Found by reading the website session's next log (2026-11-14 to 15, about 30 runs):
   - **A request that says "Do NOT modify any file" (screenshots, measurements) ran as a change.** It named `index.html`, so it was scoped to that page, told "Change only: index.html" and checked for a changed page: four runs "failed" by design ("narrated work", "stuck: gate acceptance", "escalate"), and in one the child asked the person which of two contradictory orders to follow. Such a request now runs like `--ask` (nothing is edited, no check wants a changed file) and the block says so. Only a ban that covers every file counts ("do not modify any file.", "... in the repo", "read-only task"); "any other file", "any file except X" and "any code in the tests" stay changes.
   - **A research run could be stopped "no edit after 420s" in the middle of its work** (a pixel measurement of 19 tool calls, answer lost). A question makes no edit to wait for, so the first-edit and stall limits no longer apply to it; its time budget still does.

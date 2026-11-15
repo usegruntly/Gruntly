@@ -4,7 +4,7 @@
     <img alt="gruntly" src="docs/brand/svg/horizontal-color.svg" height="64">
   </picture>
 </p>
-<p align="center"><b>Pay big agent prices only for big agent work.</b></p>
+<p align="center"><b>Pay small agent prices for big agent work.</b></p>
 <p align="center">open-source · spend your limits on the work that matters</p>
 
 gruntly lets one big agent get its work done with a few small ones, and checks what they hand back before the big agent takes it.

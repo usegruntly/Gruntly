@@ -2,7 +2,7 @@
 
 Logo: **one big agent, a few small ones.** A charcoal terminal-prompt head (the paid agent) with three small orange heads (the smaller models doing the grunt work).
 
-Tagline: **Hand the grunt work to small models.** Headline (README header and social preview): **Pay big agent prices only for big agent work.**
+Tagline: **Hand the grunt work to small models.** Headline (README header and social preview): **Pay small agent prices for big agent work.**
 
 Everything here is final. Use the files as they are. Do not redraw, recolour, retype or add effects (no gradients, glows, shadows, outlines).
 
@@ -81,7 +81,7 @@ Terminal (truecolor): orange `\x1b[38;2;255;106;19m`, cream `\x1b[38;2;244;241;2
 ## Notes
 
 - `svg/social-preview.svg` uses live `<text>`, so it depends on installed monospace fonts. Use the PNG for uploads.
-- The social preview (`github/social-preview-1280x640.png`, source `svg/social-preview.svg`) carries two lines, the maintainer's choice: the big one, **"Pay big agent prices only for big agent work."**, and the small grey one, "open-source · spend your limits on the work that matters". The README header shows the same two lines. The tagline in `brand.json` and in the package, plugin and CLI descriptions stays "Hand the grunt work to small models.", because those say what gruntly does. The numbers behind the image's lines, with where they hold and where they do not, are in `docs/where-delegation-wins.md`.
+- The social preview (`github/social-preview-1280x640.png`, source `svg/social-preview.svg`) carries two lines, the maintainer's choice: the big one, **"Pay small agent prices for big agent work."**, and the small grey one, "open-source · spend your limits on the work that matters". The README header shows the same two lines. The tagline in `brand.json` and in the package, plugin and CLI descriptions stays "Hand the grunt work to small models.", because those say what gruntly does. The numbers behind the image's lines, with where they hold and where they do not, are in `docs/where-delegation-wins.md`.
 - This folder is the kit without the site design reference (`reference/gruntly-site.html`) and the terminal demo page (`demo/terminal-demo.html`): both are website material and live with the website. Keep the full kit wherever the design files live.
 - The SVGs are clean (no metadata, no external references, no fonts) and safe to inline.
 - Logo source: concept 29 in the logo explorations.
