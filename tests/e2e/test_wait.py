@@ -83,18 +83,3 @@ def test_skill_and_guide_forbid_backgrounding():
     guide = (root / "src" / "gruntly" / "GUIDE.md").read_text(encoding="utf8")
     assert "run_in_background" in guide and "gruntly wait" in guide
     assert "run_in_background" not in cli.SNIPPET.replace("never run_in_background", "")
-
-
-def test_bench_counts_session_splits_and_background_calls():
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("run_bench", Path(__file__).parents[2] / "bench" / "run_bench.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    lines = [
-        {"type": "system", "subtype": "init"},
-        {"type": "assistant", "message": {"usage": {}, "content": [{"type": "tool_use", "name": "Bash", "input": {"run_in_background": True}}]}},
-        {"type": "system", "subtype": "init"},
-        {"type": "result", "total_cost_usd": 0.1, "num_turns": 2, "usage": {}},
-    ]
-    out = m.analyse("\n".join(json.dumps(x) for x in lines))
-    assert out["sessions"] == 2 and out["background_calls"] == 1

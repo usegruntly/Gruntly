@@ -65,4 +65,4 @@ The same harnesses can do the edit instead of directing it. Codex (through the R
 
 ## Benchmarking any combination
 
-`bench/run_matrix.py` runs a parent harness x child harness x provider grid from a TOML file of cells, with one results store (`results.jsonl`, with the raw material kept beside it) and one report. It does nothing unless you pass `--run`, a cell that costs money needs `--yes-paid` and a stated `--max-usd`, and a price that is unknown is reported as unknown, never as zero. Start with `python bench/run_matrix.py --cells bench/cells.example.toml --tasks slugify` (a dry run).
+`bench/run_matrix.py` ran a parent harness x child harness x provider grid from a TOML file of cells, with a dry run by default, `--yes-paid` and a stated `--max-usd` for a cell that costs money, and a price that is unknown reported as unknown, never as zero. It was removed from the tree on 2026-11-15 (it is at commit `91a53ae`); the public benchmark harness that replaces `bench/` will cover this.

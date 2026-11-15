@@ -1,7 +1,0 @@
-UnprocessedParamType: text
-StringParamType: text
-Choice: choice
-DateTime: datetime
-BoolParamType: boolean
-UUIDParameterType: uuid
-File: filename

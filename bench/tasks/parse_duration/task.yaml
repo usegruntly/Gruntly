@@ -1,7 +1,0 @@
-brief: Implement parse_duration(s) in durations.py returning seconds for strings like
-  '1h30m15s', '45s', '2h', '90m'. Raise ValueError for anything else (empty, unknown
-  unit, no digits).
-allowed_paths:
-- durations.py
-acceptance:
-- cmd: python -m pytest -q test_durations.py

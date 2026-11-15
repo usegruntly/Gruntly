@@ -200,22 +200,6 @@ def test_an_unpriced_hosted_child_is_marked_unknown_and_keeps_its_tokens(cfg):
     assert accounting.finalize_child_usage(FakeStore(), "groq", "no-price", Usage().to_dict()).get("cost_unknown") is None      # no requests: nothing unknown
 
 
-def test_the_benchmark_report_names_the_runs_whose_child_price_is_unknown():
-    import importlib.util
-    import sys
-    from pathlib import Path
-    bench = Path(__file__).parents[2] / "bench"
-    sys.path.insert(0, str(bench))
-    spec = importlib.util.spec_from_file_location("rb_acct", bench / "run_bench.py")
-    rb = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(rb)
-    row = {"task": "t1", "bucket": "S", "arm": "forced", "rep": 1, "passed": True, "cost_usd": 0.05, "child_cost_usd": 0.0, "reviewer_cost_usd": 0, "turns": 2,
-           "wall_s": 30, "tokens": {"output": 100}, "tool_output_bytes": 100, "gruntly_status": ["passed"], "gruntly_applied": [True], "gruntly_attempts": [1],
-           "child_tokens": 100, "child_cost_unknown": 1, "takeover_edits": 0, "sessions": 1}
-    text = rb.report([row], {"harness": "opencode", "model": "m", "parent_model": "sonnet"})
-    assert "Child price unknown: 1 run(s)" in text and "t1/forced#1" in text and "lower bounds" in text
-
-
 def test_the_responses_api_shape_is_read_whole_and_from_a_stream_with_its_cached_and_reasoning_tokens():
     body = {"usage": {"input_tokens": 120, "output_tokens": 30, "input_tokens_details": {"cached_tokens": 100}, "output_tokens_details": {"reasoning_tokens": 8}}}
     u = parse_usage(body)

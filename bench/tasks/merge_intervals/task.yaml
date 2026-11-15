@@ -1,7 +1,0 @@
-brief: merge_intervals(intervals) in intervals.py should merge overlapping or touching
-  [start, end] pairs and return them sorted. It currently breaks on unsorted input
-  and on touching intervals. Fix it.
-allowed_paths:
-- intervals.py
-acceptance:
-- cmd: python -m pytest -q test_intervals.py

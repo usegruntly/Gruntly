@@ -1,6 +1,6 @@
 # Where delegation wins, and where it does not
 
-*Generated 2026-11-12 by `bench/gold_doc.py` from stored benchmark rows. Do not edit by hand: change the sources and regenerate.*
+*Generated 2026-11-12 by `bench/gold_doc.py` from stored benchmark rows. That script is no longer in the tree (it is at commit `91a53ae`), so this is now a fixed record of those runs.*
 
 The question: for each kind of agent work, does a dearer parent (Claude Sonnet) handing the work to a cheaper child (Claude Haiku, through gruntly) reach the parent's result for less money? Costs are API-equivalent dollars as Claude Code reports them: the parent's session plus the child's own dollars. The child is never counted as free. Claude Code versions in these runs: 2.1.322 (Claude Code).
 
@@ -230,6 +230,8 @@ Brier score 0.113 over 11 runs (always saying the overall pass rate of 91% would
 | control_rfc6455_opcodes | child alone | 1.00 | yes | 0.003 | 0.003 | 0.0000 | 1 | 7 | - | - |
 
 ## Method and reproducibility
+
+The `bench/` paths below are at commit `91a53ae` (the folder was removed from the tree on 2026-11-15; see `benchmarks/README.md`).
 
 - Tasks: `bench/tasks/` (code, with hidden tests), `bench/tasks-real/` (fix commits of public repositories) and `bench/tasks-agent/` (non-code). `bench/make_agent_tasks.py` regenerates the non-code ones deterministically; their ground truth comes from generation, the syntax tree, or immutable web pages published after the models' training.
 - Graders: `bench/graders.py`. No model judges anything. Research answers must cite a quote that occurs on the cited page.

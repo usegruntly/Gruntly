@@ -1,7 +1,0 @@
-brief: Implement rolling_mean(values, window) in rolling.py returning the mean of
-  each full window (len(values) - window + 1 results, floats). Return [] if the window
-  is larger than the list. Raise ValueError if window < 1.
-allowed_paths:
-- rolling.py
-acceptance:
-- cmd: python -m pytest -q test_rolling.py

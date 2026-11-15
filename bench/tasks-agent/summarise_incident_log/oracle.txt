@@ -1,1 +1,0 @@
-{"fatal": {"payments": "14:07:48", "inventory": "14:08:02", "auth": "14:08:15"}, "root_cause": "E4471"}

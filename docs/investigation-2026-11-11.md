@@ -65,7 +65,7 @@ about −17%, and −11% was measured.
 
 Twelve sessions with five or more turns (bench and test sessions excluded), 1,967 main-session turns, $142 at list prices.
 Caveat: 1,333 of those turns are this one gruntly development session (Sonnet, median context 328k, maximum 858k, $111); the
-Website session (Opus, 244 turns, median 130k, $14) and a Contri session (Sonnet, 215 turns, median 263k, $12) are the
+Website session (Opus, 244 turns, median 130k, $14) and a session on another project (Sonnet, 215 turns, median 263k, $12) are the
 next largest.
 
 **A turn by context size** (median of that turn's cost, including its typical new-token write):

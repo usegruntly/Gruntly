@@ -1,9 +1,0 @@
-brief: Implement parse_retry_after(value, now) in retry_after.py, following RFC 9110 section 10.2.3 (the Retry-After field) and the
-  HTTP date rules it refers to, from https://www.rfc-editor.org/rfc/rfc9110.txt. `now` is a naive datetime in UTC. Return the number
-  of seconds to wait as a float, never negative (a date already past gives 0.0). Raise ValueError for a value that is neither of the
-  field's two forms. Read the RFC for exactly which date formats a recipient must accept.
-allowed_paths:
-- retry_after.py
-acceptance:
-- cmd: python -m pytest -q test_retry_after.py
-  timeout_s: 120

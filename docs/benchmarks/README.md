@@ -1,6 +1,8 @@
 # Benchmark results
 
-Raw results of the benchmark runs, one `.md` summary and one `.json` of the rows behind it per run. Written by the scripts in `bench/`.
+Raw results of the benchmark runs, one `.md` summary and one `.json` of the rows behind it per run. Written by the scripts that were in `bench/`.
+
+**The scripts are no longer in the tree.** The `bench/` folder (scratch tooling for these early runs) was removed on 2026-11-15; a new `bench/` for public benchmarks is planned. Every `bench/...` path in this folder and in the notes under `docs/` refers to commit `91a53ae`: `git show 91a53ae:bench/run_bench.py`, or `git checkout 91a53ae` to run them.
 Runs differ in parent model, child model, settings and date, so numbers from different files are **not** comparable unless the file
 says they are. The reasoning that came out of them is in `../decisions.md` and `../lean-long-tasks.md`.
 
